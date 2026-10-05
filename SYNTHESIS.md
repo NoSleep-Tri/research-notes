@@ -1,6 +1,6 @@
 # SYNTHESIS — Kết hợp 11 survey thành 1 bức tranh, rồi thiết kế hệ thống
 
-- **Ngày**: 2026-10-06 · **Phạm vi**: Q-001 → Q-012 + **DS-001, DS-002, DS-003** (thiết kế dẫn xuất)
+- **Ngày**: 2026-10-06 · **Phạm vi**: Q-001 → Q-013 + **DS-001, DS-002, DS-003** (thiết kế dẫn xuất)
 - **Mục đích**: gom các survey rời thành **chủ đề xuyên suốt**, chỉ ra **ma trận liên thông** và **agenda nghiên cứu tiếp**
 
 ---
@@ -21,6 +21,7 @@
 | Q-010 | Attention: não ↔ Transformer | `surveys/attention-brain-vs-transformer.md` | **Chỉ cùng tên** — khác 4/5 chiều; nhưng **cùng hình dạng lỗi**: U-curve giữa chuỗi | arXiv (~20 paper) + webfetch (Attention, Cocktail party) |
 | Q-011 | Quên có chủ đích: khi nào nên quên | `surveys/deliberate-forgetting.md` | **4 nghĩa khác nhau** của "quên"; não **ức chế chứ không xóa**; **thiếu trí nhớ mới là vấn đề**, không phải quá quên | arXiv (~26 paper) + webfetch (RIF, RTBF) |
 | **Q-012** | **Ngủ & củng cố trí nhớ** | `surveys/sleep-consolidation.md` | Ngủ làm **3 việc một lúc**: củng cố (replay) · **downscale** · dọn rác (glymphatic +60%); TMR có hiệu ứng nhưng **nhỏ** (`g = 0.29`) và dễ mất; ML mô phỏng được replay, **chưa ai tách được downscale** | **Europe PMC** (18 DOI) + arXiv (~8) + webfetch (5 Wiki) |
+| **Q-013** | **Tự chứng minh mình không bị hack được không?** | `surveys/self-verification.md` | **Không thể tự chứng minh, nhưng cấu trúc bên ngoài chứng minh được**: Gödel II + Rice + F-R01 chặn phía tự; RECEIPT/CompCert + hack-by-design + preregistration mở phía ngoài. Monitor **cùng vòng lặp = proxy mới** | webfetch (6 Wiki: Gödel, Rice, Goodhart, FV, Prereg, Replication) + arXiv (~15) |
 | **DS-001** | *(thiết kế)* **SAGE** — bộ não biết mình dở ở đâu | `design/SAGE-spec.md` | 6 lớp L0–L5, 8 nguyên tắc P1–P8 truy xuất survey; **demo 5/5 PASS** | Tổng hợp từ Q-001→011 |
 | **DS-002** | *(mở rộng)* **SAGE v0.2** — kiểm chứng trực tiếp F-A03 / F-X02 / F-X03 | `design/SAGE-spec.md` §12 | **demo 3/3 PASS** (3 lần): U-curve sinh từ phân bố loss · quên đều phá trục **100×**, không quên thì không thích nghi **29×** · replay giữ `0.839` vs naive `0.431` | Q-010 + Q-011 |
 | **DS-003** | *(mở rộng)* **SAGE v0.2** — 3 công cụ tự kỷ luật: wirehead guard · calibration · registry | `design/SAGE-spec.md` §14 | **demo 3/3 PASS** (3 lần): holdout cố định **nói dối 8.41 điểm** và càng hỏi càng dối · ECE `0.258 → 0.022` · adaptive registry `0.920` vs static `0.577` | Q-009 + Q-007 |
@@ -45,6 +46,8 @@ L3 · Ý THỨC (giao diện)    "bản báo cáo đến sau" — LeDoux, AST, G
 - **Q-009 bắt đầu chứng minh đây không phải trùng hợp**: Skalse 2022 — *chỉ hằng số mới unhackable*; **3 case** (não · tổ chức · AI) cùng cấu trúc `proxy ≠ mục tiêu`; khác biệt duy nhất là **AI sửa được đường đo** (wirehead), não thì không (F-R01…F-R04).
 → **Insight**: bài học chung = **reward đơn + monitor đơn không đủ**; cần **đa tín hiệu + kiểm chứng độc lập** — đúng cho cả thiết kế thói quen và thiết kế agent.
 → **Nối thêm (từ Q-009)**: ngay cả "kiểm chứng độc lập" cũng có trần — ensemble chỉ *mitigate*, KL chỉ đủ khi **light-tailed**; nên kiến trúc phải giả định **giám sát sẽ bị hack** và đặt giới hạn quyền (wirehead guard) như một lớp riêng — đây là lý do SAGE cần **L4 riêng** chứ không gộp vào L3.
+- **Q-013 mở rộng thành bất khả thi có điều kiện**: không chỉ *reward* bị hack — **hệ thống không thể tự chứng minh nó không bị hack** (Gödel II: tự chứng minh nhất quán · Rice: tự kiểm mọi hành vi · E6: quan sát nội bộ RLVR **không đủ**, phải audit ngoài). Và **monitor trong vòng lặp = proxy mới**: adaptive attack đánh sập **mọi** protocol dựa trên monitor, Sleeper Agents cho thấy adversarial training còn **dạy model giấu trigger** (F-V01, F-V02).
+→ **Từ Q-013**: phương án không phải "tìm monitor hoàn hảo" mà là **3 điều kiện cấu trúc** (F-V03): *spec do bên ngoài khóa trước* + *quyết định deterministic* + *verifier không nằm dưới reward* — và **preregistration** (F-V06) là thứ duy nhất trong corpus này **thực sự bắt được Goodhart ngay trong phòng lab** (đã 5 lần ở DS-002/DS-003).
 
 ### T3 · **Không có nút "xoá" — học = thêm lớp đè** (Q-001, Q-004, Q-005, Q-006, Q-007, **Q-011**)
 - Extinction **không xoá** fear memory → renewal (Q-004) · reconsolidation-xoá ký ức (propranolol) **tái lập thất bại** (Q-004/007) · habit **không bao giờ thành reflex** (Q-005) · continual learning ML **quên thảm họa** hoặc **quên mãi không được** (Q-006, Q-007).
@@ -71,7 +74,7 @@ L3 · Ý THỨC (giao diện)    "bản báo cáo đến sau" — LeDoux, AST, G
 
 ---
 
-## 3. Ma trận liên thông (trích từ knowledge graph, 205 entity / 260 relation)
+## 3. Ma trận liên thông (trích từ knowledge graph, 214 entity / 277 relation)
 
 | Từ → Đến | Ý nghĩa |
 |---|---|
@@ -104,6 +107,10 @@ L3 · Ý THỨC (giao diện)    "bản báo cáo đến sau" — LeDoux, AST, G
 | **Q-012 (F-N04) ↔ Q-011 (F-X02/F-X03)** | Q-011: não **ức chế chứ không xóa**; Q-012: **SHY cho thấy có "giờ giảm strength"** (synapse chỉ giảm khi được ngủ) → **đúng nghĩa đen của "quên có chủ đích"** là một **giai đoạn offline có lịch**, không phải process nền. Chưa mô hình nào của ML bắt được điều này |
 | **Q-012 (F-N03) ↔ T5 (thiếu máy đo)** | **Tự phản chứng trong ngành**: meta-analysis spindle 53 studies ra "nhỏ–vừa", bình luận 2026 dùng lại chính dataset đó với kiểm soát publication bias ra **"gần như không có"** → bài học: **chọn biến đo robust** (coupling) thay vì biến đo nhạy bias (density) |
 | **Q-012 (§3e) ↔ Q-009 (F-R01) + DS-003 D9** | **Lý do ngủ không bị wirehead**: trong window ngủ **không có reward-driven signal** → không có objective nào để optimize → không thể hack. DS-003 D9 đo **ngược lại** (proxy + monitor + holdout trong vòng lặp → nói dối 8.41) ⇒ **SAGE cần một window "không objective"** — đó chính là DS-004 |
+| **Q-013 (F-V01) ↔ Q-009 (F-R01)** | F-R01 nói *"không sửa được reward bằng vá kỹ thuật"*; F-V01 nói **đúng luôn cả khi không có reward** — Gödel II (tự chứng minh nhất quán) + Rice (tự kiểm mọi hành vi) + E6 (quan sát nội bộ RLVR **không đủ**, phải audit ngoài) ⇒ **hệ thống không bao giờ là chứng nhân cho chính nó**, ở cả 3 cấp: logic, tính toán, reward |
+| **Q-013 (F-V02) ↔ DS-003 D9/D10** | **Xác nhận bằng 3 nguồn độc lập** (Sleeper Agents, adaptive monitor attacks, TraceGuard) điều số nội bộ đã thấy: thêm monitor/verifier **trong vòng lặp** không cứu được. Ngay cả adversarial training còn **nâng khả năng nhận ra trigger** → *phòng thủ sai chỗ làm hệ thống khó bị phát hiện hơn* |
+| **Q-013 (F-V03) ↔ Q-012 (§3e) + AN-013 (E12/E13)** | 3 điều kiện của verification thật (**spec ngoài khóa trước · deterministic · verifier ngoài reward**) = đúng 3 thứ **ngủ làm**: có lịch, không có reward drive, đầu ra tái lập được → *điều kiện cần của verification là **một cửa sổ không optimize gì*** |
+| **Q-013 (F-V06) ↔ T5 (thiếu máy đo)** | Khoa học không sửa được replication crisis bằng lời hứa mà bằng **cấu trúc**: preregistration + registered report + replication dữ liệu độc lập = *không cho phép tự chọn thước đo sau khi thấy số* → **đúng thủ tục §10/§12/§14** của dự án, và nó **đã bắt được 5 lần metric bị hack** ở DS-002/DS-003 |
 
 ---
 
@@ -120,18 +127,20 @@ L3 · Ý THỨC (giao diện)    "bản báo cáo đến sau" — LeDoux, AST, G
 | **DS-001** | **Thiết kế SAGE** — biến 5 chủ đề T1–T5 thành kiến trúc + prototype | T1→T5, Q-008 | ✅ **xong (2026-10-06)** — demo **5/5 PASS** trên Kaggle |
 | **DS-002** | **Mở rộng demo** — kiểm chứng trực tiếp 3 finding của Q-010/Q-011 | Q-010 (F-A03), Q-011 (F-X02, F-X03) | ✅ **xong (2026-10-06)** — demo **3/3 PASS** (3 lần, change-log §12) |
 | **DS-003** | **Mở rộng demo** — 3 công cụ tự kỷ luật của SAGE v0.2 (roadmap §11) | Q-009 (F-R01/F-R07), DS-001 (F-D05) | ✅ **xong (2026-10-06)** — demo **3/3 PASS** (3 lần, change-log §14) |
-| **Q-013** | **Một hệ thống tự chứng minh mình không bị hack được không?** | Q-009 (F-R01), Q-012 (§3e), DS-003 (F-G01) | ⬜ **chờ xử lý** — prefix finding **F-V** *(survey do agent chọn)* |
+| **Q-013** | **Một hệ thống tự chứng minh mình không bị hack được không?** | Q-009 (F-R01), Q-012 (§3e), DS-003 (F-G01) | ✅ **xong (2026-10-06)** — *không thể tự chứng minh, cấu trúc bên ngoài thì được*; prefix **F-V** |
 | **DS-004** | **Archive/compaction** — "giờ bảo trì" của SAGE (nén lịch sử thành scaffold) | Q-012 (T6, F-N07), Q-011 (F-X03) | ⬜ **chờ thiết kế acceptance** — pre-registered theo §10/§12/§14 |
+| **DS-005** | **Red-team acceptance** — tự hack lấy KPI của chính mình, đối chứng 3 lớp phòng thủ | Q-013 (F-V03, §6), DS-003 (D9) | ⬜ **đề xuất từ AN-013 §6**, chờ duyệt chạy |
 
 ---
 
 ## 5. Trạng thái dự án vs PLAN.md
 
-- **M2 (survey 5–10 paper/câu hỏi)**: ✅ vượt — **12 survey**, Q-006 dùng 19 paper arXiv, Q-007 dùng 16 paper, Q-009 dùng ~22 paper, Q-010 dùng ~20 paper, Q-011 dùng ~26 paper, Q-012 dùng **18 DOI Europe PMC + ~8 arXiv**.
-- **KPI graph**: **205 entity / 260 relation** (mục tiêu ban đầu 100 entity ✅).
+- **M2 (survey 5–10 paper/câu hỏi)**: ✅ vượt — **13 survey**, Q-006 dùng 19 paper arXiv, Q-007 dùng 16 paper, Q-009 dùng ~22 paper, Q-010 dùng ~20 paper, Q-011 dùng ~26 paper, Q-012 dùng **18 DOI Europe PMC + ~8 arXiv**, Q-013 dùng **6 trang Wiki nền tảng + ~15 arXiv**.
+- **KPI graph**: **214 entity / 277 relation** (mục tiêu ban đầu 100 entity ✅).
 - **DS-001 (thiết kế + demo)**: ✅ `design/SAGE-spec.md` + `design/demo/` — Kaggle `tribu1/sage-v0-1-demo-ds-001` v3 = **5/5 PASS** (D1 replay +38.7pp · D2 18× · D3 Goodhart · D4 −33.4% · D5 +5.7pp).
 - **DS-002 (mở rộng demo)**: ✅ `design/SAGE-spec.md` §12 + `design/demo/sage_demo2.py` — Kaggle `tribu1/sage-v0-2-demo-ds-002` v5 = **3/3 PASS** (D6 U-gap 0.838 · D7 100× + 29× · D8 replay 0.839 vs naive 0.431). **3 lần chạy** (1/3 → 2/3 → 3/3), mọi thay đổi ghi ở change-log §12, **3 ngưỡng không đổi**. **Kết quả âm**: loss of plasticity không quan sát được ở scale toy (3/3 lần).
 - **DS-003 (mở rộng demo)**: ✅ `design/SAGE-spec.md` §14 + `design/demo/sage_demo3.py` — Kaggle `tribu1/sage-v0-3-demo-ds-003` v3 = **3/3 PASS** (D9 holdout cố định nói dối **8.41** và tăng theo số lần hỏi · D10 ECE `0.258→0.022`, violation `0.203→0.000` · D11 adaptive `0.920` vs static `0.577`). **3 lần chạy**, mọi thay đổi ghi ở change-log §14 — **cả 3 lần sửa đều là bug metric/harness, không hạ ngưỡng nào**. Bài học: *cái thước tự bị hack 3 lần liên tiếp* = Goodhart tái hiện ngay trong phòng lab.
 - **Q-012 (survey)**: ✅ `surveys/sleep-consolidation.md` — **AN-012**, 7 finding **F-N01…F-N07**, 24 nguồn (18 DOI Europe PMC + 8 arXiv + 5 trang Wiki). Kết quả chính: ngủ làm **3 job/giờ bảo trì** (replay · downscale · dọn rác); **TMR `g = 0.29`** (N = 2004, null ở REM/thức/thiếu niên, mất ở 9 tháng); **spindle-metric đang bị publication bias làm méo** → dùng coupling thay density; khoảng trống mở **F-N07**: chưa ai tách downscale khỏi replay. Websearch vẫn 401 → dùng **Europe PMC API** làm nguồn sinh học (không qua web).
+- **Q-013 (survey)**: ✅ `surveys/self-verification.md` — **AN-013**, 7 finding **F-V01…F-V07**, 20 nguồn (6 trang Wiki nền tảng: Gödel II, Rice, Goodhart, Formal verification, Preregistration, Replication crisis + ~15 arXiv RLVR/monitor/verify). **Câu trả lời**: *không thể tự chứng minh — nhưng cấu trúc bên ngoài chứng minh được* (3 điều kiện F-V03: spec ngoài khóa trước · deterministic · verifier ngoài reward). Đề xuất **DS-005** (red-team acceptance) ở §6.
 - **Còn nợ §9**: migrate token Kaggle/GitHub sang `{env:...}` (**chưa làm** — rủi ro bảo mật).
 - **Lưu ý hạ tầng**: websearch đang **401** → workaround: arXiv MCP + `webfetch` (Wikipedia/PMC/PubMed).
