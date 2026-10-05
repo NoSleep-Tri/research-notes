@@ -2,7 +2,7 @@
 
 Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có **evidence + confidence**, rồi **thiết kế hệ thống** và **kiểm chứng bằng demo trên Kaggle**.
 
-**Trạng thái**: 11 survey (Q-001 → Q-011) · 189 entity / 231 relation knowledge graph · 2 hệ thống thiết kế, demo **5/5** và **3/3 PASS**.
+**Trạng thái**: 11 survey (Q-001 → Q-011) · 194 entity / 242 relation knowledge graph · 3 hệ thống thiết kế, demo **5/5**, **3/3**, **3/3 PASS**.
 
 ## Chỉ mục
 
@@ -25,15 +25,16 @@ Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có *
 ### Tổng hợp & thiết kế
 
 - [SYNTHESIS.md](SYNTHESIS.md) — 11 survey → 5 chủ đề xuyên suốt + ma trận liên thông
-- [design/SAGE-spec.md](design/SAGE-spec.md) — **SAGE**: 6 lớp L0–L5, 8 nguyên tắc P1–P8, demo **5/5 PASS** (DS-001) + **3/3 PASS** (DS-002 D6–D8)
+- [design/SAGE-spec.md](design/SAGE-spec.md) — **SAGE**: 6 lớp L0–L5, 8 nguyên tắc P1–P8 truy xuất survey; demo **5/5 PASS** (DS-001) + **3/3** (DS-002) + **3/3** (DS-003)
 - [backlog.md](backlog.md) · [questions/](questions/) · [templates/](templates/)
 
 ### Demo (Kaggle, CPU, pre-registered acceptance)
 
-| Design | Kernel | KPI |
-|---|---|---|
-| DS-001 | `tribu1/sage-v0-1-demo-ds-001` | **5/5 PASS** — replay +38.7pp · gating 18× · Goodhart · 2-tier −33.4% · scaffold +5.7pp |
-| DS-002 | `tribu1/sage-v0-2-demo-ds-002` | **3/3 PASS** — U-gap 0.838 · quên đều phá trục 100× · replay giữ 0.839 vs naive 0.431 |
+| Design | Kernel | KPI | Thay đổi qua các lần chạy |
+|---|---|---|---|
+| DS-001 | `tribu1/sage-v0-1-demo-ds-001` | **5/5 PASS** — replay +38.7pp · gating 18× · Goodhart · 2-tier −33.4% · scaffold +5.7pp | v1→v3: sửa chart (số liệu không đổi) |
+| DS-002 | `tribu1/sage-v0-2-demo-ds-002` | **3/3 PASS** — U-gap 0.838 · quên đều phá trục 100× · replay giữ 0.839 vs naive 0.431 | 3 lần (1/3 → 2/3 → 3/3): 2 bug harness + 1 bộ task không kiểm chứng được; **ngưỡng không đổi** |
+| DS-003 | `tribu1/sage-v0-3-demo-ds-003` | **3/3 PASS** — holdout cố định nói dối **8.41** điểm · ECE 0.258→0.022 · adaptive 0.920 vs static 0.577 | 3 lần (2/3 → 2/3 → 3/3): **metric tự thoái hóa 2 lần** + 1 bug bandit; **ngưỡng không đổi** |
 
-Code: [design/demo/sage_demo.py](design/demo/sage_demo.py), [design/demo/sage_demo2.py](design/demo/sage_demo2.py).
-Mọi thay đổi ngưỡng acceptance đều ghi ở **change-log** trong spec — không sửa ngưỡng để chạm KPI.
+Code: [design/demo/sage_demo.py](design/demo/sage_demo.py), [design/demo/sage_demo2.py](design/demo/sage_demo2.py), [design/demo/sage_demo3.py](design/demo/sage_demo3.py).
+Mọi thay đổi ngưỡng/metric acceptance đều ghi ở **change-log** trong spec (§10, §12, §14) kèm số liệu thật — không sửa ngưỡng để chạm KPI.
