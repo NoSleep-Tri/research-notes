@@ -219,8 +219,10 @@ Bảng gồm: *(lỗi · điều kiện kích hoạt · bài test phát hiện �
 
 ## 11. Lộ trình
 
-- **v0.1** (nay): spec + demo 5 module → ✅ nếu §10 đạt
-- **v0.2**: registry adaptive (học lỗi mới từ red-team) · confidence hiệu chuẩn trên dữ liệu thật · archive/compaction · **wirehead guard** (mới, từ [AN-009](../surveys/reward-hacking.md))
+- **v0.1** (nay): spec + demo 5 module → ✅ 5/5 PASS
+- **v0.2**: registry adaptive ✅ · confidence hiệu chuẩn ✅ · archive/compaction ⬜ · **wirehead guard** ✅ — 3/4 đã kiểm chứng qua **DS-003** (§14, `3/3 PASS`)
+  - *Còn lại*: **archive/compaction** (nén lịch sử thành scaffold) → nếu làm, đặt tên **DS-004** với acceptance pre-registered như §10/§12/§14
+  - *Điều kiện từ DS-003*: verifier phải **lấy lại mẫu mới mỗi lần** (`inflation 8.41`, tăng theo số lần hỏi); gate phải **calibrated thật** (`violation ≤ 0.05` ở mọi điểm cổng mở); registry phải **có khám phá** (optimistic-init)
 - **v0.3**: ghép L5 thật (tool calling) · eval dashboard · **ghép vào dự án này** — biến chính `research/` thành scaffold chạy SAGE (đã là L5 tự nhiên)
 
 > **Đầu vào từ AN-009 (Q-009)** cho v0.2: Skalse 2022 chứng minh **chỉ hằng số mới unhackable** → không thể "vá hết proxy"; và phòng thủ đều có trần (ensemble chỉ *mitigate* — 2312.09244; KL chỉ đủ khi sai số **light-tailed** — 2407.14503; RM *underspecified*). Hệ quả thiết kế: **L4 phải tách khỏi L3** — cần một lớp *giới hạn quyền* (verifier **không** được đo lường, không được sửa) thay vì chỉ "monitor tốt hơn". Xem F-R04/F-R05.
