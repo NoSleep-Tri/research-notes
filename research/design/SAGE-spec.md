@@ -429,3 +429,7 @@ Những thứ **không được tính là PASS**, ghi ở đây để không ph�
 1. `make_corpus` được §15.1 khai báo là sinh content với **`σ = 0.06`**, nhưng tham số **chưa nối vào hàm** (hàm chạy cứng `0.35`); đồng thời `sensitivity()` gọi `make_corpus(..., noise=sg)` sẽ **`TypeError`** → crash trước khi ghi `summary.json`. Đã nối `noise=NOISE`.
 2. Thêm **diagnostic trần acc (`oracle_acc`)**: vì query phân bố theo `value`, *chi toàn bộ ngân sách 0.40 cho top-value raw* là chọn tối ưu → cho ra **trần acc có thể đạt được** với ngân sách này. Diagnostic này **không gate KPI**, được thêm **trước khi nhìn số liệu** — để nếu `0.90` không đạt thì phân biệt được *"ngưỡng đặt sai"* (trần < 0.90) với *"phương pháp kém"* (acc ≪ trần).
 3. Ngưỡng §15.2 **không đổi**. (Nếu sau khi có số mà cần điều chỉnh, phải ghi ở mục này kèm số đo thật — đúng quy trình §10/§12.)
+
+**Bài học vận hành (không phải bug của thí nghiệm)** — *khai báo ở đây vì nó quyết định "kết quả có tồn tại không":*
+- `save_notebook` với `kernelExecutionType: "SaveAndRunAll"` chạy qua **papermill**, tức là **bắt buộc `.ipynb` JSON (nbformat 4)**. Gửi **nguồn Python thô** → papermill ném `NotJSONError: Notebook does not appear to be JSON` → run chết sau ~**15.9 s** → **không có file output nào** (`kpi.txt` → 404). Symptom này dễ nhầm với "phân quyền đọc output bị chặn".
+- v1→v3 gửi dạng `.py` thô (**tất cả đều fail, không có số liệu nào**) · **v4 là lần chạy đầu tiên hợp lệ** (gói thành 1 cell `nbformat 4`).
