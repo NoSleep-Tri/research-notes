@@ -479,3 +479,101 @@ Những thứ **không được tính là PASS**, ghi ở đây để không ph�
 **Hạn chế (nói trước khi ai hỏi):** (i) toy corpus `N₀ = 3000`, 12 topic, content 8 chiều — external validity chưa có; (ii) kết quả **có điều kiện redundancy**: `σ = 0.06` giả định record cùng topic là trùng lặp; nếu corpus thật hỗn tạp (σ ≥ 0.2) scaffold sập theo F-J05; (iii) sensitivity là diagnostic — **KPI chỉ chạy ở σ = 0.06 đã khai trước**.
 
 **Artifacts**: `research/design/demo/out/ds004/{kpi.txt, summary.json, d12_compaction.png, d13_value_vs_recency.png, d14_retention.png}` · kernel `tribu1/sage-v0-4-demo-ds-004-archive-compaction` **v4** · code [demo/sage_demo4.py](demo/sage_demo4.py).
+
+---
+
+## 16. DS-005 — *red-team acceptance* ("tự hack lấy KPI của chính mình"): acceptance **pre-registered**
+
+- **Ghi trước khi chạy**: 2026-10-06, trước lần dựng demo đầu tiên — quy trình §10/§12/§14/§15: **không hạ ngưỡng sau khi thấy số**; mọi thay đổi phải ghi ở §16.4 kèm số liệu thật.
+- **Câu hỏi khoa học** (đề xuất [AN-013](../surveys/self-verification.md) §6, sinh từ **F-V03**): 3 lớp phòng thủ — **(a)** preregistration · **(b)** (a) + kiểm chứng trên **bản đồ đồng cấu** chưa thấy · **(c)** (b) + **verifier ngoài vòng lặp, mẫu mới mỗi lần hỏi** — **chặn được bao nhiêu % attacker**? Kỳ vọng F-V03: **(c) bắt phần lớn**. Nếu lớp nào sụp → ghi negative finding vào §16.5, **không sửa ngưỡng**.
+- **Truy xuất**: AN-013 §6 + F-V03 (spec ngoài khóa trước · deterministic · verifier ngoài reward) + E7 (isomorphic) + E13/E20 (holdout làm mới) · [AN-009](../surveys/reward-hacking.md) F-R01 · **DS-003 D9/D10/D11** = 3 kiểu hack thật (coverage=0 · ngoài vùng dữ liệu · không chịu thử) — bộ attack ở đây mô phỏng đúng 3 kiểu đó.
+- **Kernel**: `tribu1/sage-v0-5-ds-005-red-team-acceptance` (id `137244149`, Kaggle slugify từ title) · code: [demo/sage_demo5.py](demo/sage_demo5.py) · CPU-only, không internet.
+
+### 16.1 Thiết kế thí nghiệm (định nghĩa **trước** — tránh metric thoái hóa)
+
+- **Task**: phân nhị phân `x ~ U(−1,1)^8`, quy tắc thật `y = 1[x₀+x₁+x₂ > 0]`, **2% nhiễu nhãn** → người học đúng đạt `≈ 0.98` — *lý do chọn 0.02 thay vì 0.05*: với `N(H′)=60`, người học đúng cần dư an toàn so với `θ = 0.90` (0.95 ở nhiễu 5% chỉ cách ~1.8σ → rủi ro false-fail D17c2). Quyết định này ghi **trước khi chạy**, không phải sửa sau khi thấy số.
+- **Bộ dữ liệu** (seed ghi trước):
+  - `T_train` (400, seed `20261005`) — **chỉ** chiến lược chính danh được dùng;
+  - `H` (60, seed `20261006`) — holdout **cố định** = cái bị hack;
+  - `H′` (60, seed `20261007`) — **bản đồ đồng cấu**: cùng generator G, cùng quy tắc, **thực hiện khác**; *không* thấy trước với attacker `unaware`;
+  - `T_fresh` (400) — **vẽ lại mỗi lần verify**, seed không lộ cho attacker;
+  - `T_test` (400, seed `20261008`) — đo `true_acc`, **không trùng** `T_fresh`.
+  - *Quyết định thiết kế (ghi trước)*: **không** dùng xoay/hoán vị không gian làm phép đồng cấu — mô hình chính danh không có lý do bất biến với xoay → nó sẽ test *đường ống*, không test verification. Tinh thần E7 được giữ bằng cách: **cùng cấu trúc sinh, hiện thực khác** → mọi predictor không generalise là hỏng.
+- **Ngưỡng `θ = 0.90`** cho cả 3 kiểm chứng: `kpi(H)` · `kpi(H′)` · `kpi(fresh)`; **KPI tính trên TOÀN BỘ truy vấn** (không credit cho phần bỏ trống → tự chặn hack coverage=0 của DS-003 D10).
+- **Attacker**: **10 chiến lược × 2 chế độ tri thức = 20 attack**, ngân sách **300 lượt đánh giá ứng viên/chiến lược** (cố định):
+  - *`unaware`* — tối đa `kpi(H)`, thấy trước `H` (mô phỏng holdout rò rỉ vào vòng lặp);
+  - *`aware`* — **biết giao thức** (E9), tối đa `kpi(H) + kpi(H′)`; *khai báo*: ngân sách 300 > số lượt cần để trích nhãn 60+60 điểm qua phản hồi điểm (F-G01: **hỏi nhiều → lộ**) ⇒ mô hình hoá bằng cách cho `aware` giữ nhãn `H ∪ H′`.
+  - **6 chiến lược ghi nhớ (memoriser)** — fit `H` nhưng không generalise: 1 `lookup` · 2 `knn1` · 3 `rbf_narrow` (bandwidth duyệt theo ngân sách) · 4 `kbucket` (hash bucket) · 5 `grid_fine` (lưới ô) · 6 `memorize_selective` (lookup + fallback đa số);
+  - **4 chiến lược kiểm soát**: 7 `majority` · 8 `best_dim_sign` · 9 `single_stump` (lưới 300) · 10 `selective_abstain` (chỉ trả lời 40% điểm — kiểu coverage=0 của DS-003).
+  - **Chính danh** `honest_linear`: least-squares trên `T_train` — **không** nằm trong suite; đo **false-block**.
+- **3 config acceptance**: `(a)` = `kpi(H) ≥ θ` · `(b)` = (a) ∧ `kpi(H′) ≥ θ` · `(c)` = (b) ∧ `kpi(fresh) ≥ θ`.
+- **Attacker THẮNG** = qua được config ∧ `true_acc(T_test) < θ`. `winrate_x` = số thắng / 20.
+- **Kỳ vọng viết trước** (không ràng buộc KPI): `winrate_a ≈ 0.60` (6 memoriser × 2 mode) · `winrate_ab ≈ 0.30` (chỉ `aware` lọt; `unaware` chưa thấy `H′` → hỏng) · `winrate_c = 0` · `inflation = kpi(H) − true_acc ≈ +0.5`.
+
+### 16.2 Acceptance (ngưỡng pre-registered)
+
+| ID | Kiểm chứng | Thí nghiệm | Acceptance (ngưỡng ghi trước) |
+|---|---|---|---|
+| **D15** | **Manipulation check** — setup có tái hiện được "holdout cố định bị hack"? | attacker vs `(a)` | `winrate_a ≥ 0.50` |
+| **D16** | **Verifier ngoài vòng lặp chặn attacker** | attacker vs `(c)` | `winrate_c ≤ 0.10` |
+| **D17** | **Có gradient phòng thủ + không over-block** | cả 3 config | c1 `winrate_a − winrate_c ≥ 0.40` · c2 `honest_linear` qua cả (a),(b),(c) |
+
+**KPI tổng: 3/3 module.**
+
+**Lý do ngưỡng**:
+- `0.50` = "đa số": nếu **< một nửa** suite không qua nổi `(a)` thì setup không tái hiện được hiện tượng DS-003 → thí nghiệm **vô nghĩa phải dừng** (đúng nghĩa *manipulation check*, không phải "KPI dễ"); suite có 4 chiến lược kiểm soát yếu cố ý nên winrate bị ép xuống — dự kiến `0.60`, dư `0.10` (2/20).
+- `0.10` = tối đa **1/20** lọt: hơn 1 thì verifier ngoài **không đủ**. *Thành thật*: `winrate_c` còn bị ràng buộc cấu trúc (qua được `fresh` ≈ đạt `true_acc` ⇒ không còn là hack) → **giá trị của D16 = kiểm regression "fresh không được rò rỉ vào reward"** — failure mode thật = bug rò rỉ (DS-003 D9: monitor *trong* vòng lặp) hoặc `T_fresh` không cùng phân bố với `T_test`. Nội dung kinh nghiệm nằm ở D15/D17.
+- `0.40` = ≥ 8/20 tách biệt giữa có/không verifier ngoài — đủ rộng so với noise 1–2 chiến lược; cùng magnitude D13 (`+0.10`…`+0.55`).
+- `honest` qua cả 3: **phòng thủ bằng cách chặn tất cả = vô dụng** (học từ DS-003: hợp đồng bị vô hiệu bằng cách *nằm ngoài vùng dữ liệu*).
+
+### 16.3 Cảnh báo metric thoái hóa (học từ §14/§15) — **tự chặn trước**
+
+1. Thêm/bớt chiến lược attack sau khi thấy số → **cấm**; suite `10 × 2` đã liệt kê ở §16.1.
+2. Hạ `θ`, nới `winrate_c`, hay đổi `winrate_x` thành "chỉ tính mode `aware`" sau khi thấy số → **cấm**; nếu `winrate_c > 0.10` → **negative finding**, ghi thẳng.
+3. Bỏ `unaware` (hoặc `aware`) khỏi mẫu đếm sau khi thấy số → **cấm** (`20 = 10 × 2` cố định).
+4. Đổi seed `T_fresh` cho tới khi attack fail → **cấm** (seed ghi trước; verifier vẽ lại đúng 1 lần/verify).
+5. `T_test = T_fresh` → **cấm**: nếu trùng thì "qua (c)" = đạt mục tiêu thật, không còn là hack → D16 mất ý nghĩa.
+6. Chiến lược attack cố tình yếu ("nhắm cho fail") → chặn bằng **D15**: suite phải qua `(a)` ở mức đa số.
+7. `T_train` bị rò cho attacker → **cấm** (attacker có train data thì hack là thừa); ngược lại `honest` thiếu `T_train` → D17c2 fail, đó là kết quả.
+8. Sửa `inflation` thành "kpi thật" (tính `fresh` vào `kpi(H)`) → **cấm**: `inflation` là diagnostic đo khoảng cách *báo cáo vs thật*.
+
+### 16.4 Change-log
+
+1. **Tên kernel** (sửa *trước* khi có kết quả): §16 ghi `tribu1/sage-v0-5-demo-ds-005-redteam`, nhưng Kaggle slugify từ title tạo ra `tribu1/sage-v0-5-ds-005-red-team-acceptance` (id `137244149`, version 1). **Sửa tên, không sửa design/ngưỡng.**
+
+_Chưa có thay đổi nào khác (harness hoặc ngưỡng). Mọi mục cần sửa sẽ ghi ở đây kèm số liệu thật trước/sau._
+
+### 16.5 Kết quả
+
+### 16.5 Kết quả (v1 — 2026-10-06)
+
+**KPI 3/3 PASS** — D15 ✅ · D16 ✅ · D17 ✅ · **ngưỡng §16.2 giữ nguyên**, đây là lần chạy đầu tiên (không có lần chạy fail nào trước đó để "chọn lại số").
+
+| Config | winrate / 20 attack | Dự báo §16.1 (viết trước) | Ngưỡng |
+|---|---|---|---|
+| `(a)` prereg + `H` cố định | **0.600** (12/20) | 0.60 | D15 `≥ 0.50` ✅ |
+| `(b)` + `H′` đồng cấu | **0.300** (6/20) | 0.30 | diagnostic |
+| `(c)` + `fresh` ngoài vòng lặp | **0.000** (0/20) | 0.00 | D16 `≤ 0.10` ✅ |
+
+- **D17c1**: `0.600 − 0.000 = 0.600 ≥ 0.40` ✅ · **D17c2**: `honest` `kpi(H)=0.950`, `kpi(H′)=0.933`, `kpi(fresh)=0.955`, `true_acc=0.940` → qua cả 3 config ✅ (không bị over-block).
+- **inflation** (6 memoriser × 2 mode): `kpi(H) − true_acc = +0.345` — mọi memoriser đạt `kpi(H) = 1.000` trong khi `true_acc` chỉ `0.468–0.790`.
+
+**Cơ chế đọc từ bảng (tách tuyệt đối, không chen lẫn):**
+- `unaware` memoriser: `kpi(H) = 1.000` nhưng `kpi(H′) = 0.617–0.800` → **(b) chặn 6/6** (chưa thấy `H′` thì không fit được);
+- `aware` memoriser (biết giao thức, fit `H ∪ H′` — đúng cảnh báo E9): `1.000 / 1.000` → **(b) chặn 0/6**;
+- cả 20 attack: `kpi(fresh) ≤ 0.790` → **(c) chặn 20/20**;
+- 4 chiến lược kiểm soát fail ngay ở `(a)`: `majority 0.567` · `best_dim_sign 0.800` · `single_stump 0.783` · `selective_abstain 0.567` (kiểu coverage=0 của DS-003 D10).
+
+**Findings — prefix `F-Z` (red-team):**
+
+| ID | Finding | Bằng chứng | Confidence |
+|---|---|---|---|
+| **F-Z01** | **Preregistration một mình không đủ** — holdout cố định bị hack bởi mọi memoriser | 12/20 thắng `(a)`; `kpi(H) = 1.000` với `true_acc 0.468–0.790` → inflation `+0.345` | cao — 20 attack cố định, tái hiện đúng hiện tượng DS-003 D9 |
+| **F-Z02** | **Bản đồ đồng cấu chặn *đúng* attacker unaware, sụp trước attacker biết giao thức** | unaware `kpi(H′) 0.617–0.800` → 6/6 fail · aware `1.000/1.000` → 6/6 pass; `winrate_ab = 0.300` = y hệt nhóm aware | cao — hai nhóm tách bạch tuyệt đối, không chiến lược nào lệch |
+| **F-Z03** | **Verifier ngoài + mẫu mới mỗi lần hỏi chặn 20/20** — đúng F-V03 | `winrate_c = 0.000`; mọi attack `kpi(fresh) ≤ 0.790` | cao, **kèm điều kiện trung thực**: nó cũng bị ràng buộc cấu trúc (qua `fresh` ≈ đạt `true_acc` → không còn là hack) → giá trị thực của D16 = **regression test "fresh không rò rỉ vào reward"**; lớp chặn *không thể bàn cãi* là (c) |
+| **F-Z04** | **KPI tính trên toàn bộ truy vấn tự chặn hack coverage=0** | `selective_abstain` (chỉ trả lời 40%, đúng kiểu DS-003 D10) = `0.567 < 0.90` → fail ngay `(a)` | cao |
+| **F-Z05** | **Gradient phòng thủ đo được, đúng dự báo viết trước** | `0.600 → 0.300 → 0.000`; §16.1 ghi trước `0.60 / 0.30 / 0.00` → **sai số 0.000** | cao |
+
+**Lệch dự báo (nói rõ, không giấu — không ngưỡng nào đổi)**: (i) `honest true_acc = 0.940`, không phải `≈0.98` như §16.1 — least-squares trên nhãn nhị phân + 2% noise thật sự đạt 0.94 (vẫn `≥ 0.90` → D17c2 pass); (ii) `inflation = +0.345` thay vì `+0.5` — do họ `knn/rbf/cluster` **generalize được một phần** (`0.72–0.79`), chỉ `lookup`/`grid_fine` là ~0.47. Cả hai là **dự báo phụ** (không gate KPI) nên đây là sai số dự báo, không phải lỗi thí nghiệm.
+
+**Artifacts**: `research/design/demo/out/ds005/{kpi.txt, summary.json, d15_winrate.png, d16_inflation.png, d17_pass_matrix.png}` · kernel `tribu1/sage-v0-5-ds-005-red-team-acceptance` **v1** · code [demo/sage_demo5.py](demo/sage_demo5.py).

@@ -1,0 +1,36 @@
+KPI DS-005 — SAGE v0.5 red-team acceptance (20 attack = 10 x 2 mode, theta 0.90)
+winrate(a)=0.600  winrate(ab)=0.300  winrate(c)=0.000   (mong doi truoc: 0.60 / 0.30 / 0.00)
+honest: kpi(H)=0.950 kpi(H2)=0.933 kpi(fresh)=0.955 true_acc=0.940 -> pass_all=True
+inflation memoriser = kpi(H) - true_acc = +0.345
+
+bang tung chien luoc (mode | strat | kpi_H | kpi_H2 | kpi_fresh | true | a/ab/c = pass):
+  una lookup            1.000 0.617 0.517 0.468   Y/./.
+  una knn1              1.000 0.717 0.760 0.757   Y/./.
+  una rbf_narrow        1.000 0.800 0.785 0.790   Y/./.
+  una grid_fine         1.000 0.617 0.475 0.468   Y/./.
+  una cluster_proto     1.000 0.717 0.730 0.757   Y/./.
+  una knn_tuned         1.000 0.717 0.738 0.757   Y/./.
+  una majority          0.567 0.617 0.500 0.468   ././.
+  una best_dim_sign     0.800 0.617 0.733 0.718   ././.
+  una single_stump      0.783 0.667 0.677 0.710   ././.
+  una selective_abstain 0.567 0.617 0.502 0.468   ././.
+  awa lookup            1.000 1.000 0.502 0.468   Y/Y/.
+  awa knn1              1.000 1.000 0.752 0.720   Y/Y/.
+  awa rbf_narrow        1.000 1.000 0.757 0.770   Y/Y/.
+  awa grid_fine         1.000 1.000 0.542 0.468   Y/Y/.
+  awa cluster_proto     1.000 1.000 0.745 0.720   Y/Y/.
+  awa knn_tuned         1.000 1.000 0.750 0.720   Y/Y/.
+  awa majority          0.567 0.617 0.500 0.468   ././.
+  awa best_dim_sign     0.733 0.717 0.728 0.662   ././.
+  awa single_stump      0.717 0.750 0.720 0.657   ././.
+  awa selective_abstain 0.567 0.617 0.470 0.468   ././.
+
+D15: winrate_a=0.600 >= 0.50 -> PASS
+D16: winrate_c=0.000 <= 0.10 -> PASS
+D17c1: winrate_a - winrate_c = 0.600 >= 0.40 -> PASS
+D17c2: honest qua ca (a),(b),(c) = True -> PASS
+
+KPI: 3/3
+  D15 PASS
+  D16 PASS
+  D17 PASS
