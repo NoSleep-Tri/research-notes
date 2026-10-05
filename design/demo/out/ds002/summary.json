@@ -1,0 +1,142 @@
+{
+  "D6": {
+    "uniform_mean": 1.0,
+    "uniform_spread": 0.0,
+    "recency_gap_end_minus_mid": 0.843,
+    "uend_gap_ends_minus_mid": 0.838,
+    "uend_mid": 0.162,
+    "sinusoid_mid": 0.369,
+    "sinusoid_mid_gain": 0.208,
+    "curves": {
+      "uniform_learned": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "recency_learned": [
+        0.172,
+        0.175,
+        0.175,
+        0.19,
+        0.175,
+        0.168,
+        0.133,
+        0.155,
+        0.34,
+        0.158,
+        0.85,
+        1.0
+      ],
+      "uend_learned": [
+        1.0,
+        0.165,
+        0.168,
+        0.172,
+        0.147,
+        0.172,
+        0.165,
+        0.163,
+        0.165,
+        0.22,
+        0.155,
+        1.0
+      ],
+      "uend_sin": [
+        1.0,
+        0.175,
+        0.142,
+        0.172,
+        0.147,
+        0.18,
+        1.0,
+        0.15,
+        0.133,
+        0.22,
+        0.155,
+        1.0
+      ]
+    },
+    "c1_uniform_flat_high": true,
+    "c2_recency": true,
+    "c3_u_curve": true,
+    "PASS": true
+  },
+  "D7": {
+    "uniform": {
+      "p1_end_mse_dims02": 1.766e-07,
+      "p2_end_mse_dims35": 4.196e-08,
+      "p3_mse_dims02": 2.127e-05,
+      "p4_adapt_mse_dims35": 0.0281
+    },
+    "variable": {
+      "p1_end_mse_dims02": 1.346e-07,
+      "p2_end_mse_dims35": 1.025e-08,
+      "p3_mse_dims02": 2.122e-07,
+      "p4_adapt_mse_dims35": 0.5199
+    },
+    "noforgetting": {
+      "p1_end_mse_dims02": 1.187e-07,
+      "p2_end_mse_dims35": 3.869e-08,
+      "p3_mse_dims02": 1.487e-07,
+      "p4_adapt_mse_dims35": 0.8254
+    },
+    "ratio_uniform_over_variable_P3": 100.24,
+    "ratio_noforget_over_uniform_P4": 29.37,
+    "ratio_noforget_over_variable_P4": 1.59,
+    "c1_uniform_destroys_offaxis": true,
+    "c2_noforget_cannot_adapt": true,
+    "c3_variable_learns_new_dims": true,
+    "PASS": true
+  },
+  "D8": {
+    "task_verify_acc": [
+      0.973,
+      0.977,
+      0.993,
+      0.98,
+      0.98,
+      0.977
+    ],
+    "task_verify_tries": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "retention_old": {
+      "naive": 0.431,
+      "replay": 0.839,
+      "decay": 0.421,
+      "reset": 0.374
+    },
+    "retention_all": {
+      "naive": 0.539,
+      "replay": 0.863,
+      "decay": 0.532,
+      "reset": 0.494
+    },
+    "plasticity_ratio": {
+      "naive": 0.992,
+      "replay": 1.0,
+      "decay": 1.0,
+      "reset": 0.997
+    },
+    "fresh_holdout_acc": 0.98,
+    "naive_plasticity_loss_pct": 0.8,
+    "c1_replay_beats_naive_retention": true,
+    "c2_uniform_decay_does_not_help": true,
+    "c3_replay_keeps_plasticity": true,
+    "PASS": true
+  }
+}

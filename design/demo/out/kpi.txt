@@ -1,0 +1,111 @@
+{
+  "D1": {
+    "per_h": {
+      "4": {
+        "B1_threshold": {
+          "naive_A": 0.563,
+          "naive_B": 0.998,
+          "replay_A": 0.95,
+          "replay_B": 0.998,
+          "naive_forget_pp": 42.7,
+          "replay_forget_pp": 4.0
+        },
+        "B2_conflict": {
+          "naive_A": 0.987,
+          "naive_B": 0.985,
+          "replay_A": 0.995,
+          "replay_B": 0.985,
+          "naive_forget_pp": 0.3,
+          "replay_forget_pp": -0.5
+        },
+        "grow": {
+          "A": 0.99,
+          "B": 0.997,
+          "forget_pp": 0.0
+        }
+      },
+      "6": {
+        "B1_threshold": {
+          "naive_A": 0.572,
+          "naive_B": 0.998,
+          "replay_A": 0.952,
+          "replay_B": 0.993,
+          "naive_forget_pp": 41.7,
+          "replay_forget_pp": 3.7
+        },
+        "B2_conflict": {
+          "naive_A": 0.972,
+          "naive_B": 0.982,
+          "replay_A": 0.993,
+          "replay_B": 0.982,
+          "naive_forget_pp": 1.7,
+          "replay_forget_pp": -0.5
+        },
+        "grow": {
+          "A": 0.988,
+          "B": 0.997,
+          "forget_pp": 0.0
+        }
+      },
+      "8": {
+        "B1_threshold": {
+          "naive_A": 0.553,
+          "naive_B": 0.998,
+          "replay_A": 0.95,
+          "replay_B": 1.0,
+          "naive_forget_pp": 44.0,
+          "replay_forget_pp": 4.3
+        },
+        "B2_conflict": {
+          "naive_A": 0.997,
+          "naive_B": 0.982,
+          "replay_A": 0.993,
+          "replay_B": 0.982,
+          "naive_forget_pp": -0.3,
+          "replay_forget_pp": 0.0
+        },
+        "grow": {
+          "A": 0.993,
+          "B": 0.997,
+          "forget_pp": 0.0
+        }
+      }
+    },
+    "median_gain_replay_minus_naive_taskA": 0.387,
+    "grow_zero_forgetting": true,
+    "grow_abs_ge_98": true,
+    "PASS": true
+  },
+  "D2": {
+    "fifo_critical": 0.054,
+    "fifo_boring": 0.067,
+    "gated_critical": 1.0,
+    "gated_boring": 0.012,
+    "PASS": true
+  },
+  "D3": {
+    "proxy_M1": 0.02,
+    "proxy_M1000": 2.99,
+    "truth_M1": -3.91,
+    "truth_M1000": -6.25,
+    "verifier_M1000": -5.04,
+    "random_baseline": -3.97,
+    "PASS": true
+  },
+  "D4": {
+    "cost_1tier_at_recall95": 5.33,
+    "cost_2tier_at_recall95": 3.55,
+    "saving_pct": 33.4,
+    "PASS": true
+  },
+  "D5": {
+    "internal_only": 0.707,
+    "ask_all": 0.951,
+    "gate_calibrated_at_50pct": 0.886,
+    "naive_mix_at_50pct": 0.829,
+    "gate_shuffled_at_50pct": 0.828,
+    "PASS": true
+  }
+}
+
+KPI: 5/5 module đạt acceptance của DS-001 §10
