@@ -1,6 +1,6 @@
 # SYNTHESIS — Kết hợp 11 survey thành 1 bức tranh, rồi thiết kế hệ thống
 
-- **Ngày**: 2026-10-06 · **Phạm vi**: Q-001 → Q-011 + **DS-001, DS-002** (thiết kế dẫn xuất)
+- **Ngày**: 2026-10-06 · **Phạm vi**: Q-001 → Q-011 + **DS-001, DS-002, DS-003** (thiết kế dẫn xuất)
 - **Mục đích**: gom các survey rời thành **chủ đề xuyên suốt**, chỉ ra **ma trận liên thông** và **agenda nghiên cứu tiếp**
 
 ---
@@ -22,6 +22,7 @@
 | Q-011 | Quên có chủ đích: khi nào nên quên | `surveys/deliberate-forgetting.md` | **4 nghĩa khác nhau** của "quên"; não **ức chế chứ không xóa**; **thiếu trí nhớ mới là vấn đề**, không phải quá quên | arXiv (~26 paper) + webfetch (RIF, RTBF) |
 | **DS-001** | *(thiết kế)* **SAGE** — bộ não biết mình dở ở đâu | `design/SAGE-spec.md` | 6 lớp L0–L5, 8 nguyên tắc P1–P8 truy xuất survey; **demo 5/5 PASS** | Tổng hợp từ Q-001→011 |
 | **DS-002** | *(mở rộng)* **SAGE v0.2** — kiểm chứng trực tiếp F-A03 / F-X02 / F-X03 | `design/SAGE-spec.md` §12 | **demo 3/3 PASS** (3 lần): U-curve sinh từ phân bố loss · quên đều phá trục **100×**, không quên thì không thích nghi **29×** · replay giữ `0.839` vs naive `0.431` | Q-010 + Q-011 |
+| **DS-003** | *(mở rộng)* **SAGE v0.2** — 3 công cụ tự kỷ luật: wirehead guard · calibration · registry | `design/SAGE-spec.md` §14 | **demo 3/3 PASS** (3 lần): holdout cố định **nói dối 8.41 điểm** và càng hỏi càng dối · ECE `0.258 → 0.022` · adaptive registry `0.920` vs static `0.577` | Q-009 + Q-007 |
 
 ---
 
@@ -62,7 +63,7 @@ L3 · Ý THỨC (giao diện)    "bản báo cáo đến sau" — LeDoux, AST, G
 
 ---
 
-## 3. Ma trận liên thông (trích từ knowledge graph, 189 entity / 231 relation)
+## 3. Ma trận liên thông (trích từ knowledge graph, 194 entity / 242 relation)
 
 | Từ → Đến | Ý nghĩa |
 |---|---|
@@ -87,6 +88,10 @@ L3 · Ý THỨC (giao diện)    "bản báo cáo đến sau" — LeDoux, AST, G
 | **DS-002 D6 ↔ Q-010 (F-A03)** | **Xác nhận trực tiếp**: cùng 1 kiến trúc attention, đổi *phân bố loss* → U-curve tự sinh ra (`U-gap 0.838`, giữa `0.162` ≈ ngẫu nhiên) ⇒ F-A03 không còn là correlation trên benchmark nữa |
 | **DS-002 D7 ↔ Q-011 (F-X02)** | **Xác nhận 2 chiều**: (a) quên **đều** phá trục ngoài dữ liệu mới gấp **100×** directional (`MSE_P3 2.13e-5` vs `2.12e-7`); (b) **không** quên thì không thích nghi được khi θ đổi — `MSE_P4` của `noforgetting` gấp **29×** của RLS quên chuẩn. Nhưng directional **không** làm chậm học dims mới (`0.24×`) → "quên đúng **hướng**" là vấn đề thật, không phải chiết ngôn |
 | **DS-002 D8 ↔ Q-011 (F-X03)** | Replay giữ `0.839` vs naive `0.431` (**+0.408**) trong khi plasticity **không đổi** → **xác nhận nhánh retention**, **âm tính** với nhánh loss-of-plasticity ở scale toy |
+| **DS-003 D9 ↔ Q-009 (F-R01/F-R07)** | **Xác nhận bằng thực nghiệm**: proxy trong vòng lặp → ứng viên **sai sự thật 6.07 điểm**; thêm monitor **cũng trong vòng lặp** vẫn kém 3.15 → *cộng hai proxy lại vẫn là proxy*. Và holdout **cố định** bị optimize: **nói dối 8.41 điểm**, tăng `5.03 → 8.40` theo số lần hỏi ⇒ **giải thích trực tiếp vì sao không thể "vá proxy"**: mọi tín hiệu xài lại đủ nhiều đều biến thành objective |
+| **DS-003 D10 ↔ Q-009 (F-R01) — metric tự bị hack** | **Ba lần sửa liên tiếp toàn là thước đo tự thoái hóa**: `gating_acc` cho điểm cao nhất khi coverage = **0** (không quyết định gì) · hợp đồng `0.90` bị vô hiệu bằng cách nằm ngoài vùng dữ liệu · bandit "không học" vì *không chịu thử*. Đây là **Goodhart trên chính acceptance test** — cùng cấu trúc với T2, giờ lặp lại trong phòng lab của chính mình |
+| **DS-003 D10 ↔ DS-001 (F-D05)** | Xét **trực tiếp** điều F-D05 mới suy đoán: `ECE 0.258 → 0.022`, `violation 0.203 → 0.000`; arm thô **tự quyết 23.5% ca với 70% đúng** trong khi tuyên bố 90% → *"biết khi nào không biết"* **phải được đo bằng calibration thật**, không phải bằng self-report |
+| **DS-003 D11 ↔ Q-010/Q-003 (gating T4)** | Bảng `model × kiểu lỗi` học từ phản hồi nhị phân: `0.920` ≈ **95% oracle** vs `0.577` model tĩnh → **gating theo ngữ cảnh thắng model cố định** bằng 34 điểm; và *không có optimistic-init thì arm không chịu thử* — khám phá là điều kiện cần, không phải optional |
 
 ---
 
@@ -101,14 +106,16 @@ L3 · Ý THỨC (giao diện)    "bản báo cáo đến sau" — LeDoux, AST, G
 | Q-011 | **Quên có chủ đích**: khi nào nên quên (đổi tech stack, đổi domain)? | Q-001/007 | ✅ **xong (2026-10-06)** — 4 nghĩa; quên phụ thuộc *hướng* + *replay*, không phải lượng |
 | **DS-001** | **Thiết kế SAGE** — biến 5 chủ đề T1–T5 thành kiến trúc + prototype | T1→T5, Q-008 | ✅ **xong (2026-10-06)** — demo **5/5 PASS** trên Kaggle |
 | **DS-002** | **Mở rộng demo** — kiểm chứng trực tiếp 3 finding của Q-010/Q-011 | Q-010 (F-A03), Q-011 (F-X02, F-X03) | ✅ **xong (2026-10-06)** — demo **3/3 PASS** (3 lần, change-log §12) |
+| **DS-003** | **Mở rộng demo** — 3 công cụ tự kỷ luật của SAGE v0.2 (roadmap §11) | Q-009 (F-R01/F-R07), DS-001 (F-D05) | ✅ **xong (2026-10-06)** — demo **3/3 PASS** (3 lần, change-log §14) |
 
 ---
 
 ## 5. Trạng thái dự án vs PLAN.md
 
 - **M2 (survey 5–10 paper/câu hỏi)**: ✅ vượt — **11 survey**, Q-006 dùng 19 paper arXiv, Q-007 dùng 16 paper, Q-009 dùng ~22 paper, Q-010 dùng ~20 paper, Q-011 dùng ~26 paper.
-- **KPI graph**: **189 entity / 231 relation** (mục tiêu ban đầu 100 entity ✅).
+- **KPI graph**: **194 entity / 242 relation** (mục tiêu ban đầu 100 entity ✅).
 - **DS-001 (thiết kế + demo)**: ✅ `design/SAGE-spec.md` + `design/demo/` — Kaggle `tribu1/sage-v0-1-demo-ds-001` v3 = **5/5 PASS** (D1 replay +38.7pp · D2 18× · D3 Goodhart · D4 −33.4% · D5 +5.7pp).
 - **DS-002 (mở rộng demo)**: ✅ `design/SAGE-spec.md` §12 + `design/demo/sage_demo2.py` — Kaggle `tribu1/sage-v0-2-demo-ds-002` v5 = **3/3 PASS** (D6 U-gap 0.838 · D7 100× + 29× · D8 replay 0.839 vs naive 0.431). **3 lần chạy** (1/3 → 2/3 → 3/3), mọi thay đổi ghi ở change-log §12, **3 ngưỡng không đổi**. **Kết quả âm**: loss of plasticity không quan sát được ở scale toy (3/3 lần).
+- **DS-003 (mở rộng demo)**: ✅ `design/SAGE-spec.md` §14 + `design/demo/sage_demo3.py` — Kaggle `tribu1/sage-v0-3-demo-ds-003` v3 = **3/3 PASS** (D9 holdout cố định nói dối **8.41** và tăng theo số lần hỏi · D10 ECE `0.258→0.022`, violation `0.203→0.000` · D11 adaptive `0.920` vs static `0.577`). **3 lần chạy**, mọi thay đổi ghi ở change-log §14 — **cả 3 lần sửa đều là bug metric/harness, không hạ ngưỡng nào**. Bài học: *cái thước tự bị hack 3 lần liên tiếp* = Goodhart tái hiện ngay trong phòng lab.
 - **Còn nợ §9**: migrate token Kaggle/GitHub sang `{env:...}` (**chưa làm** — rủi ro bảo mật).
 - **Lưu ý hạ tầng**: websearch đang **401** → workaround: arXiv MCP + `webfetch` (Wikipedia/PMC/PubMed).

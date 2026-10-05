@@ -22,5 +22,8 @@
 |---|---|---|
 | DS-001 | **SAGE** — "bộ não biết mình dở ở đâu": spec 6 lớp + prototype 5 module | ✅ **Demo 5/5 PASS** (Kaggle v3, 2026-10-06) → [SAGE-spec](design/SAGE-spec.md) · [sage_demo.py](design/demo/sage_demo.py) · [kpi.txt](design/demo/out/kpi.txt) |
 | DS-002 | **SAGE v0.2** — mở rộng D6–D8: U-curve · directional forgetting · replay+plasticity | ✅ **Demo 3/3 PASS** (Kaggle v5, 2026-10-06, qua 3 lần) → [spec §12](design/SAGE-spec.md) · [sage_demo2.py](design/demo/sage_demo2.py) · [kpi.txt](design/demo/out/ds002/kpi.txt) |
+| DS-003 | **SAGE v0.2** — 3 công cụ tự kỷ luật: wirehead guard · confidence calibration · adaptive registry | ✅ **Demo 3/3 PASS** (Kaggle v3, 2026-10-06, qua 3 lần) → [spec §14](design/SAGE-spec.md) · [sage_demo3.py](design/demo/sage_demo3.py) · [kpi.txt](design/demo/out/ds003/kpi.txt) |
+
+> **Bài học từ DS-003 (3 lần, 2 metric bị khai tử)**: cả 3 lần sửa đều là **metric/harness thoái hóa**, không lần nào hạ ngưỡng. `gating_acc` bị thắng bằng cách *không quyết định gì* (coverage=0) · hợp đồng `0.90` bị vô hiệu bằng cách *nằm ngoài vùng dữ liệu* · bandit "không học" vì *không chịu thử*. **Goodhart ngay trên cái thước đo của mình** — đúng F-R01.
 
 > **Kết quả âm của DS-002 (không che)**: *loss of plasticity* **không quan sát được** ở scale toy — 3 lần chạy, mọi arm học task mới đều đạt `plasticity_ratio ≈ 1.0`. F-X03 chỉ được xác nhận ở nhánh retention.

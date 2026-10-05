@@ -1,0 +1,101 @@
+{
+  "D9": {
+    "mean_truth": {
+      "proxy": -6.317,
+      "monitor": -3.39,
+      "static": -1.003,
+      "rotated": -0.242,
+      "oracle": -0.242
+    },
+    "gap_rotated_minus_proxy": 6.074,
+    "gap_rotated_minus_static": 0.761,
+    "gap_rotated_minus_monitor": 3.148,
+    "inflation_static": 8.413,
+    "inflation_curve": [
+      5.028,
+      5.819,
+      5.382,
+      5.508,
+      6.358,
+      6.545,
+      7.339,
+      7.775,
+      6.369,
+      7.489,
+      6.821,
+      7.254,
+      8.772,
+      9.648,
+      8.402
+    ],
+    "c1_beats_proxy": true,
+    "c2_beats_static_holdout": true,
+    "c3_beats_inloop_monitor": true,
+    "c4_static_holdout_overfit": true,
+    "PASS": true
+  },
+  "D10": {
+    "ece": {
+      "raw": 0.2576,
+      "temp": 0.0221,
+      "isotonic": 0.0339
+    },
+    "brier": {
+      "raw": 0.7592,
+      "temp": 0.6652
+    },
+    "temperature_fitted": 2.6,
+    "violation_worst_overcoverage05": {
+      "raw": 0.2027,
+      "temp": 0.0,
+      "isotonic": 0.0
+    },
+    "contract090_precision_reference": {
+      "raw": 0.7,
+      "temp": 1.0,
+      "isotonic": 1.0
+    },
+    "contract090_coverage_reference": {
+      "raw": 0.235,
+      "temp": 0.001,
+      "isotonic": 0.001
+    },
+    "gate_precision_at_095": {
+      "raw": 0.774,
+      "temp": 1.0,
+      "isotonic": 1.0
+    },
+    "gate_coverage_at_095": {
+      "raw": 0.133,
+      "temp": 0.0,
+      "isotonic": 0.001
+    },
+    "gating_acc_at_095_reference_only": {
+      "raw": 0.97,
+      "temp": 1.0,
+      "isotonic": 1.0
+    },
+    "c1_ece_cut_40pct": true,
+    "c2_ece_below_010": true,
+    "c3_violation_raw_high_temp_low": true,
+    "PASS": true
+  },
+  "D11": {
+    "acc": {
+      "static": 0.577,
+      "round_robin": 0.578,
+      "adaptive": 0.92,
+      "oracle": 0.97
+    },
+    "regret": {
+      "static": 0.393,
+      "round_robin": 0.392,
+      "adaptive": 0.05,
+      "oracle": 0.0
+    },
+    "c1_beats_static": true,
+    "c2_regret_halved": true,
+    "c3_within_10pct_of_oracle": true,
+    "PASS": true
+  }
+}
