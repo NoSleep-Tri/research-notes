@@ -1,6 +1,6 @@
 # SYNTHESIS — Kết hợp 11 survey thành 1 bức tranh, rồi thiết kế hệ thống
 
-- **Ngày**: 2026-10-06 · **Phạm vi**: Q-001 → Q-013 + **DS-001, DS-002, DS-003** (thiết kế dẫn xuất)
+- **Ngày**: 2026-10-06 · **Phạm vi**: Q-001 → Q-013 + **DS-001, DS-002, DS-003, DS-004** (thiết kế dẫn xuất)
 - **Mục đích**: gom các survey rời thành **chủ đề xuyên suốt**, chỉ ra **ma trận liên thông** và **agenda nghiên cứu tiếp**
 
 ---
@@ -74,7 +74,7 @@ L3 · Ý THỨC (giao diện)    "bản báo cáo đến sau" — LeDoux, AST, G
 
 ---
 
-## 3. Ma trận liên thông (trích từ knowledge graph, 214 entity / 277 relation)
+## 3. Ma trận liên thông (trích từ knowledge graph, 220 entity / 286 relation)
 
 | Từ → Đến | Ý nghĩa |
 |---|---|
@@ -111,6 +111,7 @@ L3 · Ý THỨC (giao diện)    "bản báo cáo đến sau" — LeDoux, AST, G
 | **Q-013 (F-V02) ↔ DS-003 D9/D10** | **Xác nhận bằng 3 nguồn độc lập** (Sleeper Agents, adaptive monitor attacks, TraceGuard) điều số nội bộ đã thấy: thêm monitor/verifier **trong vòng lặp** không cứu được. Ngay cả adversarial training còn **nâng khả năng nhận ra trigger** → *phòng thủ sai chỗ làm hệ thống khó bị phát hiện hơn* |
 | **Q-013 (F-V03) ↔ Q-012 (§3e) + AN-013 (E12/E13)** | 3 điều kiện của verification thật (**spec ngoài khóa trước · deterministic · verifier ngoài reward**) = đúng 3 thứ **ngủ làm**: có lịch, không có reward drive, đầu ra tái lập được → *điều kiện cần của verification là **một cửa sổ không optimize gì*** |
 | **Q-013 (F-V06) ↔ T5 (thiếu máy đo)** | Khoa học không sửa được replication crisis bằng lời hứa mà bằng **cấu trúc**: preregistration + registered report + replication dữ liệu độc lập = *không cho phép tự chọn thước đo sau khi thấy số* → **đúng thủ tục §10/§12/§14** của dự án, và nó **đã bắt được 5 lần metric bị hack** ở DS-002/DS-003 |
+| **DS-004 (F-J01, F-J05) ↔ Q-012 (F-N07) + Q-011 (F-X03)** | **"Giờ bảo trì" chạy được ở scale toy**: cùng ngân sách `0.40`, giữ theo **giá trị** thắng theo **độ mới** `+0.55` (F-J01) · nén **61.9%** mà acc `0.9525`, vượt cả baseline raw-thuần `0.6971` (F-J02) · stub-redirect giữ `dangling = 0` trong khi recency/random gãy `296/224` (F-J03) — đúng P3 SAGE + F-X01. **Nhưng có điều kiện** (F-J05): fidelity `0.374` (σ=0.2) thì `sage` **thua** raw-thuần → nén chỉ an toàn khi record đủ trùng lặp. F-N07 (*chưa ai tách downscale khỏi replay*) giờ có **số liệu đầu tiên** |
 
 ---
 
@@ -128,7 +129,7 @@ L3 · Ý THỨC (giao diện)    "bản báo cáo đến sau" — LeDoux, AST, G
 | **DS-002** | **Mở rộng demo** — kiểm chứng trực tiếp 3 finding của Q-010/Q-011 | Q-010 (F-A03), Q-011 (F-X02, F-X03) | ✅ **xong (2026-10-06)** — demo **3/3 PASS** (3 lần, change-log §12) |
 | **DS-003** | **Mở rộng demo** — 3 công cụ tự kỷ luật của SAGE v0.2 (roadmap §11) | Q-009 (F-R01/F-R07), DS-001 (F-D05) | ✅ **xong (2026-10-06)** — demo **3/3 PASS** (3 lần, change-log §14) |
 | **Q-013** | **Một hệ thống tự chứng minh mình không bị hack được không?** | Q-009 (F-R01), Q-012 (§3e), DS-003 (F-G01) | ✅ **xong (2026-10-06)** — *không thể tự chứng minh, cấu trúc bên ngoài thì được*; prefix **F-V** |
-| **DS-004** | **Archive/compaction** — "giờ bảo trì" của SAGE (nén lịch sử thành scaffold) | Q-012 (T6, F-N07), Q-011 (F-X03) | ⬜ **chờ thiết kế acceptance** — pre-registered theo §10/§12/§14 |
+| **DS-004** | **Archive/compaction** — "giờ bảo trì" của SAGE (nén lịch sử thành scaffold) | Q-012 (T6, F-N07), Q-011 (F-X03) | ✅ **xong (2026-10-06)** — demo **3/3 PASS** (Kaggle v4, ngưỡng §15.2 giữ nguyên · change-log §15.4); prefix **F-J** |
 | **DS-005** | **Red-team acceptance** — tự hack lấy KPI của chính mình, đối chứng 3 lớp phòng thủ | Q-013 (F-V03, §6), DS-003 (D9) | ⬜ **đề xuất từ AN-013 §6**, chờ duyệt chạy |
 
 ---
@@ -136,11 +137,12 @@ L3 · Ý THỨC (giao diện)    "bản báo cáo đến sau" — LeDoux, AST, G
 ## 5. Trạng thái dự án vs PLAN.md
 
 - **M2 (survey 5–10 paper/câu hỏi)**: ✅ vượt — **13 survey**, Q-006 dùng 19 paper arXiv, Q-007 dùng 16 paper, Q-009 dùng ~22 paper, Q-010 dùng ~20 paper, Q-011 dùng ~26 paper, Q-012 dùng **18 DOI Europe PMC + ~8 arXiv**, Q-013 dùng **6 trang Wiki nền tảng + ~15 arXiv**.
-- **KPI graph**: **214 entity / 277 relation** (mục tiêu ban đầu 100 entity ✅).
+- **KPI graph**: **220 entity / 286 relation** (mục tiêu ban đầu 100 entity ✅).
 - **DS-001 (thiết kế + demo)**: ✅ `design/SAGE-spec.md` + `design/demo/` — Kaggle `tribu1/sage-v0-1-demo-ds-001` v3 = **5/5 PASS** (D1 replay +38.7pp · D2 18× · D3 Goodhart · D4 −33.4% · D5 +5.7pp).
 - **DS-002 (mở rộng demo)**: ✅ `design/SAGE-spec.md` §12 + `design/demo/sage_demo2.py` — Kaggle `tribu1/sage-v0-2-demo-ds-002` v5 = **3/3 PASS** (D6 U-gap 0.838 · D7 100× + 29× · D8 replay 0.839 vs naive 0.431). **3 lần chạy** (1/3 → 2/3 → 3/3), mọi thay đổi ghi ở change-log §12, **3 ngưỡng không đổi**. **Kết quả âm**: loss of plasticity không quan sát được ở scale toy (3/3 lần).
 - **DS-003 (mở rộng demo)**: ✅ `design/SAGE-spec.md` §14 + `design/demo/sage_demo3.py` — Kaggle `tribu1/sage-v0-3-demo-ds-003` v3 = **3/3 PASS** (D9 holdout cố định nói dối **8.41** và tăng theo số lần hỏi · D10 ECE `0.258→0.022`, violation `0.203→0.000` · D11 adaptive `0.920` vs static `0.577`). **3 lần chạy**, mọi thay đổi ghi ở change-log §14 — **cả 3 lần sửa đều là bug metric/harness, không hạ ngưỡng nào**. Bài học: *cái thước tự bị hack 3 lần liên tiếp* = Goodhart tái hiện ngay trong phòng lab.
 - **Q-012 (survey)**: ✅ `surveys/sleep-consolidation.md` — **AN-012**, 7 finding **F-N01…F-N07**, 24 nguồn (18 DOI Europe PMC + 8 arXiv + 5 trang Wiki). Kết quả chính: ngủ làm **3 job/giờ bảo trì** (replay · downscale · dọn rác); **TMR `g = 0.29`** (N = 2004, null ở REM/thức/thiếu niên, mất ở 9 tháng); **spindle-metric đang bị publication bias làm méo** → dùng coupling thay density; khoảng trống mở **F-N07**: chưa ai tách downscale khỏi replay. Websearch vẫn 401 → dùng **Europe PMC API** làm nguồn sinh học (không qua web).
 - **Q-013 (survey)**: ✅ `surveys/self-verification.md` — **AN-013**, 7 finding **F-V01…F-V07**, 20 nguồn (6 trang Wiki nền tảng: Gödel II, Rice, Goodhart, Formal verification, Preregistration, Replication crisis + ~15 arXiv RLVR/monitor/verify). **Câu trả lời**: *không thể tự chứng minh — nhưng cấu trúc bên ngoài chứng minh được* (3 điều kiện F-V03: spec ngoài khóa trước · deterministic · verifier ngoài reward). Đề xuất **DS-005** (red-team acceptance) ở §6.
+- **DS-004 (mở rộng demo)**: ✅ `design/SAGE-spec.md` §15 + `design/demo/sage_demo4.py` — Kaggle `tribu1/sage-v0-4-demo-ds-004-archive-compaction` v4 = **3/3 PASS** (D12 nén `size 0.3808 ≤ 0.40` + `acc 0.9525 ≥ 0.90` · D13 `+0.5523` / `+0.5505` vs recency/random · D14 `dangling = 0` mọi chu kỳ + `Δacc +0.0034`). **4 lần push**: v1–v3 chết vì papermill đòi `.ipynb` (không có số liệu), **v4 PASS ngay lần đầu thấy số — không hạ ngưỡng** (change-log §15.4). Bài học: diagnostic *"trần acc"* bị **số liệu bác nhãn** (`oracle 0.6971 < sage 0.9525`) → nó là *baseline value-only raw*, trần thật = `keepall = 1.0`; và **F-J05**: nén chỉ an toàn khi record đủ trùng lặp (σ=0.2 → fidelity `0.374` → `sage` thua raw-thuần). Findings **F-J01…F-J05** (prefix **F-J**).
 - **Còn nợ §9**: migrate token Kaggle/GitHub sang `{env:...}` (**chưa làm** — rủi ro bảo mật).
 - **Lưu ý hạ tầng**: websearch đang **401** → workaround: arXiv MCP + `webfetch` (Wikipedia/PMC/PubMed).

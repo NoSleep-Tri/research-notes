@@ -15,7 +15,7 @@
 | Q-011 | Quên có chủ đích: khi nào nên quên? | TB | ✅ Trả lời bước đầu → [AN-011](surveys/deliberate-forgetting.md) |
 | Q-012 | **Ngủ & củng cố trí nhớ** — ngủ làm gì với ký ức, và ML mô phỏng được gì? | Cao (bạn chọn) | ✅ Trả lời → [AN-012](surveys/sleep-consolidation.md) |
 | Q-013 | Một hệ thống **tự chứng minh mình không bị hack** được không? (hệ quả từ F-G01) | TB (tôi chọn) | ✅ Trả lời → [AN-013](surveys/self-verification.md) |
-| DS-004 | **SAGE v0.2** — *archive/compaction*: nén lịch sử thành scaffold tái sử dụng | TB | ⬜ Chờ thiết kế acceptance (roadmap §11) |
+| DS-004 | **SAGE v0.2** — *archive/compaction*: nén lịch sử thành scaffold tái sử dụng | TB | ✅ **KPI 3/3 PASS** (Kaggle v4, 2026-10-06, ngưỡng §15.2 giữ nguyên) → [spec §15](design/SAGE-spec.md) · [kpi.txt](design/demo/out/ds004/kpi.txt) — findings **F-J01…F-J05** |
 | DS-005 | **SAGE v0.2** — *red-team acceptance*: tự hack lấy KPI của chính mình (đối chứng 3 lớp: prereg · bất biến · verifier ngoài) | Thấp | ⬜ Đề xuất từ AN-013 §6, chờ duyệt chạy |
 
 > Quy tắc: 1 câu hỏi = 1 tiêu chí "đã trả lời" rõ ràng. Giữ backlog ≤ 10 mục.
@@ -27,7 +27,10 @@
 | DS-001 | **SAGE** — "bộ não biết mình dở ở đâu": spec 6 lớp + prototype 5 module | ✅ **Demo 5/5 PASS** (Kaggle v3, 2026-10-06) → [SAGE-spec](design/SAGE-spec.md) · [sage_demo.py](design/demo/sage_demo.py) · [kpi.txt](design/demo/out/kpi.txt) |
 | DS-002 | **SAGE v0.2** — mở rộng D6–D8: U-curve · directional forgetting · replay+plasticity | ✅ **Demo 3/3 PASS** (Kaggle v5, 2026-10-06, qua 3 lần) → [spec §12](design/SAGE-spec.md) · [sage_demo2.py](design/demo/sage_demo2.py) · [kpi.txt](design/demo/out/ds002/kpi.txt) |
 | DS-003 | **SAGE v0.2** — 3 công cụ tự kỷ luật: wirehead guard · confidence calibration · adaptive registry | ✅ **Demo 3/3 PASS** (Kaggle v3, 2026-10-06, qua 3 lần) → [spec §14](design/SAGE-spec.md) · [sage_demo3.py](design/demo/sage_demo3.py) · [kpi.txt](design/demo/out/ds003/kpi.txt) |
+| DS-004 | **SAGE v0.2** — *archive/compaction*: nén lịch sử thành scaffold tái sử dụng | ✅ **KPI 3/3 PASS** (Kaggle v4, 2026-10-06, ngưỡng §15.2 giữ nguyên) → [spec §15](design/SAGE-spec.md) · [kpi.txt](design/demo/out/ds004/kpi.txt) |
 
 > **Bài học từ DS-003 (3 lần, 2 metric bị khai tử)**: cả 3 lần sửa đều là **metric/harness thoái hóa**, không lần nào hạ ngưỡng. `gating_acc` bị thắng bằng cách *không quyết định gì* (coverage=0) · hợp đồng `0.90` bị vô hiệu bằng cách *nằm ngoài vùng dữ liệu* · bandit "không học" vì *không chịu thử*. **Goodhart ngay trên cái thước đo của mình** — đúng F-R01.
 
 > **Kết quả âm của DS-002 (không che)**: *loss of plasticity* **không quan sát được** ở scale toy — 3 lần chạy, mọi arm học task mới đều đạt `plasticity_ratio ≈ 1.0`. F-X03 chỉ được xác nhận ở nhánh retention.
+
+> **Bài học từ DS-004 (PASS lần đầu thấy số, không sửa ngưỡng)**: diagnostic được đặt nhãn *"trần acc"* nhưng **số liệu thật bác nhãn** — `sage 0.9525 > oracle 0.6971` → đó là *baseline value-only raw*, trần thật = `keepall = 1.0` (§15.4 lần 2). Kèm **F-J05**: nén chỉ an toàn khi record đủ trùng lặp — σ = 0.2 (fidelity 0.374) thì `sage` **thua** raw-thuần. Vận hành: v1–v3 chết vì papermill đòi `.ipynb` (§15.4) — *nhãn sai trên diagnostic không giết KPI, nhưng phải sửa trước khi ai đọc nhầm*.

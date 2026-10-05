@@ -376,3 +376,106 @@ Bảng gồm: *(lỗi · điều kiện kích hoạt · bài test phát hiện �
 - **Artifacts**: [demo/out/ds003/](demo/out/ds003/) — `summary.json`, `kpi.txt`, 3 PNG (`d9_wirehead_guard`, `d10_calibration_gate`, `d11_registry`).
 
 > **Ghi chú minh bạch**: bảng acceptance đầu §14 viết theo thiết kế **lần 1** (D10 c3 = `gating_acc +0.03`). Con số trong bảng là **ngưỡng gốc, không đổi**; việc thay `c3 → c3' → c3''` nằm ở Change-log bên trên kèm số liệu của từng lần, và **c3' bị bỏ chỉ vì nó cho điểm cho coverage = 0**.
+
+---
+
+## 15. DS-004 — *archive/compaction* ("giờ bảo trì"): acceptance **pre-registered**
+
+- **Ghi trước khi chạy**: 2026-10-06, ngay trước lần dựng demo đầu tiên. Nguyên tắc như §10/§12/§14: **không sửa ngưỡng để chạm KPI**; mọi thay đổi phải ghi ở Change-log cuối mục này kèm số liệu thật.
+- **Câu hỏi khoa học** (roadmap §11, mục v0.2 còn lại): **nén lịch sử thành scaffold** thì **giữ được gì và mất gì**? Cụ thể: replay/retain **theo giá trị** (F-N07, AN-012) có thắng **theo độ mới** không, và **nén bao nhiêu thì còn giữ đúng**?
+- **Truy xuất**: [AN-012](../surveys/sleep-consolidation.md) T6 + **F-N07** (*chưa ai tách downscale khỏi replay*) + F-N04 (ngủ = replay + downscale + dọn rác) · [AN-013](../surveys/self-verification.md) **F-V03/F-V06** (verifier ngoài + khóa trước) · [AN-011](../surveys/deliberate-forgetting.md) F-X03 (replay giữ `0.839` vs naive `0.431`).
+- **Kernel**: `tribu1/sage-v0-4-demo-ds-004` · code: [demo/sage_demo4.py](demo/sage_demo4.py) · CPU-only, không internet, 10 seed.
+
+### 15.1 Thiết kế thí nghiệm (định nghĩa **trước** — tránh metric thoái hóa)
+
+- **Corpus**: `N₀ = 3000` record mới đều đặn qua `C = 5` chu kỳ (`T = 30` vòng/chu kỳ). Record = `content vector (8 chiều)` + `value ∈ [0,1]` (mixture: 20% cao) + `age` + `links` tới record cùng topic (12 topic).
+  - **Khai báo trước về độ lệch nội dung**: record cùng topic sinh quanh chung prototype với **noise `σ = 0.06`** — giả định: record trùng chủ đề là **nghiệp vụ trùng lặp** (cùng sự kiện, khác cách diễn đạt) nên gộp vào scaffold mất mát thấp. **`σ` được cố định trước lần chạy đầu**, không phải hiệu chỉnh sau.
+  - **Sensitivity (diagnostic, KHÔNG gate KPI)**: chạy thêm `σ ∈ {0.06, 0.20, 0.40}` để đo **đánh đổi nén–trung thực** dự báo bởi AN-013/Fountas: σ tăng → fidelity scaffold giảm → acc_sage rơi về mức của `recency`. Nếu kết quả đó xảy ra → **ghi thành kết quả**, không chỉnh `λ` hay `σ` để cứu KPI.
+- **Query set**: `Q = 800` truy vấn, mỗi truy vấn hỏi **1 record cụ thể**. **Phân bố truy vấn: ưu tiên theo `value`, mọi age đều có xác suất bằng nhau** — *tuyên bố trước*: truy vấn thật sự nghiêng về **điều quan trọng**, không nghiêng về **điều mới nhất**. Đây chính là giả định đang được kiểm chứng, **không phải** thiết kế để make cho SAGE thắng; nếu `recency` thắng → ghi negative finding.
+- **Ngân sách**: mọi chính sách (trừ `keepall`) phải `size ≤ 0.40 × N₀` — công bằng cho tất cả.
+- **4 chính sách**: `keepall` (baseline không nén) · `recency` (giữ 40% mới nhất) · `random` (40% ngẫu nhiên) · **`sage`** (giữ raw record **value cao** → gộp record trung bình cùng topic thành **scaffold** = centroid → evict record value thấp / không còn được hỏi).
+- **Độ trung thực của scaffold (điểm mấu chốt, tránh "gộp hết vẫn 100%")**: scaffold **mất mát có kiểm soát** — record nằm trong scaffold chỉ truy xuất được với xác suất `fidelity = exp(−λ·distortion)` (`distortion` = TB khoảng cách squared tới centroid, `λ = 4`). **Gộp càng hỗn tạp → fidelity càng thấp** → gộp tất cả vào 1 scaffold sẽ **hỏng accuracy**, tự chặn cửa "nén bằng cách vứt thông tin".
+- **Chu kỳ**: sau mỗi chu kỳ, record mới vào và **cần archive lại** (re-compact); đo accuracy + size + link integrity **mỗi chu kỳ**.
+
+### 15.2 Acceptance (ngưỡng pre-registered)
+
+| ID | Kiểm chứng | Thí nghiệm | Acceptance (ngưỡng ghi trước) |
+|---|---|---|---|
+| **D12** | **Compaction thật sự** | `sage` vs `keepall` | c1 `size_sage ≤ 0.40` (nén ≥ 60%) · c2 `acc_sage ≥ 0.90` |
+| **D13** | **Giữ theo GIÁ TRỊ thắng theo ĐỘ MỚI** | `sage` vs `recency` vs `random` (cùng ngân sách) | c1 `acc_sage ≥ acc_recency + 0.10` · c2 `acc_sage ≥ acc_random + 0.10` |
+| **D14** | **Integrity + không suy tàn tích lũy** | theo chu kỳ `1..5` | c1 `dangling_sage = 0` ở **mọi** chu kỳ · c2 `acc(cuối) ≥ acc(đầu) − 0.05` |
+
+**KPI tổng: 3/3 module** (mỗi module phải qua **tất cả** tiêu chí của nó).
+
+**Lý do các ngưỡng** (để sau này không ai bảo "chọn cho đúng số"):
+- `0.40` = cùng ngân sách với 2 đối thủ, và là mức nén mà scaffold `5 record → 1` với 12 topic phải đạt được; `0.90` = `keepall = 1.0` theo định nghĩa, nên `0.90` cho phép **mất tối đa 10% truy vấn** khi bỏ 60% kho — nếu đặt `0.50` thì mọi chính sách "vứt bừa" cũng qua.
+- `+0.10` (≈ 10 điểm %): với 10 seed và `Q = 800`, độ lệch chuẩn dự kiến `< 0.03` → `+0.10` cách 3σ, đủ tách khỏi noise; cùng magnitude với margin của DS-002/DS-003 (`0.05`–`0.10`).
+- `dangling = 0`: **cùng tiêu chí kiểm tra graph của dự án này** — nén record mà làm gãy link là hỏng, kể cả accuracy tốt.
+- `−0.05` chu kỳ: cho phép dao động seed, nhưng chặn **suy tàn tích lũy** (compaction lặp lại làm corpus rỗng dần — đúng "chết dần theo số vòng" như D9 `5.03 → 8.40`).
+
+### 15.3 Cảnh báo metric thoái hóa (học từ §14) — **tự chặn trước**
+
+Những thứ **không được tính là PASS**, ghi ở đây để không phải tranh luận sau này:
+1. **Nén bằng cách gộp tất cả vào 1 scaffold** → chặn bằng `fidelity` (§15.1): gộp hỗn tạp → accuracy sập, không qua được `0.90`.
+2. **Không trả lời gì / bỏ trống** → `acc = 0`, tự chặn ở `0.90`.
+3. **Đổi phân bố query sau khi thấy số** → **cấm**; phân bố đã cố định ở §15.1 (`value`-weighted, age-uniform). Nếu `recency` thắng → **ghi negative finding**, không đổi query.
+4. **Giảm ngân sách của đối thủ** → mọi chính sách (trừ `keepall`) **cùng `0.40`**.
+5. **Đổi `λ` sau khi thấy số** → `λ = 4` cố định; nếu accuracy thấp vì `λ` thì đó là kết quả về **đánh đổi nén–trung thực**, ghi vào change-log chứ không chỉnh lại.
+
+### 15.4 Change-log
+
+**Lần 1 → v2 (2026-10-06) — sửa *harness*, không sửa ngưỡng, và *chưa có kết quả nào được nhìn*:**
+
+1. `make_corpus` được §15.1 khai báo là sinh content với **`σ = 0.06`**, nhưng tham số **chưa nối vào hàm** (hàm chạy cứng `0.35`); đồng thời `sensitivity()` gọi `make_corpus(..., noise=sg)` sẽ **`TypeError`** → crash trước khi ghi `summary.json`. Đã nối `noise=NOISE`.
+2. Thêm **diagnostic trần acc (`oracle_acc`)**: vì query phân bố theo `value`, *chi toàn bộ ngân sách 0.40 cho top-value raw* là chọn tối ưu → cho ra **trần acc có thể đạt được** với ngân sách này. Diagnostic này **không gate KPI**, được thêm **trước khi nhìn số liệu** — để nếu `0.90` không đạt thì phân biệt được *"ngưỡng đặt sai"* (trần < 0.90) với *"phương pháp kém"* (acc ≪ trần).
+3. Ngưỡng §15.2 **không đổi**. (Nếu sau khi có số mà cần điều chỉnh, phải ghi ở mục này kèm số đo thật — đúng quy trình §10/§12.)
+
+**Bài học vận hành (không phải bug của thí nghiệm)** — *khai báo ở đây vì nó quyết định "kết quả có tồn tại không":*
+- `save_notebook` với `kernelExecutionType: "SaveAndRunAll"` chạy qua **papermill**, tức là **bắt buộc `.ipynb` JSON (nbformat 4)**. Gửi **nguồn Python thô** → papermill ném `NotJSONError: Notebook does not appear to be JSON` → run chết sau ~**15.9 s** → **không có file output nào** (`kpi.txt` → 404). Symptom này dễ nhầm với "phân quyền đọc output bị chặn".
+- v1→v3 gửi dạng `.py` thô (**tất cả đều fail, không có số liệu nào**) · **v4 là lần chạy đầu tiên hợp lệ** (gói thành 1 cell `nbformat 4`).
+
+**Lần 2 → sau v4 (2026-10-06) — đã thấy số liệu; sửa *nhãn báo cáo*, không sửa ngưỡng:**
+
+4. Diagnostic `oracle_acc` ở mục 1 được ghi là *"trần acc có thể đạt được"* — **số liệu bác nhãn đó**: `sage = 0.9525 > oracle = 0.6971`. Nguyên nhân: oracle là phương án **raw-thuần** (chi 100% ngân sách cho top-value raw, phần còn lại không trả lời gì), còn `sage` giữ raw top ~22% value **và** che phần còn lại bằng scaffold (fidelity 0.9128) → độ phủ query rộng hơn. **Trần thật = `keepall = 1.0`.** §15.5 gọi lại bằng đúng tên *"baseline value-only raw"*. File `kpi.txt` trên Kaggle giữ nguyên (dòng 5 vẫn nhãn cũ) — mục này là nơi chuẩn hoá. **Không ngưỡng nào đổi.**
+5. Tên kernel ở đầu §15 ghi `tribu1/sage-v0-4-demo-ds-004`, slug thật là `tribu1/sage-v0-4-demo-ds-004-archive-compaction` → sửa cho khớp (sửa tên, không sửa design).
+
+### 15.5 Kết quả (v4 — 2026-10-06)
+
+**KPI 3/3 PASS** — D12 ✅ · D13 ✅ · D14 ✅ · **không ngưỡng nào bị sửa sau khi thấy số** (§15.2 giữ nguyên).
+
+| Chính sách | acc (mean, 10 seed) | size (final) | dangling (max, 5 chu kỳ) |
+|---|---|---|---|
+| `keepall` | 1.0000 | 1.0000 | 0 |
+| `recency` — 40% mới nhất | 0.4002 | 0.4000 | **296** |
+| `random` — 40% ngẫu nhiên | 0.4020 | 0.4000 | **224** |
+| **`sage`** | **0.9525** (std/seed 0.0018) | **0.3808** | **0** |
+
+- **D12** c1 `0.3808 ≤ 0.40` ✅ (nén **61.9%**) · c2 `0.9525 ≥ 0.90` ✅
+- **D13** c1 `+0.5523` vs recency ✅ · c2 `+0.5505` vs random ✅ (ngưỡng `+0.10`)
+- **D14** c1 `dangling = 0` ở cả 5 chu kỳ ✅ · c2 `Δacc = +0.0034 ≥ −0.05` ✅
+
+`acc` theo chu kỳ của `sage`: `0.9502 → 0.9523 → 0.9527 → 0.9538 → 0.9535` — **không suy tàn tích lũy**, thậm chí tăng nhẹ (recency `0.3941→0.4079`, random `0.4029→0.4011`). Tuyên bố trước ở §15.1 rằng *"nếu recency thắng → ghi negative finding"* — **recency không thắng**, nên giả định query ∝ value được giữ nguyên chứ không phải đổi sau khi thấy số.
+
+**Diagnostic `oracle = 0.6971` = *baseline value-only raw*, không phải trần** (sửa nhãn: §15.4 lần 2). Trần thật = `keepall = 1.0`.
+
+**Sensitivity (diagnostic, KHÔNG gate KPI):**
+
+| `σ` | `acc_sage` (final) | fidelity mean / min | size |
+|---|---|---|---|
+| 0.06 *(đã khai trước §15.1)* | 0.9543 | 0.9128 / 0.8130 | 0.3809 |
+| 0.20 | 0.6776 | 0.3737 / 0.1002 | 0.3809 |
+| 0.40 | 0.5019 | 0.0273 / 0.0001 | 0.3809 |
+
+**Findings — prefix mới khai báo: `F-J` (DS-004 / archive):**
+
+| ID | Finding | Bằng chứng | Confidence |
+|---|---|---|---|
+| **F-J01** | **Giữ theo GIÁ TRỊ thắng theo ĐỘ MỚI** khi query ∝ value, cùng ngân sách | `0.9525` vs `0.4002` / `0.4020` → `+0.55`; std/seed `0.0018` | **cao trong toy model**; điều kiện: giả định query đã khai trước §15.1 — query nghiêng về "mới nhất" sẽ thu hẹp khoảng cách (**chưa đo**) |
+| **F-J02** | **Chọn lọc + nén > chỉ chọn lọc raw** — scaffold thay phần lớn kho | nén 61.9% mà acc `0.9525`; vượt baseline value-only raw `0.6971` | cao — đối chứng trực tiếp, cùng ngân sách |
+| **F-J03** | **Không xóa, chỉ redirect** — stub-redirect là cách giữ 0 link gãy | sage `dangling = 0` vs recency `296` / random `224` | cao — đúng P3 SAGE + F-X01 (não ức chế, không xóa) |
+| **F-J04** | **Nén lặp lại không làm corpus rỗng dần** | `Δacc` 5 chu kỳ = `+0.0034`, acc tăng nhẹ | trung bình-cao — mới 5 chu kỳ, hiệu ứng >5 chu kỳ **chưa đo** |
+| **F-J05** | **Nén chỉ an toàn khi record đủ trùng lặp — có điểm giao đo được** | sweep `σ 0.06→0.20→0.40`: fidelity `0.913→0.374→0.027`, acc `0.954→0.678→0.502`; **ở σ=0.20 `sage` đã thua value-only raw** (`0.678 < 0.697`) → điểm giao nằm giữa fidelity `0.374` và `0.913` | cao — 3 điểm monotone, không hiệu chỉnh sau |
+
+**Hạn chế (nói trước khi ai hỏi):** (i) toy corpus `N₀ = 3000`, 12 topic, content 8 chiều — external validity chưa có; (ii) kết quả **có điều kiện redundancy**: `σ = 0.06` giả định record cùng topic là trùng lặp; nếu corpus thật hỗn tạp (σ ≥ 0.2) scaffold sập theo F-J05; (iii) sensitivity là diagnostic — **KPI chỉ chạy ở σ = 0.06 đã khai trước**.
+
+**Artifacts**: `research/design/demo/out/ds004/{kpi.txt, summary.json, d12_compaction.png, d13_value_vs_recency.png, d14_retention.png}` · kernel `tribu1/sage-v0-4-demo-ds-004-archive-compaction` **v4** · code [demo/sage_demo4.py](demo/sage_demo4.py).

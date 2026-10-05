@@ -2,7 +2,7 @@
 
 Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có **evidence + confidence**, rồi **thiết kế hệ thống** và **kiểm chứng bằng demo trên Kaggle**.
 
-**Trạng thái**: 13 survey (Q-001 → Q-013) · 214 entity / 277 relation knowledge graph · 3 hệ thống thiết kế, demo **5/5**, **3/3**, **3/3 PASS**.
+**Trạng thái**: 13 survey (Q-001 → Q-013) · 220 entity / 286 relation knowledge graph · 4 hệ thống thiết kế, demo **5/5**, **3/3**, **3/3**, **3/3 PASS**.
 
 ## Chỉ mục
 
@@ -28,7 +28,7 @@ Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có *
 ### Tổng hợp & thiết kế
 
 - [SYNTHESIS.md](SYNTHESIS.md) — 13 survey → **6 chủ đề xuyên suốt** (T1–T6) + ma trận liên thông
-- [design/SAGE-spec.md](design/SAGE-spec.md) — **SAGE**: 6 lớp L0–L5, 8 nguyên tắc P1–P8 truy xuất survey; demo **5/5 PASS** (DS-001) + **3/3** (DS-002) + **3/3** (DS-003)
+- [design/SAGE-spec.md](design/SAGE-spec.md) — **SAGE**: 6 lớp L0–L5, 8 nguyên tắc P1–P8 truy xuất survey; demo **5/5 PASS** (DS-001) + **3/3** (DS-002) + **3/3** (DS-003) + **3/3** (DS-004)
 - [backlog.md](backlog.md) · [questions/](questions/) · [templates/](templates/)
 
 ### Demo (Kaggle, CPU, pre-registered acceptance)
@@ -39,7 +39,7 @@ Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có *
 | DS-002 | `tribu1/sage-v0-2-demo-ds-002` | **3/3 PASS** — U-gap 0.838 · quên đều phá trục 100× · replay giữ 0.839 vs naive 0.431 | 3 lần (1/3 → 2/3 → 3/3): 2 bug harness + 1 bộ task không kiểm chứng được; **ngưỡng không đổi** |
 | DS-003 | `tribu1/sage-v0-3-demo-ds-003` | **3/3 PASS** — holdout cố định nói dối **8.41** điểm · ECE 0.258→0.022 · adaptive 0.920 vs static 0.577 | 3 lần (2/3 → 2/3 → 3/3): **metric tự thoái hóa 2 lần** + 1 bug bandit; **ngưỡng không đổi** |
 
-| **DS-004** | *chưa chạy* | **Archive/compaction** — "giờ bảo trì" của SAGE (theo T6/AN-012) | ⬜ chờ thiết kế acceptance (pre-register §10/§12/§14) |
+| **DS-004** | `tribu1/sage-v0-4-demo-ds-004-archive-compaction` | **3/3 PASS** — nén **61.9%** (size 0.3808) mà acc **0.9525** vs recency/random ~0.40 · dangling **0** · Δacc +0.0034 | v1–v3 fail papermill (cần `.ipynb`), **v4 PASS lần đầu thấy số** · diagnostic "trần acc" bị số liệu bác nhãn (oracle 0.6971 < sage 0.9525) · **ngưỡng không đổi** |
 | **DS-005** | *chưa chạy* | **Red-team acceptance** — tự hack lấy KPI của mình, đối chứng 3 lớp (prereg · bất biến · verifier ngoài) | ⬜ đề xuất từ AN-013 §6 |
 Code: [design/demo/sage_demo.py](design/demo/sage_demo.py), [design/demo/sage_demo2.py](design/demo/sage_demo2.py), [design/demo/sage_demo3.py](design/demo/sage_demo3.py).
 Mọi thay đổi ngưỡng/metric acceptance đều ghi ở **change-log** trong spec (§10, §12, §14) kèm số liệu thật — không sửa ngưỡng để chạm KPI.

@@ -1,0 +1,22 @@
+KPI DS-004 — SAGE v0.2 archive/compaction (10 seeds, 5 chu kỳ, budget 0.40, lambda 4)
+acc(mean) keepall=1.0000 recency=0.4002 random=0.4020 sage=0.9525  (acc_sage std/seed=0.0018)
+size(final) keepall=1.0000 recency=0.4000 random=0.4000 sage=0.3808
+dangling(max) recency=296 random=224 sage=0
+ceiling (oracle: chi toan bo 0.40 cho top-value) = 0.6971  <- tran acc dat duoc
+
+D12c1: size_sage(final)=0.3808 <= 0.40 -> PASS
+D12c2: acc_sage(mean)=0.9525 >= 0.90 -> PASS
+D13c1: acc_sage 0.9525 - acc_recency 0.4002 = +0.5523 >= +0.10 -> PASS
+D13c2: acc_sage 0.9525 - acc_random 0.4020 = +0.5505 >= +0.10 -> PASS
+D14c1: dangling_sage(max qua 5 chu kỳ)=0 == 0 -> PASS
+D14c2: acc(cuối)-acc(đầu)=+0.0034 >= -0.05 -> PASS
+
+KPI: 3/3 PASS
+  D12 PASS
+  D13 PASS
+  D14 PASS
+
+sensitivity (diagnostic, không gate):
+  sigma=0.06 -> acc_sage_final=0.9543 fidelity_mean=0.9128 size=0.3809
+  sigma=0.2 -> acc_sage_final=0.6776 fidelity_mean=0.3737 size=0.3809
+  sigma=0.4 -> acc_sage_final=0.5019 fidelity_mean=0.0273 size=0.3809
