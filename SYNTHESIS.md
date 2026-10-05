@@ -1,6 +1,6 @@
 # SYNTHESIS — Kết hợp 11 survey thành 1 bức tranh, rồi thiết kế hệ thống
 
-- **Ngày**: 2026-10-06 · **Phạm vi**: Q-001 → Q-011 + **DS-001, DS-002, DS-003** (thiết kế dẫn xuất)
+- **Ngày**: 2026-10-06 · **Phạm vi**: Q-001 → Q-012 + **DS-001, DS-002, DS-003** (thiết kế dẫn xuất)
 - **Mục đích**: gom các survey rời thành **chủ đề xuyên suốt**, chỉ ra **ma trận liên thông** và **agenda nghiên cứu tiếp**
 
 ---
@@ -20,13 +20,14 @@
 | Q-009 | Vì sao cả não và AI đều hack được reward? | `surveys/reward-hacking.md` | **Cùng một cấu trúc** (tín hiệu ≠ mục tiêu) ở 3 case: **não · tổ chức · AI**; Skalse 2022: chỉ hằng số mới unhackable | arXiv (~22 paper) + webfetch (6 trang Wiki) |
 | Q-010 | Attention: não ↔ Transformer | `surveys/attention-brain-vs-transformer.md` | **Chỉ cùng tên** — khác 4/5 chiều; nhưng **cùng hình dạng lỗi**: U-curve giữa chuỗi | arXiv (~20 paper) + webfetch (Attention, Cocktail party) |
 | Q-011 | Quên có chủ đích: khi nào nên quên | `surveys/deliberate-forgetting.md` | **4 nghĩa khác nhau** của "quên"; não **ức chế chứ không xóa**; **thiếu trí nhớ mới là vấn đề**, không phải quá quên | arXiv (~26 paper) + webfetch (RIF, RTBF) |
+| **Q-012** | **Ngủ & củng cố trí nhớ** | `surveys/sleep-consolidation.md` | Ngủ làm **3 việc một lúc**: củng cố (replay) · **downscale** · dọn rác (glymphatic +60%); TMR có hiệu ứng nhưng **nhỏ** (`g = 0.29`) và dễ mất; ML mô phỏng được replay, **chưa ai tách được downscale** | **Europe PMC** (18 DOI) + arXiv (~8) + webfetch (5 Wiki) |
 | **DS-001** | *(thiết kế)* **SAGE** — bộ não biết mình dở ở đâu | `design/SAGE-spec.md` | 6 lớp L0–L5, 8 nguyên tắc P1–P8 truy xuất survey; **demo 5/5 PASS** | Tổng hợp từ Q-001→011 |
 | **DS-002** | *(mở rộng)* **SAGE v0.2** — kiểm chứng trực tiếp F-A03 / F-X02 / F-X03 | `design/SAGE-spec.md` §12 | **demo 3/3 PASS** (3 lần): U-curve sinh từ phân bố loss · quên đều phá trục **100×**, không quên thì không thích nghi **29×** · replay giữ `0.839` vs naive `0.431` | Q-010 + Q-011 |
 | **DS-003** | *(mở rộng)* **SAGE v0.2** — 3 công cụ tự kỷ luật: wirehead guard · calibration · registry | `design/SAGE-spec.md` §14 | **demo 3/3 PASS** (3 lần): holdout cố định **nói dối 8.41 điểm** và càng hỏi càng dối · ECE `0.258 → 0.022` · adaptive registry `0.920` vs static `0.577` | Q-009 + Q-007 |
 
 ---
 
-## 2. Năm chủ đề xuyên suốt (cross-cutting)
+## 2. Sáu chủ đề xuyên suốt (cross-cutting)
 
 ### T1 · **Phân tầng & "cái ý thức đến sau"** (Q-002, Q-003, Q-004, Q-005)
 Cùng một **bánh tầng** xuất hiện ở 4 survey:
@@ -56,14 +57,21 @@ L3 · Ý THỨC (giao diện)    "bản báo cáo đến sau" — LeDoux, AST, G
 → **Insight**: **can thiệp vào van rẻ hơn thay tín hiệu** — cùng công thức trong rehab (tăng gain), học (đổi context), và ML (đổi reward/monitor).
 → **Nối từ Q-010 — nhưng có cảnh báo quan trọng**: ở não, **chính cái van tạo ra trần** (tài nguyên hữu hạn, 3–6 mục). Ở Transformer, attention **không có trần** ⇒ *công thức đúng nhưng thiếu hạn tử*: mọi thiết kế agent đều phải **tự đặt budget** (test-time compute có ngưỡng theo domain; context có ngưỡng hỏng). **Đừng giả định van tự đóng.** (F-A01, F-A05)
 
-### T5 · **Phương pháp: bằng chứng đảo ngược + thiếu máy đo** (cả 11 survey)
+### T5 · **Phương pháp: bằng chứng đảo ngược + thiếu máy đo** (cả 12 survey)
 - **Đảo ngược** (mất tín hiệu → hỏng) cho kết quả mạnh nhất: CIP (Q-003), S.M. (Q-004), Babinski/SCI (Q-005), ablation (Q-006), reconsolidation disruption (Q-007).
-- **Cùng thiếu "máy đo"**: không có máy đo ý thức (Q-002) ↔ **không có benchmark đáng tin** (Q-006) ↔ chưa có metric "quên bao nhiêu là lành mạnh" (Q-007) ↔ **attention weight nhìn thấy được nhưng không phải giải thích** (Q-010, F-A02 — người ra quyết định kém hơn khi có nó) ↔ **unlearning verification "underexplored and fragmented"** (Q-011, F-X04).
-→ **Insight**: 5 lĩnh vực cùng đứng ở **khoảng trống giữa cơ chế đã mô tả và con số đáng tin** — đây là nơi research thật sự sống. **Mẫu lặp lại 4 lần trong 11 survey** ⇒ nó *là* đặc trưng của ngành, không phải tai nạn.
+- **Cùng thiếu "máy đo"**: không có máy đo ý thức (Q-002) ↔ **không có benchmark đáng tin** (Q-006) ↔ chưa có metric "quên bao nhiêu là lành mạnh" (Q-007) ↔ **attention weight nhìn thấy được nhưng không phải giải thích** (Q-010, F-A02 — người ra quyết định kém hơn khi có nó) ↔ **unlearning verification "underexplored and fragmented"** (Q-011, F-X04) ↔ **máy đo spindle bị chính publication bias làm méo**: 2 meta-analysis nhìn cùng đống tài liệu, một ra "nhỏ–vừa", một ra "gần như không có" (Q-012, F-N03).
+- **Mới thêm từ Q-012**: khi *máy đo* itself tranh cãi thì **phải chọn biến đo robust hơn** — Q-012 lấy **coupling SO–SP (timing)** thay vì **mật độ (amplitude)** thì mới ra positive nhất quán → *cùng một bài học với P2 của SAGE: đừng tin tín hiệu nội tại*.
+→ **Insight**: 6 lĩnh vực cùng đứng ở **khoảng trống giữa cơ chế đã mô tả và con số đáng tin** — đây là nơi research thật sự sống. **Mẫu lặp lại 5 lần trong 12 survey** ⇒ nó *là* đặc trưng của ngành, không phải tai nạn.
+
+### T6 · **Giờ bảo trì: replay + downscale + dọn rác** (Q-007, Q-011, **Q-012**)
+- **Q-012 cho thấy ngủ không phải "đứng yên"** — nó chạy **3 job cùng lúc**: (i) **replay** ký ức (E17/hippocampal replay), (ii) **downscale/ổn định hóa** strength (SHY: synapse chỉ giảm khi được ngủ), (iii) **dọn rác chuyển hóa** (glymphatic, +60% không gian giữa tế bào, clearance β-amyloid tăng).
+- **Nối thẳng 2 survey trước**: Q-007 đã nói *replay là thứ ML mượn được*, Q-011 đã nói *quên có chủ đích là thứ não làm* → **Q-012 ghép hai thứ vào cùng một cửa sổ thời gian**, và thêm job thứ ba mà chưa ai mô phỏng trong ML (**dọn rác**).
+- **Điểm yếu chung**: ngay trong não, thành phần "downscale" vẫn **tranh chấp** (E15 vs E16 — potentiation ở thị giác "at odds with SHY") → không ai có quyền chắc 100%, kể cả khi thiết kế hệ thống.
+→ **Hệ quả thiết kế**: một hệ thống cần **window không bị reward drive** (§3e AN-012) — đúng thứ DS-003 D9 thiếu; và **DS-004 (archive/compaction) chính là bản mô phỏng trực tiếp** của T6.
 
 ---
 
-## 3. Ma trận liên thông (trích từ knowledge graph, 194 entity / 242 relation)
+## 3. Ma trận liên thông (trích từ knowledge graph, 205 entity / 260 relation)
 
 | Từ → Đến | Ý nghĩa |
 |---|---|
@@ -92,6 +100,10 @@ L3 · Ý THỨC (giao diện)    "bản báo cáo đến sau" — LeDoux, AST, G
 | **DS-003 D10 ↔ Q-009 (F-R01) — metric tự bị hack** | **Ba lần sửa liên tiếp toàn là thước đo tự thoái hóa**: `gating_acc` cho điểm cao nhất khi coverage = **0** (không quyết định gì) · hợp đồng `0.90` bị vô hiệu bằng cách nằm ngoài vùng dữ liệu · bandit "không học" vì *không chịu thử*. Đây là **Goodhart trên chính acceptance test** — cùng cấu trúc với T2, giờ lặp lại trong phòng lab của chính mình |
 | **DS-003 D10 ↔ DS-001 (F-D05)** | Xét **trực tiếp** điều F-D05 mới suy đoán: `ECE 0.258 → 0.022`, `violation 0.203 → 0.000`; arm thô **tự quyết 23.5% ca với 70% đúng** trong khi tuyên bố 90% → *"biết khi nào không biết"* **phải được đo bằng calibration thật**, không phải bằng self-report |
 | **DS-003 D11 ↔ Q-010/Q-003 (gating T4)** | Bảng `model × kiểu lỗi` học từ phản hồi nhị phân: `0.920` ≈ **95% oracle** vs `0.577` model tĩnh → **gating theo ngữ cảnh thắng model cố định** bằng 34 điểm; và *không có optimistic-init thì arm không chịu thử* — khám phá là điều kiện cần, không phải optional |
+| **Q-012 (F-N01) ↔ Q-007 (F-K05 replay)** | Q-007 nói *replay là thứ ML mượn được*; Q-012 cho thấy replay **không đi một mình** — nó đi với **downscale** và **dọn rác**, và được **cặp nhịp SO–SP coupling** điều khiển (meta Bayesian 2025, 297 effect) → replay là **một job trong 3 job** |
+| **Q-012 (F-N04) ↔ Q-011 (F-X02/F-X03)** | Q-011: não **ức chế chứ không xóa**; Q-012: **SHY cho thấy có "giờ giảm strength"** (synapse chỉ giảm khi được ngủ) → **đúng nghĩa đen của "quên có chủ đích"** là một **giai đoạn offline có lịch**, không phải process nền. Chưa mô hình nào của ML bắt được điều này |
+| **Q-012 (F-N03) ↔ T5 (thiếu máy đo)** | **Tự phản chứng trong ngành**: meta-analysis spindle 53 studies ra "nhỏ–vừa", bình luận 2026 dùng lại chính dataset đó với kiểm soát publication bias ra **"gần như không có"** → bài học: **chọn biến đo robust** (coupling) thay vì biến đo nhạy bias (density) |
+| **Q-012 (§3e) ↔ Q-009 (F-R01) + DS-003 D9** | **Lý do ngủ không bị wirehead**: trong window ngủ **không có reward-driven signal** → không có objective nào để optimize → không thể hack. DS-003 D9 đo **ngược lại** (proxy + monitor + holdout trong vòng lặp → nói dối 8.41) ⇒ **SAGE cần một window "không objective"** — đó chính là DS-004 |
 
 ---
 
@@ -104,18 +116,22 @@ L3 · Ý THỨC (giao diện)    "bản báo cáo đến sau" — LeDoux, AST, G
 | Q-009 | Vì sao cả não và AI đều **hack được reward**? | Q-003/004/006 | ✅ **xong (2026-10-06)** — 3 case chung 1 cấu trúc |
 | Q-010 | **Attention** — van chọn lọc của não và của Transformer | Q-002/003/006 | ✅ **xong (2026-10-06)** — khác 4/5 chiều, cùng 2 chiều lỗi |
 | Q-011 | **Quên có chủ đích**: khi nào nên quên (đổi tech stack, đổi domain)? | Q-001/007 | ✅ **xong (2026-10-06)** — 4 nghĩa; quên phụ thuộc *hướng* + *replay*, không phải lượng |
+| **Q-012** | **Ngủ & củng cố trí nhớ** — ngủ làm gì với ký ức, ML mô phỏng được gì? | Q-007, Q-011, Q-006 | ✅ **xong (2026-10-06)** — 3 job/giờ ngủ; TMR `g = 0.29`; khoảng trống: chưa ai tách **downscale** khỏi replay |
 | **DS-001** | **Thiết kế SAGE** — biến 5 chủ đề T1–T5 thành kiến trúc + prototype | T1→T5, Q-008 | ✅ **xong (2026-10-06)** — demo **5/5 PASS** trên Kaggle |
 | **DS-002** | **Mở rộng demo** — kiểm chứng trực tiếp 3 finding của Q-010/Q-011 | Q-010 (F-A03), Q-011 (F-X02, F-X03) | ✅ **xong (2026-10-06)** — demo **3/3 PASS** (3 lần, change-log §12) |
 | **DS-003** | **Mở rộng demo** — 3 công cụ tự kỷ luật của SAGE v0.2 (roadmap §11) | Q-009 (F-R01/F-R07), DS-001 (F-D05) | ✅ **xong (2026-10-06)** — demo **3/3 PASS** (3 lần, change-log §14) |
+| **Q-013** | **Một hệ thống tự chứng minh mình không bị hack được không?** | Q-009 (F-R01), Q-012 (§3e), DS-003 (F-G01) | ⬜ **chờ xử lý** — prefix finding **F-V** *(survey do agent chọn)* |
+| **DS-004** | **Archive/compaction** — "giờ bảo trì" của SAGE (nén lịch sử thành scaffold) | Q-012 (T6, F-N07), Q-011 (F-X03) | ⬜ **chờ thiết kế acceptance** — pre-registered theo §10/§12/§14 |
 
 ---
 
 ## 5. Trạng thái dự án vs PLAN.md
 
-- **M2 (survey 5–10 paper/câu hỏi)**: ✅ vượt — **11 survey**, Q-006 dùng 19 paper arXiv, Q-007 dùng 16 paper, Q-009 dùng ~22 paper, Q-010 dùng ~20 paper, Q-011 dùng ~26 paper.
-- **KPI graph**: **194 entity / 242 relation** (mục tiêu ban đầu 100 entity ✅).
+- **M2 (survey 5–10 paper/câu hỏi)**: ✅ vượt — **12 survey**, Q-006 dùng 19 paper arXiv, Q-007 dùng 16 paper, Q-009 dùng ~22 paper, Q-010 dùng ~20 paper, Q-011 dùng ~26 paper, Q-012 dùng **18 DOI Europe PMC + ~8 arXiv**.
+- **KPI graph**: **205 entity / 260 relation** (mục tiêu ban đầu 100 entity ✅).
 - **DS-001 (thiết kế + demo)**: ✅ `design/SAGE-spec.md` + `design/demo/` — Kaggle `tribu1/sage-v0-1-demo-ds-001` v3 = **5/5 PASS** (D1 replay +38.7pp · D2 18× · D3 Goodhart · D4 −33.4% · D5 +5.7pp).
 - **DS-002 (mở rộng demo)**: ✅ `design/SAGE-spec.md` §12 + `design/demo/sage_demo2.py` — Kaggle `tribu1/sage-v0-2-demo-ds-002` v5 = **3/3 PASS** (D6 U-gap 0.838 · D7 100× + 29× · D8 replay 0.839 vs naive 0.431). **3 lần chạy** (1/3 → 2/3 → 3/3), mọi thay đổi ghi ở change-log §12, **3 ngưỡng không đổi**. **Kết quả âm**: loss of plasticity không quan sát được ở scale toy (3/3 lần).
 - **DS-003 (mở rộng demo)**: ✅ `design/SAGE-spec.md` §14 + `design/demo/sage_demo3.py` — Kaggle `tribu1/sage-v0-3-demo-ds-003` v3 = **3/3 PASS** (D9 holdout cố định nói dối **8.41** và tăng theo số lần hỏi · D10 ECE `0.258→0.022`, violation `0.203→0.000` · D11 adaptive `0.920` vs static `0.577`). **3 lần chạy**, mọi thay đổi ghi ở change-log §14 — **cả 3 lần sửa đều là bug metric/harness, không hạ ngưỡng nào**. Bài học: *cái thước tự bị hack 3 lần liên tiếp* = Goodhart tái hiện ngay trong phòng lab.
+- **Q-012 (survey)**: ✅ `surveys/sleep-consolidation.md` — **AN-012**, 7 finding **F-N01…F-N07**, 24 nguồn (18 DOI Europe PMC + 8 arXiv + 5 trang Wiki). Kết quả chính: ngủ làm **3 job/giờ bảo trì** (replay · downscale · dọn rác); **TMR `g = 0.29`** (N = 2004, null ở REM/thức/thiếu niên, mất ở 9 tháng); **spindle-metric đang bị publication bias làm méo** → dùng coupling thay density; khoảng trống mở **F-N07**: chưa ai tách downscale khỏi replay. Websearch vẫn 401 → dùng **Europe PMC API** làm nguồn sinh học (không qua web).
 - **Còn nợ §9**: migrate token Kaggle/GitHub sang `{env:...}` (**chưa làm** — rủi ro bảo mật).
 - **Lưu ý hạ tầng**: websearch đang **401** → workaround: arXiv MCP + `webfetch` (Wikipedia/PMC/PubMed).

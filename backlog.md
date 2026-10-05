@@ -13,6 +13,9 @@
 | Q-009 | Vì sao cả não và AI đều hack được reward? | TB | ✅ Trả lời bước đầu → [AN-009](surveys/reward-hacking.md) |
 | Q-010 | Attention — van chọn lọc của não và của Transformer | TB | ✅ Trả lời bước đầu → [AN-010](surveys/attention-brain-vs-transformer.md) |
 | Q-011 | Quên có chủ đích: khi nào nên quên? | TB | ✅ Trả lời bước đầu → [AN-011](surveys/deliberate-forgetting.md) |
+| Q-012 | **Ngủ & củng cố trí nhớ** — ngủ làm gì với ký ức, và ML mô phỏng được gì? | Cao (bạn chọn) | ✅ Trả lời → [AN-012](surveys/sleep-consolidation.md) |
+| Q-013 | Một hệ thống **tự chứng minh mình không bị hack** được không? (hệ quả từ F-G01) | TB (tôi chọn) | ⬜ Chờ xử lý → prefix finding **F-V** |
+| DS-004 | **SAGE v0.2** — *archive/compaction*: nén lịch sử thành scaffold tái sử dụng | TB | ⬜ Chờ thiết kế acceptance (roadmap §11) |
 
 > Quy tắc: 1 câu hỏi = 1 tiêu chí "đã trả lời" rõ ràng. Giữ backlog ≤ 10 mục.
 
