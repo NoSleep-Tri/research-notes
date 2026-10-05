@@ -2,7 +2,7 @@
 
 Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có **evidence + confidence**, rồi **thiết kế hệ thống** và **kiểm chứng bằng demo trên Kaggle**.
 
-**Trạng thái**: 12 survey (Q-001 → Q-012) · 205 entity / 260 relation knowledge graph · 3 hệ thống thiết kế, demo **5/5**, **3/3**, **3/3 PASS**.
+**Trạng thái**: 13 survey (Q-001 → Q-013) · 214 entity / 277 relation knowledge graph · 3 hệ thống thiết kế, demo **5/5**, **3/3**, **3/3 PASS**.
 
 ## Chỉ mục
 
@@ -23,10 +23,11 @@ Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có *
 | Q-011 | Quên có chủ đích? | [surveys/deliberate-forgetting.md](surveys/deliberate-forgetting.md) | 4 nghĩa; não **ức chế chứ không xóa** |
 | **Q-012** | **Ngủ & củng cố trí nhớ** | [surveys/sleep-consolidation.md](surveys/sleep-consolidation.md) | Ngủ = **3 job/giờ bảo trì** (replay · downscale · dọn rác); TMR `g = 0.29` nhỏ & dễ mất; ML **chưa tách được downscale** |
 
+| **Q-013** | **Tự chứng minh mình không bị hack** | [surveys/self-verification.md](surveys/self-verification.md) | **Không thể tự chứng minh — nhưng cấu trúc bên ngoài chứng minh được**: spec ngoài khóa trước · deterministic · verifier ngoài reward |
 
 ### Tổng hợp & thiết kế
 
-- [SYNTHESIS.md](SYNTHESIS.md) — 12 survey → **6 chủ đề xuyên suốt** (T1–T6) + ma trận liên thông
+- [SYNTHESIS.md](SYNTHESIS.md) — 13 survey → **6 chủ đề xuyên suốt** (T1–T6) + ma trận liên thông
 - [design/SAGE-spec.md](design/SAGE-spec.md) — **SAGE**: 6 lớp L0–L5, 8 nguyên tắc P1–P8 truy xuất survey; demo **5/5 PASS** (DS-001) + **3/3** (DS-002) + **3/3** (DS-003)
 - [backlog.md](backlog.md) · [questions/](questions/) · [templates/](templates/)
 
@@ -39,5 +40,6 @@ Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có *
 | DS-003 | `tribu1/sage-v0-3-demo-ds-003` | **3/3 PASS** — holdout cố định nói dối **8.41** điểm · ECE 0.258→0.022 · adaptive 0.920 vs static 0.577 | 3 lần (2/3 → 2/3 → 3/3): **metric tự thoái hóa 2 lần** + 1 bug bandit; **ngưỡng không đổi** |
 
 | **DS-004** | *chưa chạy* | **Archive/compaction** — "giờ bảo trì" của SAGE (theo T6/AN-012) | ⬜ chờ thiết kế acceptance (pre-register §10/§12/§14) |
+| **DS-005** | *chưa chạy* | **Red-team acceptance** — tự hack lấy KPI của mình, đối chứng 3 lớp (prereg · bất biến · verifier ngoài) | ⬜ đề xuất từ AN-013 §6 |
 Code: [design/demo/sage_demo.py](design/demo/sage_demo.py), [design/demo/sage_demo2.py](design/demo/sage_demo2.py), [design/demo/sage_demo3.py](design/demo/sage_demo3.py).
 Mọi thay đổi ngưỡng/metric acceptance đều ghi ở **change-log** trong spec (§10, §12, §14) kèm số liệu thật — không sửa ngưỡng để chạm KPI.
