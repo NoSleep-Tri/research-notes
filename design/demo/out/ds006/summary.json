@@ -1,0 +1,138 @@
+{
+  "metrics": {
+    "keepall": {
+      "cur_acc": 0.325375,
+      "hist_acc": 0.31225,
+      "stale_rate": 0.674625,
+      "active_ratio": 1.0,
+      "versions_active_key": 3.4
+    },
+    "recency": {
+      "cur_acc": 0.5814999999999999,
+      "hist_acc": 0.1835,
+      "stale_rate": 0.22912499999999997,
+      "active_ratio": 0.4,
+      "versions_active_key": 1.701452800042214
+    },
+    "value": {
+      "cur_acc": 0.25037499999999996,
+      "hist_acc": 0.23600000000000004,
+      "stale_rate": 0.546625,
+      "active_ratio": 0.4,
+      "versions_active_key": 1.7116396689046447
+    },
+    "archive": {
+      "cur_acc": 0.998625,
+      "hist_acc": 1.0,
+      "stale_rate": 0.0,
+      "active_ratio": 0.2941176470588235,
+      "versions_active_key": 1.0
+    },
+    "oracle_time": {
+      "cur_acc": 1.0,
+      "hist_acc": 1.0,
+      "stale_rate": 0.0,
+      "active_ratio": 1.0,
+      "versions_active_key": 3.4
+    }
+  },
+  "archive_cold_ratio": 1.0,
+  "checks": {
+    "D18c1": {
+      "pass": true,
+      "why": "cur_acc(archive)=0.9986 >= 0.90"
+    },
+    "D18c2": {
+      "pass": true,
+      "why": "stale_rate(archive)=0.0000 <= 0.10"
+    },
+    "D19_keepall": {
+      "pass": true,
+      "why": "cur_acc 0.9986 - keepall 0.3254 = +0.6732 >= +0.10"
+    },
+    "D19_recency": {
+      "pass": true,
+      "why": "cur_acc 0.9986 - recency 0.5815 = +0.4171 >= +0.10"
+    },
+    "D19_value": {
+      "pass": true,
+      "why": "cur_acc 0.9986 - value 0.2504 = +0.7483 >= +0.10"
+    },
+    "D20c1": {
+      "pass": true,
+      "why": "hist_acc(archive)=1.0000 >= 0.80"
+    },
+    "D20_keepall": {
+      "pass": true,
+      "why": "hist_acc 1.0000 - keepall 0.3123 = +0.6877 >= +0.20"
+    },
+    "D20_recency": {
+      "pass": true,
+      "why": "hist_acc 1.0000 - recency 0.1835 = +0.8165 >= +0.20"
+    },
+    "D20_value": {
+      "pass": true,
+      "why": "hist_acc 1.0000 - value 0.2360 = +0.7640 >= +0.20"
+    },
+    "D21": {
+      "pass": true,
+      "why": "active_ratio(archive)=0.2941 <= 0.40"
+    }
+  },
+  "modules": {
+    "D18": true,
+    "D19": true,
+    "D20": true,
+    "D21": true
+  },
+  "kpi": "4/4",
+  "prediction_deviation": {
+    "cur_acc": {
+      "archive": 0.0486,
+      "oracle_time": 0.02,
+      "recency": 0.1315,
+      "keepall": -0.0046,
+      "value": -0.0496
+    },
+    "stale_rate": {
+      "archive": -0.02,
+      "keepall": 0.0246,
+      "value": 0.0966,
+      "recency": -0.0709
+    },
+    "hist_acc": {
+      "archive": 0.1
+    },
+    "active_ratio": {
+      "archive": 0.0041
+    }
+  },
+  "config": {
+    "N_KEY": 1000,
+    "V_COUNTS": [
+      [
+        2,
+        200
+      ],
+      [
+        3,
+        400
+      ],
+      [
+        4,
+        300
+      ],
+      [
+        6,
+        100
+      ]
+    ],
+    "DIM": 64,
+    "SIGMA": 0.15,
+    "BUDGET": 0.4,
+    "N_CUR": 800,
+    "N_HIST": 400,
+    "N_SEEDS": 10,
+    "Q_SEED": 20261010
+  }
+}

@@ -1,6 +1,6 @@
 # SYNTHESIS — Kết hợp 14 survey thành 1 bức tranh, rồi thiết kế hệ thống
 
-- **Ngày**: 2026-10-06 · **Phạm vi**: Q-001 → Q-014 + **DS-001 → DS-005** (thiết kế dẫn xuất)
+- **Ngày**: 2026-10-06 · **Phạm vi**: Q-001 → Q-014 + **DS-001 → DS-006** (thiết kế dẫn xuất)
 - **Mục đích**: gom các survey rời thành **chủ đề xuyên suốt**, chỉ ra **ma trận liên thông** và **agenda nghiên cứu tiếp**
 
 ---
@@ -26,6 +26,9 @@
 | **DS-001** | *(thiết kế)* **SAGE** — bộ não biết mình dở ở đâu | `design/SAGE-spec.md` | 6 lớp L0–L5, 8 nguyên tắc P1–P8 truy xuất survey; **demo 5/5 PASS** | Tổng hợp từ Q-001→011 |
 | **DS-002** | *(mở rộng)* **SAGE v0.2** — kiểm chứng trực tiếp F-A03 / F-X02 / F-X03 | `design/SAGE-spec.md` §12 | **demo 3/3 PASS** (3 lần): U-curve sinh từ phân bố loss · quên đều phá trục **100×**, không quên thì không thích nghi **29×** · replay giữ `0.839` vs naive `0.431` | Q-010 + Q-011 |
 | **DS-003** | *(mở rộng)* **SAGE v0.2** — 3 công cụ tự kỷ luật: wirehead guard · calibration · registry | `design/SAGE-spec.md` §14 | **demo 3/3 PASS** (3 lần): holdout cố định **nói dối 8.41 điểm** và càng hỏi càng dối · ECE `0.258 → 0.022` · adaptive registry `0.920` vs static `0.577` | Q-009 + Q-007 |
+| **DS-004** | *(mở rộng)* **SAGE v0.2** — archive/compaction "giờ bảo trì" | `design/SAGE-spec.md` §15 | **demo 3/3 PASS** (Kaggle v4): cùng ngân sách `0.40`, giữ theo **giá trị** thắng theo **độ mới** `+0.55` · nén `61.9%` mà acc `0.9525` · stub-redirect `dangling = 0` | Q-012 + Q-011 |
+| **DS-005** | *(mở rộng)* **SAGE v0.2** — red-team acceptance "tự hack lấy KPI" | `design/SAGE-spec.md` §16 | **demo 3/3 PASS** (1 lần, pre-register §16 trước): winrate `0.60 → 0.30 → 0.00` = **trùng tuyệt đối** dự báo viết trước; verifier ngoài mới chặn 20/20 | Q-013 + DS-003 |
+| **DS-006** | *(mở rộng)* **SAGE v0.2** — memory hygiene: kho append-only + citation | `design/SAGE-spec.md` §17 | **demo 4/4 PASS** (1 lần, pre-reg `bb3ab41`): `keepall` trả lời fact lỗi thời **67.5%** · recency hist `0.1835` (tệ nhất) · archive `cur 0.9986 / hist 1.0000 / stale 0` với **29% context** · `oracle_time` = 1.0 ⇒ **cấu trúc, không thiếu dữ liệu** | AN-014 (F-P03, F-P06) |
 
 ---
 
@@ -75,7 +78,7 @@ L3 · Ý THỨC (giao diện)    "bản báo cáo đến sau" — LeDoux, AST, G
 
 ---
 
-## 3. Ma trận liên thông (trích từ knowledge graph, 234 entity / 312 relation)
+## 3. Ma trận liên thông (trích từ knowledge graph, 240 entity / 323 relation)
 
 | Từ → Đến | Ý nghĩa |
 |---|---|
@@ -115,6 +118,7 @@ L3 · Ý THỨC (giao diện)    "bản báo cáo đến sau" — LeDoux, AST, G
 | **DS-004 (F-J01, F-J05) ↔ Q-012 (F-N07) + Q-011 (F-X03)** | **"Giờ bảo trì" chạy được ở scale toy**: cùng ngân sách `0.40`, giữ theo **giá trị** thắng theo **độ mới** `+0.55` (F-J01) · nén **61.9%** mà acc `0.9525`, vượt cả baseline raw-thuần `0.6971` (F-J02) · stub-redirect giữ `dangling = 0` trong khi recency/random gãy `296/224` (F-J03) — đúng P3 SAGE + F-X01. **Nhưng có điều kiện** (F-J05): fidelity `0.374` (σ=0.2) thì `sage` **thua** raw-thuần → nén chỉ an toàn khi record đủ trùng lặp. F-N07 (*chưa ai tách downscale khỏi replay*) giờ có **số liệu đầu tiên** |
 | **Q-014 (F-P03) ↔ DS-003 D9/D10 + T5** | **Cùng kết luận từ 3 ngành khác nhau**: HaluMem & ghost memory (Q-014) cho thấy **QA score cuối che giấu nơi lỗi xảy ra** (phải tách bank/retrieval/answer) ↔ DS-003 D9/D10 đo **tách từng trục** mới lộ holdout nói dối 8.41 và metric coverage=0 ↔ T5 *thiếu máy đo*. **Goodhart tái xuất ở tầng benchmark memory** |
 | **Q-014 (F-P06) ↔ DS-004 (F-J03) + Q-011 (F-X01)** | **3 nguồn độc lập cùng chọn "đừng xóa"**: ARC *append-only + citation ID* (99.40% vs 88.12%) · DS-004 *stub-redirect, dangling = 0* · Q-011 *ức chế chứ không xóa* → **quy luật chung**: giữ bản gốc + thay bằng tham chiếu + truy vết được; cái giá của keep-all = rác lẫn retrieval (FAMA phạt, ghost memory làm sai) |
+| **DS-006 (F-H01…F-H04) ↔ AN-014 (F-P03, F-P06) + Q-011 (F-X01)** | **Xác nhận bằng thực nghiệm** F-P06: cùng người trả lời top-1, `keepall` trả lời bằng fact **đã lỗi thời 67.5%** thời gian (F-H01 = ghost-memory E11 tái hiện controlled) · `recency` thắng ở hiện tại **nhưng hist `0.1835` tệ nhất bảng** (F-H02 = F-X01 *xóa ≠ ức chế* ở tầng memory system) · `archive` **`cur 0.9986 / hist 1.0000 / stale 0` với 29% context** (F-H03) · diagnostic `oracle_time` = `1.0/1.0` tách bạch **khoảng cách do cấu trúc, không thiếu dữ liệu** (F-H04) — pre-register §17 commit `bb3ab41` **trước** khi code tồn tại, ngưỡng giữ nguyên |
 | **Q-014 (F-P04) ↔ Q-013 (F-V02) + DS-005** | **Memory là ví dụ sạch nhất cho "phòng thủ sai chỗ"**: ghi memory càng tích cực càng dễ bị hack (MPBench), defense prompt-injection **không phủ** poisoning, model mạnh hơn không an toàn hơn → đúng F-V02 (*verifier/defense sai tầng = vô hiệu*) và là **threat model thật** mà DS-005 mô phỏng ở mức toy |
 | **Q-014 (F-P05) ↔ Q-012 (F-N07) + DS-004** | **Auto-Dreamer / Sleep = bản chưa hoàn chỉnh của "giờ bảo trì"**: tách nhanh/chậm, bank read-only → bộ thay thế (**+7 điểm, bank 12× nhỏ**) đúng mô hình DS-004 — nhưng **chưa ai tách downscale khỏi replay** → F-N07 vẫn mở, DS-004 là số liệu đầu tiên ở scale toy |
 
@@ -137,13 +141,14 @@ L3 · Ý THỨC (giao diện)    "bản báo cáo đến sau" — LeDoux, AST, G
 | **DS-004** | **Archive/compaction** — "giờ bảo trì" của SAGE (nén lịch sử thành scaffold) | Q-012 (T6, F-N07), Q-011 (F-X03) | ✅ **xong (2026-10-06)** — demo **3/3 PASS** (Kaggle v4, ngưỡng §15.2 giữ nguyên · change-log §15.4); prefix **F-J** |
 | **DS-005** | **Red-team acceptance** — tự hack lấy KPI của chính mình, đối chứng 3 lớp phòng thủ | Q-013 (F-V03, §6), DS-003 (D9) | ✅ **xong (2026-10-06)** — demo **3/3 PASS** (1 lần chạy, ngưỡng §16.2 giữ nguyên); winrate `0.60 → 0.30 → 0.00` = **trùng tuyệt đối** dự báo viết trước; prefix **F-Z** |
 | **Q-014** | **Bộ nhớ của agent LLM** — agent ghi/lấy/quên trí nhớ thế nào? | Q-011 (quên), Q-012 (giờ bảo trì), Q-013 (hack) | ✅ **xong (2026-10-06)** — 4 công việc write/store/read/forget; lỗi **sinh ở khâu ghi** (F-P03); memory = **bề mặt tấn công lớn nhất** (F-P04); đề xuất **DS-006** memory hygiene; prefix **F-P** |
+| **DS-006** | **Memory hygiene** — kho append-only + citation vs keep-all/recency/value (sinh từ AN-014 §6) | AN-014 (F-P03, F-P06), DS-004 (ngân sách 0.40) | ✅ **xong (2026-10-06)** — demo **4/4 PASS** (1 lần, pre-register §17 commit `bb3ab41` trước khi code, ngưỡng giữ nguyên); `stale keepall 0.675` vs `archive 0.000`; prefix **F-H** |
 
 ---
 
 ## 5. Trạng thái dự án vs PLAN.md
 
 - **M2 (survey 5–10 paper/câu hỏi)**: ✅ vượt — **14 survey**, Q-006 dùng 19 paper arXiv, Q-007 dùng 16 paper, Q-009 dùng ~22 paper, Q-010 dùng ~20 paper, Q-011 dùng ~26 paper, Q-012 dùng **18 DOI Europe PMC + ~8 arXiv**, Q-013 dùng **6 trang Wiki nền tảng + ~15 arXiv**, Q-014 dùng **~30 paper arXiv**.
-- **KPI graph**: **234 entity / 312 relation** (mục tiêu ban đầu 100 entity ✅).
+- **KPI graph**: **240 entity / 323 relation** (mục tiêu ban đầu 100 entity ✅).
 - **DS-001 (thiết kế + demo)**: ✅ `design/SAGE-spec.md` + `design/demo/` — Kaggle `tribu1/sage-v0-1-demo-ds-001` v3 = **5/5 PASS** (D1 replay +38.7pp · D2 18× · D3 Goodhart · D4 −33.4% · D5 +5.7pp).
 - **DS-002 (mở rộng demo)**: ✅ `design/SAGE-spec.md` §12 + `design/demo/sage_demo2.py` — Kaggle `tribu1/sage-v0-2-demo-ds-002` v5 = **3/3 PASS** (D6 U-gap 0.838 · D7 100× + 29× · D8 replay 0.839 vs naive 0.431). **3 lần chạy** (1/3 → 2/3 → 3/3), mọi thay đổi ghi ở change-log §12, **3 ngưỡng không đổi**. **Kết quả âm**: loss of plasticity không quan sát được ở scale toy (3/3 lần).
 - **DS-003 (mở rộng demo)**: ✅ `design/SAGE-spec.md` §14 + `design/demo/sage_demo3.py` — Kaggle `tribu1/sage-v0-3-demo-ds-003` v3 = **3/3 PASS** (D9 holdout cố định nói dối **8.41** và tăng theo số lần hỏi · D10 ECE `0.258→0.022`, violation `0.203→0.000` · D11 adaptive `0.920` vs static `0.577`). **3 lần chạy**, mọi thay đổi ghi ở change-log §14 — **cả 3 lần sửa đều là bug metric/harness, không hạ ngưỡng nào**. Bài học: *cái thước tự bị hack 3 lần liên tiếp* = Goodhart tái hiện ngay trong phòng lab.
@@ -152,5 +157,6 @@ L3 · Ý THỨC (giao diện)    "bản báo cáo đến sau" — LeDoux, AST, G
 - **Q-014 (survey)**: ✅ `surveys/agent-memory.md` — **AN-014**, 6 finding **F-P01…F-P06**, ~30 nguồn arXiv (2 survey · MemGPT/Generative Agents/A-MEM · 4 benchmark gồm HaluMem & ghost-memory · 5 paper quên-co-chủ-đích · 4 paper memory-poisoning · 3 paper "giờ ngủ"). **Câu trả lời**: ngành đã có taxonomy **write · store · read · forget**; *quên chọn lọc* đã đo được lợi ích (F-P02: −45% storage, gate 99.5% vs <18%); **lỗi sinh ở khâu ghi rồi lan sang trả lời, QA score cuối che nó đi** (F-P03); memory = **bề mặt tấn công lớn nhất** (F-P04: ghi 99.8%, 60–89% hành động theo attacker); *"giờ ngủ" agent mới là phôi thai* (F-P05 — F-N07 còn nguyên); đường đúng = **kho append-only + citation ID** (F-P06: 99.40% vs 88.12%). Đề xuất **DS-006** (memory hygiene) ở §6.
 - **DS-004 (mở rộng demo)**: ✅ `design/SAGE-spec.md` §15 + `design/demo/sage_demo4.py` — Kaggle `tribu1/sage-v0-4-demo-ds-004-archive-compaction` v4 = **3/3 PASS** (D12 nén `size 0.3808 ≤ 0.40` + `acc 0.9525 ≥ 0.90` · D13 `+0.5523` / `+0.5505` vs recency/random · D14 `dangling = 0` mọi chu kỳ + `Δacc +0.0034`). **4 lần push**: v1–v3 chết vì papermill đòi `.ipynb` (không có số liệu), **v4 PASS ngay lần đầu thấy số — không hạ ngưỡng** (change-log §15.4). Bài học: diagnostic *"trần acc"* bị **số liệu bác nhãn** (`oracle 0.6971 < sage 0.9525`) → nó là *baseline value-only raw*, trần thật = `keepall = 1.0`; và **F-J05**: nén chỉ an toàn khi record đủ trùng lặp (σ=0.2 → fidelity `0.374` → `sage` thua raw-thuần). Findings **F-J01…F-J05** (prefix **F-J**).
 - **DS-005 (mở rộng demo)**: ✅ `design/SAGE-spec.md` §16 + `design/demo/sage_demo5.py` — Kaggle `tribu1/sage-v0-5-ds-005-red-team-acceptance` v1 = **3/3 PASS** (D15 `winrate_a = 0.600 ≥ 0.50` · D16 `winrate_c = 0.000 ≤ 0.10` · D17 gradient `0.600 ≥ 0.40` + `honest` qua cả 3 config). **1 lần chạy**, pre-register §16 trước, **ngưỡng không đổi**. Winrate `0.60 → 0.30 → 0.00` **trùng tuyệt đối** dự báo viết trước §16.1 (sai số 0.000). Bài học (F-Z01–F-Z05): preregistration **một mình không đủ** (inflation `+0.345`) · bản đồ đồng cấu chặn *unaware* nhưng **sụp** trước attacker biết giao thức · **verifier ngoài mới chặn 20/20** · KPI tính trên toàn bộ truy vấn tự chặn hack coverage=0. Findings **F-Z01…F-Z05** (prefix **F-Z**).
+- **DS-006 (mở rộng demo)**: ✅ `design/SAGE-spec.md` §17 + `design/demo/sage_demo6.py` — Kaggle `tribu1/ds-006-sage-memory-hygiene` v1 = **4/4 PASS** (D18 `cur 0.9986 ≥ 0.90` + `stale 0.0000 ≤ 0.10` · D19 hơn `keepall +0.6732` / `recency +0.4171` / `value +0.7483` · D20 `hist 1.0000 ≥ 0.80` + hơn cả 3 ≥ `+0.68` · D21 `active 0.2941 ≤ 0.40`). **1 lần chạy** — pre-register §17 commit `bb3ab41` **trước khi code tồn tại**, **ngưỡng giữ nguyên**. Bài học (F-H01–F-H05): `keepall` trả lời bằng fact lỗi thời **67.5%** (F-H01) · `recency` hist `0.1835` tệ nhất = *xóa ≠ ức chế* (F-H02) · kho append-only + citation **29% context, cả 2 trục ≈ 1.0** (F-H03) · `oracle_time` diagnostic = 1.0 → **khoảng cách do cấu trúc, không thiếu dữ liệu** (F-H04) · cắt theo điểm quan trọng **không cứu staleness** (`value` thua cả `keepall`, F-H05 — giới hạn setup ghi rõ). Dự báo phụ lệch `+0.13` (recency) nhưng **mọi dự báo gate lệch ≤ 0.05** → ghi rõ, không sửa ngưỡng.
 - **Còn nợ §9**: migrate token Kaggle/GitHub sang `{env:...}` (**chưa làm** — rủi ro bảo mật).
 - **Lưu ý hạ tầng**: websearch đang **401** → workaround: arXiv MCP + `webfetch` (Wikipedia/PMC/PubMed).

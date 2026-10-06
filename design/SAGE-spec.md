@@ -637,8 +637,43 @@ _Chưa có thay đổi nào khác (harness hoặc ngưỡng). Mọi mục cần 
 
 ### 17.4 Change-log
 
-_Chưa có thay đổi nào (chưa chạy lần nào — §17 viết trước khi tồn tại code). Mọi mục cần sửa sẽ ghi ở đây kèm số liệu thật trước/sau._
+_Chưa có thay đổi nào (chưa chạy lần nào — §17 viết trước khi tồn tại code)._
 
-### 17.5 Kết quả
+1. **Tên kernel** (sửa *trước* khi có kết quả): §17 ghi slug `tribu1/sage-v0-6-ds-006-memory-hygiene`, nhưng Kaggle giới hạn title ≤ 50 ký tự → title cuối `DS-006 SAGE memory hygiene`, slug **`tribu1/ds-006-sage-memory-hygiene`** (id `137260814`, version 1). **Sửa tên, không sửa design/ngưỡng.** (Cùng lỗi với §16.4.)
 
-_Chưa có — sẽ ghi sau lần chạy đầu tiên (kèm phần "lệch dự báo" như §16.5, không sửa ngưỡng)._
+### 17.5 Kết quả (v1 — 2026-10-06)
+
+**KPI 4/4 PASS** — D18 ✅ · D19 ✅ · D20 ✅ · D21 ✅ · **ngưỡng §17.2 giữ nguyên**, đây là lần chạy đầu tiên (không có lần chạy fail nào trước đó để "chọn lại số"). Pre-registration commit `bb3ab41` (đẩy lên GitHub **trước** khi code chạy).
+
+| Chính sách | `cur_acc` | `hist_acc` | `stale_rate` | `active_ratio` | phiên bản/key trong active |
+|---|---|---|---|---|---|
+| `keepall` | 0.3254 | 0.3123 | 0.6746 | 1.0000 | 3.40 |
+| `recency` | 0.5815 | 0.1835 | 0.2291 | 0.4000 | 1.70 |
+| `value` | 0.2504 | 0.2360 | 0.5466 | 0.4000 | 1.71 |
+| **`archive`** | **0.9986** | **1.0000** | **0.0000** | **0.2941** | **1.00** |
+| `oracle_time` *(diagnostic, không gate)* | 1.0000 | 1.0000 | 0.0000 | 1.0000 | 3.40 |
+
+- **D18**: `cur_acc 0.9986 ≥ 0.90` ✅ · `stale 0.0000 ≤ 0.10` ✅
+- **D19**: hơn `keepall +0.6732` · `recency +0.4171` · `value +0.7483` — cả 3 ≥ `+0.10` ✅
+- **D20**: `hist_acc 1.0000 ≥ 0.80` ✅; hơn `keepall +0.6877` · `recency +0.8165` · `value +0.7640` — cả 3 ≥ `+0.20` ✅
+- **D21**: `active_ratio 0.2941 ≤ 0.40` ✅ (kho cold = 1.0, báo cáo riêng theo §17.3.5)
+
+**Cơ chế đọc từ bảng (không chen lẫn):**
+- **`stale` sinh từ việc giữ nhiều phiên bản**: `keepall` giữ 3.40 bản/key → top-1 cosine (không dùng thời gian) chọn **ngẫu nhiên trong 1/v** → `stale 0.6746`, `cur_acc 0.3254 ≈ 1/3.4 = 0.294` (+ may mắn chọn đúng bản hiện hành). `value` còn tệ hơn `keepall` ở `cur_acc` (0.2504) vì cắt 60% record **nhưng vẫn giữ trung bình 1.71 bản/key** — cắt bừa chứ không cắt bản cũ → vẫn stale 0.5466.
+- **`recency` thắng `keepall` ở câu hỏi hiện tại nhưng thua ở lịch sử**: giữ 0.40 mới nhất → 1.70 bản/key, bản hiện hành thường còn trong cửa sổ (`cur_acc 0.5815`), nhưng **bản cũ bị vứt mất** → `hist_acc 0.1835` = **kết quả tồi nhất bảng**. Đúng cái F-P06 nói: *cách khác của "keep-all"* là *delete-and-hope*, trả giá ở truy vấn ngược thời gian.
+- **`archive` tách 2 thứ mà 3 cơ buộc phải trộn**: active = đúng 1 bản hiện hành/key → `stale 0.0000` (không còn bản nào khác để chọn sai) · lịch sử **không mất** vì tra kho qua citation → `hist_acc 1.0000` · context chỉ `0.2941`.
+- **`oracle_time` = bằng chứng khoảng cách do cấu trúc, không do dữ liệu**: cùng `keepall` (kho đầy đủ 1.0) nhưng answerer **dùng được thời gian** → `1.0000/1.0000`. Nghĩa là 3 cơ sở **không thiếu dữ liệu**, chúng thiếu *cách phân biệt phiên bản* — đúng F-P03 (lỗi không nằm ở dữ liệu mà ở khâu phân biệt khi trả lời).
+
+**Findings — prefix `F-H` (hygiene):**
+
+| ID | Finding | Bằng chứng | Confidence |
+|---|---|---|---|
+| **F-H01** | **Giữ-everything làm answerer-top-1 trả lời bằng fact đã lỗi thời ~2/3 thời gian** | `keepall stale 0.6746`, `cur_acc 0.3254` — đúng `1/3.40` bản/key; 10 seeds | cao — tái hiện F-P03/E11 (ghost memory) bằng số ở scale controlled |
+| **F-H02** | **Recency là cách "quên" sai hướng**: thắng ở hiện tại, thua nặng ở lịch sử | `cur 0.5815` (cơ sở tốt nhất) nhưng `hist 0.1835` (tệ nhất) — bản cũ bị xóa khỏi context | cao — cùng kết luận Q-011 F-X01/F-X02 (xóa ≠ ức chế) ở tầng memory system |
+| **F-H03** | **Kho append-only + citation trả lời đúng cả 2 trục với 29% context** | `archive: cur 0.9986 · hist 1.0000 · stale 0.0000 · active 0.2941` — qua cả 4 module, hơn 3 cơ sở ≥ +0.41 | cao — 10 seeds, ngưỡng giữ nguyên, pre-registered |
+| **F-H04** | **Khoảng cách đến từ CẤU TRÚC, không từ dữ liệu** | `oracle_time` dùng chính kho `keepall` nhưng answerer biết thời gian → `1.0000/1.0000` ⇒ 3 cơ sở *có đủ dữ liệu*, thiếu cách phân biệt phiên bản | cao — diagnostic tách bạch (không gate), đúng tinh thần §15.4 |
+| **F-H05** | **Cắt theo "điều quan trọng" không cứu được staleness** | `value` (giữ top-40% điểm) vẫn giữ 1.71 bản/key → `stale 0.5466`, `cur_acc 0.2504` **thậm chí thua keepall** — cắt record nhưng không khử phiên bản cũ | trung bình-cao — điểm value ở đây sinh ngẫu nhiên (mô phỏng "điểm quan trọng không liên quan thời gian"); nếu value correlated với thời gian thì sẽ gần recency — giới hạn của setup, ghi rõ |
+
+**Lệch dự báo (nói rõ, không giấu — không ngưỡng nào đổi)**: (i) `recency cur_acc = 0.5815`, dự báo `0.45` (lệch `+0.1315`) — tôi đã đánh giá thấp việc cửa sổ 0.40 giữ được bao nhiêu bản hiện hành; (ii) `value stale = 0.5466`, dự báo `0.45` (lệch `+0.0966`); (iii) `archive hist_acc = 1.0000`, dự báo `0.90` — citation tra kho theo key+thời gian là lookup chính xác, không có nhiễu nên không thể < 1.0. Cả 3 đều là **dự báo phụ** (không gate KPI) → sai số dự báo, không phải lỗi thí nghiệm. Dự báo **có gate** đều nằm trong khoảng: `keepall cur −0.0046`, `archive cur +0.0486`, `active +0.0041`.
+
+**Artifacts**: `research/design/demo/out/ds006/{kpi.txt, summary.json, d18_cur_stale.png, d20_hist.png, d21_budget.png}` · kernel `tribu1/ds-006-sage-memory-hygiene` **v1** · code [demo/sage_demo6.py](demo/sage_demo6.py).

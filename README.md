@@ -2,7 +2,7 @@
 
 Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có **evidence + confidence**, rồi **thiết kế hệ thống** và **kiểm chứng bằng demo trên Kaggle**.
 
-**Trạng thái**: 14 survey (Q-001 → Q-014) · 234 entity / 312 relation knowledge graph · 5 hệ thống thiết kế, demo **5/5**, **3/3**, **3/3**, **3/3**, **3/3 PASS**.
+**Trạng thái**: 14 survey (Q-001 → Q-014) · 240 entity / 323 relation knowledge graph · 6 hệ thống thiết kế, demo **5/5**, **3/3**, **3/3**, **3/3**, **3/3**, **4/4 PASS**.
 
 ## Chỉ mục
 
@@ -30,7 +30,7 @@ Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có *
 ### Tổng hợp & thiết kế
 
 - [SYNTHESIS.md](SYNTHESIS.md) — 14 survey → **6 chủ đề xuyên suốt** (T1–T6) + ma trận liên thông
-- [design/SAGE-spec.md](design/SAGE-spec.md) — **SAGE**: 6 lớp L0–L5, 8 nguyên tắc P1–P8 truy xuất survey; demo **5/5 PASS** (DS-001) + **3/3** (DS-002) + **3/3** (DS-003) + **3/3** (DS-004) + **3/3** (DS-005)
+- [design/SAGE-spec.md](design/SAGE-spec.md) — **SAGE**: 6 lớp L0–L5, 8 nguyên tắc P1–P8 truy xuất survey; demo **5/5 PASS** (DS-001) + **3/3** (DS-002) + **3/3** (DS-003) + **3/3** (DS-004) + **3/3** (DS-005) + **4/4** (DS-006)
 - [backlog.md](backlog.md) · [questions/](questions/) · [templates/](templates/)
 
 ### Demo (Kaggle, CPU, pre-registered acceptance)
@@ -43,5 +43,6 @@ Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có *
 
 | **DS-004** | `tribu1/sage-v0-4-demo-ds-004-archive-compaction` | **3/3 PASS** — nén **61.9%** (size 0.3808) mà acc **0.9525** vs recency/random ~0.40 · dangling **0** · Δacc +0.0034 | v1–v3 fail papermill (cần `.ipynb`), **v4 PASS lần đầu thấy số** · diagnostic "trần acc" bị số liệu bác nhãn (oracle 0.6971 < sage 0.9525) · **ngưỡng không đổi** |
 | **DS-005** | `tribu1/sage-v0-5-ds-005-red-team-acceptance` | **3/3 PASS** — winrate `0.60 → 0.30 → 0.00` (prereg → +bản đồ đồng cấu → +verifier ngoài) = **trùng tuyệt đối** dự báo viết trước · honest qua cả 3 · inflation `+0.345` | chạy **1 lần**, pre-register §16 trước, **ngưỡng §16.2 giữ nguyên** · findings F-Z01–F-Z05 |
+| **DS-006** | `tribu1/ds-006-sage-memory-hygiene` | **4/4 PASS** — `keepall` trả lời fact lỗi thời **67.5%** · `archive` cur **0.9986** / hist **1.0000** / stale **0.0000** với **29% context** · `oracle_time` = 1.0 → khoảng cách do **cấu trúc** | chạy **1 lần**, pre-register §17 commit `bb3ab41` **trước khi code**, **ngưỡng §17.2 giữ nguyên** · findings F-H01–F-H05 |
 Code: [design/demo/sage_demo.py](design/demo/sage_demo.py), [design/demo/sage_demo2.py](design/demo/sage_demo2.py), [design/demo/sage_demo3.py](design/demo/sage_demo3.py).
-Mọi thay đổi ngưỡng/metric acceptance đều ghi ở **change-log** trong spec (§10, §12, §14) kèm số liệu thật — không sửa ngưỡng để chạm KPI.
+Mọi thay đổi ngưỡng/metric acceptance đều ghi ở **change-log** trong spec (§10, §12, §14, §15, §16, §17) kèm số liệu thật — không sửa ngưỡng để chạm KPI.

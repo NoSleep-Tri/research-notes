@@ -18,7 +18,7 @@
 | DS-004 | **SAGE v0.2** — *archive/compaction*: nén lịch sử thành scaffold tái sử dụng | TB | ✅ **KPI 3/3 PASS** (Kaggle v4, 2026-10-06, ngưỡng §15.2 giữ nguyên) → [spec §15](design/SAGE-spec.md) · [kpi.txt](design/demo/out/ds004/kpi.txt) — findings **F-J01…F-J05** |
 | DS-005 | **SAGE v0.2** — *red-team acceptance*: tự hack lấy KPI của chính mình (đối chứng 3 lớp: prereg · bản đồ đồng cấu · verifier ngoài) | TB | ✅ **KPI 3/3 PASS** (Kaggle v1, 2026-10-06, ngưỡng §16.2 giữ nguyên) → [spec §16](design/SAGE-spec.md) · [kpi.txt](design/demo/out/ds005/kpi.txt) — findings **F-Z01…F-Z05** |
 | Q-014 | **Bộ nhớ của agent LLM** — agent ghi/lấy/quên trí nhớ như thế nào, và SAGE nên học gì từ đó? | TB (tôi chọn) | ✅ Trả lời → [AN-014](surveys/agent-memory.md) — findings **F-P01…F-P06** |
-| DS-006 | *(sinh từ AN-014 §6)* **Memory hygiene** — F-P06: kho append-only + citation có thắng keep-all/recency/value không? | TB (agent chọn) | ⏳ Pre-registered §17 → chờ chạy Kaggle |
+| DS-006 | *(sinh từ AN-014 §6)* **Memory hygiene** — F-P06: kho append-only + citation có thắng keep-all/recency/value không? | TB (agent chọn) | ✅ **KPI 4/4 PASS** (Kaggle v1, 2026-10-06, ngưỡng §17.2 giữ nguyên, pre-reg commit `bb3ab41` trước khi chạy) → [spec §17](design/SAGE-spec.md) — findings **F-H01…F-H05** |
 
 > Quy tắc: 1 câu hỏi = 1 tiêu chí "đã trả lời" rõ ràng. Giữ backlog ≤ 10 mục.
 
@@ -31,7 +31,7 @@
 | DS-003 | **SAGE v0.2** — 3 công cụ tự kỷ luật: wirehead guard · confidence calibration · adaptive registry | ✅ **Demo 3/3 PASS** (Kaggle v3, 2026-10-06, qua 3 lần) → [spec §14](design/SAGE-spec.md) · [sage_demo3.py](design/demo/sage_demo3.py) · [kpi.txt](design/demo/out/ds003/kpi.txt) |
 | DS-004 | **SAGE v0.2** — *archive/compaction*: nén lịch sử thành scaffold tái sử dụng | ✅ **KPI 3/3 PASS** (Kaggle v4, 2026-10-06, ngưỡng §15.2 giữ nguyên) → [spec §15](design/SAGE-spec.md) · [kpi.txt](design/demo/out/ds004/kpi.txt) |
 | DS-005 | **SAGE v0.2** — *red-team acceptance*: tự hack KPI của chính mình, đối chứng 3 lớp phòng thủ | ✅ **KPI 3/3 PASS** (Kaggle v1, 2026-10-06, ngưỡng §16.2 giữ nguyên) → [spec §16](design/SAGE-spec.md) · [kpi.txt](design/demo/out/ds005/kpi.txt) |
-| DS-006 | **SAGE v0.2** — *memory hygiene*: kho append-only + citation vs keep-all/recency/value | ⏳ **Pre-registered §17** (2026-10-06, code viết sau §17, chưa chạy) → [spec §17](design/SAGE-spec.md) · [sage_demo6.py](design/demo/sage_demo6.py) |
+| DS-006 | **SAGE v0.2** — *memory hygiene*: kho append-only + citation vs keep-all/recency/value | ✅ **KPI 4/4 PASS** (Kaggle v1, 2026-10-06, ngưỡng §17.2 giữ nguyên, pre-reg `bb3ab41`) → [spec §17](design/SAGE-spec.md) · [kpi.txt](design/demo/out/ds006/kpi.txt) |
 
 > **Bài học từ DS-003 (3 lần, 2 metric bị khai tử)**: cả 3 lần sửa đều là **metric/harness thoái hóa**, không lần nào hạ ngưỡng. `gating_acc` bị thắng bằng cách *không quyết định gì* (coverage=0) · hợp đồng `0.90` bị vô hiệu bằng cách *nằm ngoài vùng dữ liệu* · bandit "không học" vì *không chịu thử*. **Goodhart ngay trên cái thước đo của mình** — đúng F-R01.
 
@@ -40,3 +40,5 @@
 > **Bài học từ DS-004 (PASS lần đầu thấy số, không sửa ngưỡng)**: diagnostic được đặt nhãn *"trần acc"* nhưng **số liệu thật bác nhãn** — `sage 0.9525 > oracle 0.6971` → đó là *baseline value-only raw*, trần thật = `keepall = 1.0` (§15.4 lần 2). Kèm **F-J05**: nén chỉ an toàn khi record đủ trùng lặp — σ = 0.2 (fidelity 0.374) thì `sage` **thua** raw-thuần. Vận hành: v1–v3 chết vì papermill đòi `.ipynb` (§15.4) — *nhãn sai trên diagnostic không giết KPI, nhưng phải sửa trước khi ai đọc nhầm*.
 
 > **Bài học từ Q-014 (AN-014, 30 paper arXiv)**: *"agent ghi càng tích cực càng dễ bị hack"* (F-P04, MPBench) — trực tiếp mâu thuẫn với bản năng thiết kế "lưu mọi thứ"; và lỗi memory **sinh ở khâu ghi rồi lan sang trả lời, trong khi QA score cuối che nó đi** (F-P03, HaluMem + ghost memory) — đúng hình hài Goodhart ở tầng benchmark. Gợi ý DS-006 "memory hygiene": keep-all · recency · decay theo giá trị · **append-only + citation ID**.
+
+> **Bài học từ DS-006 (PASS 4/4 lần đầu, pre-reg `bb3ab41` trước khi code tồn tại)**: `keepall` trả lời bằng fact đã lỗi thời **67.5%** thời gian (F-H01) — đúng cơ chế ghost-memory E11; `recency` thắng ở hiện tại nhưng **thua nặng nhất ở lịch sử** (`hist 0.1835`, F-H02) = xóa ≠ ức chế (F-X01) tái hiện ở tầng memory system. Diagnostic `oracle_time` (không gate) tách bạch **khoảng cách do cấu trúc chứ không thiếu dữ liệu** (F-H04) — lại là thủ tục tách diagnostic khỏi KPI như §15.4. Dự báo phụ lệch tới +0.13 (recency) nhưng **không dự báo gate nào lệch quá 0.05** → ghi rõ, không sửa ngưỡng.

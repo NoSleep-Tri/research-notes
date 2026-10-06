@@ -1,0 +1,37 @@
+KPI DS-006 — SAGE v0.2 memory hygiene (10 seeds, 800 cur + 400 hist query, budget 0.40)
+cur_acc   keepall=0.3254  recency=0.5815  value=0.2504  archive=0.9986  oracle_time=1.0000
+hist_acc  keepall=0.3123  recency=0.1835  value=0.2360  archive=1.0000  oracle_time=1.0000
+stale     keepall=0.6746  recency=0.2291  value=0.5466  archive=0.0000  oracle_time=0.0000
+active    keepall=1.0000  recency=0.4000  value=0.4000  archive=0.2941  oracle_time=1.0000
+archive cold ratio = 1.0000 (kho append-only — báo cáo riêng theo §17.3.5)
+versions/key trong active (giải thích 1/v): keepall=3.40  recency=1.70  value=1.71  archive=1.00
+
+D18c1: cur_acc(archive)=0.9986 >= 0.90 -> PASS
+D18c2: stale_rate(archive)=0.0000 <= 0.10 -> PASS
+D19_keepall: cur_acc 0.9986 - keepall 0.3254 = +0.6732 >= +0.10 -> PASS
+D19_recency: cur_acc 0.9986 - recency 0.5815 = +0.4171 >= +0.10 -> PASS
+D19_value: cur_acc 0.9986 - value 0.2504 = +0.7483 >= +0.10 -> PASS
+D20c1: hist_acc(archive)=1.0000 >= 0.80 -> PASS
+D20_keepall: hist_acc 1.0000 - keepall 0.3123 = +0.6877 >= +0.20 -> PASS
+D20_recency: hist_acc 1.0000 - recency 0.1835 = +0.8165 >= +0.20 -> PASS
+D20_value: hist_acc 1.0000 - value 0.2360 = +0.7640 >= +0.20 -> PASS
+D21: active_ratio(archive)=0.2941 <= 0.40 -> PASS
+
+KPI: 4/4 PASS
+  D18 PASS
+  D19 PASS
+  D20 PASS
+  D21 PASS
+
+lệch dự báo §17.1 (actual - predicted, không gate):
+  cur_acc/archive = +0.0486
+  cur_acc/oracle_time = +0.0200
+  cur_acc/recency = +0.1315
+  cur_acc/keepall = -0.0046
+  cur_acc/value = -0.0496
+  stale_rate/archive = -0.0200
+  stale_rate/keepall = +0.0246
+  stale_rate/value = +0.0966
+  stale_rate/recency = -0.0709
+  hist_acc/archive = +0.1000
+  active_ratio/archive = +0.0041
