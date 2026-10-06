@@ -1,10 +1,11 @@
+successfully downloaded text file (SHA: 248f7a0c3d2ddf50e799e131fb458e344eba9967)
 successfully downloaded text file (SHA: 76c3785898b522f06135d02ceea2502a9d98af60)
 successfully downloaded text file (SHA: c84c04b556fbe8c19c01cbc1c6b1dc16c4193bfd)
 # research-notes
 
 Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có **evidence + confidence**, rồi **thiết kế hệ thống** và **kiểm chứng bằng demo trên Kaggle**.
 
-**Trạng thái**: 14 survey (Q-001 → Q-014) · 254 entity / 343 relation knowledge graph · 8 hệ thống thiết kế, demo **5/5**, **3/3**, **3/3**, **3/3**, **3/3**, **4/4**, **5/6**, **6/6 PASS** (DS-007: E3 = negative finding giữ nguyên · DS-008: 6/6 ngay lần đầu, không sửa gì).
+**Trạng thái**: 15 survey (Q-001 → Q-015) · 262 entity / 356 relation knowledge graph · 8 hệ thống thiết kế, demo **5/5**, **3/3**, **3/3**, **3/3**, **3/3**, **4/4**, **5/6**, **6/6 PASS** (DS-007: E3 = negative finding giữ nguyên · DS-008: 6/6 ngay lần đầu, không sửa gì).
 
 ## Chỉ mục
 
@@ -27,11 +28,12 @@ Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có *
 
 | **Q-013** | **Tự chứng minh mình không bị hack** | [surveys/self-verification.md](surveys/self-verification.md) | **Không thể tự chứng minh — nhưng cấu trúc bên ngoài chứng minh được**: spec ngoài khóa trước · deterministic · verifier ngoài reward |
 
-| **Q-014** | **Bộ nhớ của agent LLM** | [surveys/agent-memory.md](surveys/agent-memory.md) | 4 công việc **write · store · read · forget**; lỗi **sinh ở khâu ghi** rồi lan sang trả lời; memory = **bề mặt tấn công lớn nhất** (ghi 1 lần, kích hoạt mãi) |
+| **Q-014** | **Bộ nhớ của agent LLM** | [surveys/agent-memory.md](surveys/agent-memory.md) |
+| **Q-015** | **Huấn luyện agent có bộ nhớ** | [surveys/training-data-for-memory-agents.md](surveys/training-data-for-memory-agents.md) | Dữ liệu **3 lớp** (QA+bank 152 cặp · trajectory+reward · data tự sinh); đầu ra = **thao tác ground truth + answer**; rule-based vượt trained (76.9% vs 61–70.5%); chống quên = chọn data + replay | 4 công việc **write · store · read · forget**; lỗi **sinh ở khâu ghi** rồi lan sang trả lời; memory = **bề mặt tấn công lớn nhất** (ghi 1 lần, kích hoạt mãi) |
 
 ### Tổng hợp & thiết kế
 
-- [SYNTHESIS.md](SYNTHESIS.md) — 14 survey → **6 chủ đề xuyên suốt** (T1–T6) + ma trận liên thông
+- [SYNTHESIS.md](SYNTHESIS.md) — 15 survey → **6 chủ đề xuyên suốt** (T1–T6) + ma trận liên thông
 - [design/SAGE-spec.md](design/SAGE-spec.md) — **SAGE**: 6 lớp L0–L5, 8 nguyên tắc P1–P8 truy xuất survey; demo **5/5 PASS** (DS-001) + **3/3** (DS-002) + **3/3** (DS-003) + **3/3** (DS-004) + **3/3** (DS-005) + **4/4** (DS-006) + **5/6** (DS-007 — E3 FAIL negative, ngưỡng §18.2 giữ nguyên) + **6/6** (DS-008 — C3 resolution + patient limit, pre-reg §19, lần đầu 6/6 ngay)
 - [backlog.md](backlog.md) · [questions/](questions/) · [templates/](templates/)
 
