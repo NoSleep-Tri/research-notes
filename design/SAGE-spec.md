@@ -978,3 +978,78 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 - **F-U05 — Tầng-2 thí nghiệm #1 của Q-016 khép lại: data layer ĐỦ** — 1555 cặp ≈ **10× ngưỡng 152 cặp** của Memory-R1 (E1); còn **#2** (data attack tổng hợp → robustness thật) và **#3** (train có thắng rules F-L01 không) **cần DS-010 train smoke** — không thể trả lời bằng data-gen. *Bằng chứng: G1–G6 tổng hợp. Confidence: trung bình-cao.*
 
 **Kernel**: `tribu1/ds-009-training-dataset` (id 137274509, **v1 = bản chính thức, 6/6, chạy <150s CPU**) · artifacts [demo/out/ds009/](demo/out/ds009/) · code [demo/sage_demo9.py](demo/sage_demo9.py) (commit `f9c333c`) · **pre-reg `391d720` + amend `22062e0`**.
+
+## 21. DS-010 — *Train smoke*: SFT + GRPO trên Kaggle GPU vs rules bar: acceptance **pre-registered**
+
+- **Ghi trước khi chạy**: 2026-10-06, §21 tồn tại **trước khi code demo10 được viết** — quy trình §10→§20: **không hạ ngưỡng sau khi thấy số**; mọi thay đổi ghi §21.4 kèm số liệu thật. Sinh từ Q-017 (AN-016 **F-W05: đủ tài liệu 8/8**) — chỉ thị "đủ tài liệu → triển khai huấn luyện luôn".
+- **Câu hỏi**: (1) với 1555 gold-op pairs (DS-009), model 1.5B + LoRA **học được** memory-op (ADD/UPDATE/DELETE/NOOP) tới đâu trên test split theo key? (2) Train có **vượt rules bar** (recency-content) không — tầng-2 #3 của Q-016? (3) **GRPO-from-base** có dính cold-start barrier (AN-016 E4) không, và GRPO thêm gì trên nền SFT?
+- **Giả thuyết, viết trước**:
+  - **H1 (SFT học được)**: `acc_SFT ≈ 0.93` (ceiling content-observable = 0.961 — chỉ 60 poison *unaware* không có tín hiệu), `acc_base ≈ 0.30`, macro-F1 ≈ 0.90.
+  - **H2 (vượt bar)**: `acc_SFT ≥ 0.85 > Bar1 ≈ 0.797`; so **Bar2 ≈ 0.961** (recency + Δ=0.15 guard) — *dự báo: SFT ≈ Bar2 hoặc dưới một chút* (REPORT-ONLY trong T4).
+  - **H3 (GRPO cold-start — dự báo trung thực, 2 phía)**: reward có **partial credit format (0.3)** → `B` arm cải thiện `reward +0.10` và `parse ≥ 0.90` được **hoặc** dính E4 (fail → FAIL ghi thật); `C` (SFT→GRPO) không hạ acc SFT.
+- **Truy xuất**: AN-016 F-W01…F-W05 (E1 Memory-R1 · E2 0.6–1B · E3 rủi ro GRPO+LoRA · E4 cold-start · E6 leverage) · AN-015 F-T01/F-T02/F-T06 · DS-009 §20 (data) · F-L01 (rules bar) · Q-016 tầng-2 #3.
+- **Kernel**: title `DS-010 train smoke SFT+GRPO` · code [demo/sage_demo10.py](demo/sage_demo10.py) · **GPU (enableGpu) + internet (enableInternet — tải weights từ HF Hub)**. Prefix finding: **F-Y**. **Chưa tồn tại code tại thời điểm ghi §21.**
+
+### 21.1 Thiết kế thí nghiệm (định nghĩa trước)
+
+**Data** (sinh lại trong kernel bằng đúng code DS-009 — seed `0`, `Q_SEED 20261010`; **parity bắt buộc**: `total = 1579`, `usable = 1555` khớp §20.5, sai → T6 FAIL):
+- Features/prompt (**cấm** `adversarial`/`strategy` — ground truth env, đưa vào = cheat): `key`, `cycle`, **claim** (`kind` + `value` — request mà agent nhận được, hợp lý theo F-T02), `context` (≤5 event trước của key), `bank_now` (giá trị đang lưu trước event). Output = JSON `{"op": "ADD|UPDATE|DELETE|NOOP"}` (**scope = Memory Manager only** — Answer Agent để DS-011, theo E1 tách 2 agent).
+- Prompt template (đóng băng):
+  ```
+  Key: K042 | Cycle: 5
+  Bank now: 0.4153  (or: absent)
+  Context:
+    c3 update value=0.4153
+    c4 restate value=0.4153
+  New request: kind=update value=0.5612
+  Decide the memory operation. Reply JSON only: {"op": "ADD"}  <- with op choices ADD/UPDATE/DELETE/NOOP
+  ```
+- **Split theo key**, shuffle seed `20261010`, **80/20** (train ≈ 1244, test ≈ 311) — key-disjoint, không leak.
+
+**Model & arm** (Qwen2.5-1.5B-Instruct — cùng family Qwen-2.5 với E1; LoRA `r=16, α=32`, targets q/k/v/o + gate/up/down, fp16, gradient checkpointing):
+- **Arm A — SFT**: lr `1e-4`, `epochs 2`, bs `4`, max_len `384`.
+- **Arm B — GRPO-from-base** (test cold-start E4): từ base + LoRA mới, reward = `0.3·valid_json + 0.7·(op == gold)`, `G=8` (E7), `beta=0` (không ref model), lr `5e-6`, temp `1.0`, completion ≤ `64`, `max_steps 100`, bs `4`.
+- **Arm C — SFT→GRPO**: tiếp từ adapter A, cùng reward/config, `max_steps 60`.
+- **Fallback duy nhất cho phép**: CUDA OOM → (a) bs `4→2` hoặc (b) model `1.5B → 0.5B` — ghi §21.4, **ngưỡng không đổi**.
+
+**Bars** (tính trong kernel trên test split, content-only — không có cờ adversarial):
+- **Bar1 (recency+claim)**: y hệt labeler §20 nhưng coi mọi event là trung thực (poison → theo claim) → dự báo **0.797** (±0.05 do split theo key).
+- **Bar2 (Bar1 + Δ-guard)**: thêm quy tắc `kind ∈ {update, restate} ∧ bank_now ≠ ∅ ∧ |Δvalue − 0.15| ≤ 1e-9 → NOOP` (chữ ký poison aware+patient, Δ **đúng 0.15** vì poison chèn cuối chu kỳ) → dự báo **0.961** (chỉ thoát được 60 unaware).
+
+**Dự báo tổng** (non-gating): `test ≈ 311` · `acc_base 0.30` · `acc_A 0.93` · `acc_B 0.55` (range fail 0.35 ↔ 0.75) · `acc_C 0.93` · `Bar1 0.797` · `Bar2 0.961` · `macro_F1_A 0.90` · `reward_B first 0.35 → last 0.80` · `train_acc_A 0.99` · runtime ≤ **90 phút**.
+
+**Artifacts**: `kpi.txt`, `summary.json`, `d32_acc.png` (base/A/B/C + Bar1/Bar2), `d33_reward.png` (curves B & C), `d34_f1.png` (macro-F1 per arm + per-class recall), `adapter_A/` (LoRA weights ≈23MB — giữ cho DS-011) → [demo/out/ds010/](demo/out/ds010/).
+
+### 21.2 Acceptance (ngưỡng pre-registered)
+
+| ID | Kiểm chứng | Acceptance |
+|---|---|---|
+| **T1** | **Pipeline hoàn tất trên GPU** — 3 arm train xong, artifacts ghi đủ (kpi/summary/3 PNG/adapter) | hoàn tất 100% file, không crash |
+| **T2** | **SFT học được** (so với base chưa train) | `acc_A ≥ acc_base + 0.10` |
+| **T3** | **Vượt rules bar content** (tầng-2 #3 của Q-016) | `acc_A ≥ 0.85` (= Bar1 + margin ≥0.05) |
+| **T4** | **Chống lệch nhãn** (class imbalance: DELETE chỉ 60) + báo cáo so Bar2/arm (nội tuyến) | `macro_F1_A ≥ 0.85` — *kèm report*: acc vs Bar2, acc_B/acc_C vs acc_A |
+| **T5** | **Cold-start GRPO-from-base** (test E4 trực tiếp) | `reward_B(last10) ≥ reward_B(first10) + 0.10` ∧ `parse_valid_end ≥ 0.90` |
+| **T6** | **Không leak + parity data + không overfit** | `leak_key = 0` ∧ `total/usable khớp §20.5` ∧ `acc_A ≥ train_acc_A − 0.10` |
+
+**KPI: 6/6 module.**
+
+**Lý do ngưỡng**: `T3 ≥ 0.85` — dưới Bar1+0.05 thì train không thêm giá trị so luật viết tay → FAIL ghi thật. `T5` dùng partial-credit format (0.3) để *giảm* rủi ro E4 — nếu vẫn fail → negative finding về cold-start ở cỡ 1.5B với reward nhẹ, ghi nguyên vẹn. `T4` đặt macro-F1 chứ không chỉ accuracy vì DELETE mất nếu model về phe majority. `Bar2` cố ý để **cao hơn dự báo của model** — trả lời trung thực "train thắng *rules đã sharpen* chưa".
+
+### 21.3 Cảnh báo metric thoái hóa — **tự chặn trước**
+
+1. Hạ ngưỡng T1–T6 sau khi thấy số → **cấm**.
+2. Thêm feature `adversarial`/`strategy` (hoặc mọi cột ground-truth env) vào prompt → **cấm** (đổi = đổ nợ experiments).
+3. Đổi split (tỉ lệ/seed), đánh giá trên train thay test, hay loại arm B khỏi KPI sau khi thấy B fail → **cấm**.
+4. Đổi reward formula (`0.3/0.7`), G (8), completion (64), steps (100/60), lr, epochs, LoRA rank sau khi thấy số → **cấm** (bug harness thì sửa, ghi §21.4).
+5. Đổi định nghĩa Bar1/Bar2 sau khi thấy số → **cấm** (đặc biệt "bỏ Δ-guard khỏi Bar2" để model nhìn thắng hơn).
+6. Fallback 0.5B / bs 2 chỉ khi **CUDA OOM thật** (log OOM stacktrace), ghi §21.4 — không dùng vì "muốn nhanh hơn".
+7. Gộp 6 module thành 1 con số, hay bỏ macro-F1 vì "accuracy cao rồi" → **cấm**.
+8. Sửa prompt template sau khi xem output base ("có vẻ model hiểu nhầm") → **cấm** — template đã đóng băng ở §21.1.
+
+### 21.4 Change-log
+
+*(chưa chạy — sẽ ghi ở đây, nếu có)*
+
+### 21.5 Kết quả
+
+*(chưa chạy — sẽ ghi ở đây)*
