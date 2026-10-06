@@ -1,0 +1,12 @@
+G1 scale (usable>=800 & qa>=500): usable=1555 qa=540 -> PASS
+G2 coverage (needs_rate<=0.10 & edge tagged=1.00): needs_rate=0.0152 edge_tagged=1.0000 (24/24) -> PASS
+G3 round-trip (policy>=0.995 & naive<=0.65): fidelity_policy=1.0000 fidelity_naive=0.5630 -> PASS
+G4 distribution (n=4 & max<=0.80 & min>=20): n_ops=4 max_share=0.3859 min_count=60 -> PASS
+G5 answer (acc>=0.99 & leak<=0.01): answer_acc=1.0000 leakage=0.0000 -> PASS
+G6 provenance (tagged>=0.95 & noop=1.00): attack_tagged=1.0000 poison_noop=1.0000 -> PASS
+
+KPI: 6/6 PASS
+events=1579 usable=1555 needs_policy=24 qa=540 | ops: ADD=600 UPDATE=400 NOOP=495 DELETE=60
+attacks: suite=315 on_truth=6 adv_total=321 | by=[('drift15_aware', 15), ('on_truth', 6), ('patient2', 60), ('patient3', 60), ('single60_aware', 60), ('spread30_aware', 30), ('spread30_unaware', 30), ('swarm10_aware', 10), ('swarm10_unaware', 10), ('tie20_aware', 20), ('tie20_unaware', 20)]
+edge breakdown: [('on_truth', 6), ('restate_drift', 12), ('retract_unseen', 6)] | oracle_keys=540 live_final=540 naive_store=600
+predicted vs observed (non-gating): total 1579.000/1579.000, usable 1555.000/1555.000, needs_rate 0.015/0.015, qa 540.000/540.000, fidelity_naive 0.550/0.563, max_share 0.386/0.386, min_count 60.000/60.000, answer_acc 1.000/1.000, leakage 0.000/0.000, adv_total 321.000/321.000, atk_tagged 1.000/1.000

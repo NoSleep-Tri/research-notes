@@ -23,6 +23,7 @@
 | DS-008 | *(sinh từ F-I04/F-I05, bạn "tiếp")* **C3 resolution + patient-attacker limit** — tách thứ tự hóa thành bộ luật theo câu hỏi có cứu được E3 không? attacker kiên nhẫn (1 bait/cycle) có thắng mọi quy tắc nội tại không? | TB (agent chọn) | ✅ **KPI 6/6 PASS — lần đầu 6/6 ngay, không sửa code/ngưỡng** (Kaggle v1, 2026-10-06, pre-reg `d3e4a3c` trước khi code) → [spec §19](design/SAGE-spec.md) — findings **F-L01…F-L06** |
 | Q-015 | **Huấn luyện agent có bộ nhớ (SAGE): nên đưa dữ liệu gì vào training, và đầu ra của mô hình/hệ thống là gì?** | Cao (bạn hỏi) | ✅ Trả lời → [AN-015](surveys/training-data-for-memory-agents.md) |
 | Q-016 | **Đủ điều kiện để train chưa hay vẫn cần nghiên cứu thêm?** (nối Q-015) | Cao (bạn hỏi) | ✅ Trả lời → [AN-015 §7](surveys/training-data-for-memory-agents.md) — *đủ cho thí nghiệm nhỏ, thiếu engineering + 3 thí nghiệm; GPU 30h/tuần sẵn sàng* |
+| DS-009 | *(sinh từ AN-015 §6 + Q-016 tầng-2 #1)* **Training dataset** — gold-op suy diễn từ stream có sạch/duy nhất không? round-trip có tái tạo đúng store không? | Cao (bạn "làm nốt") | ✅ **KPI 6/6 PASS — lần đầu, dự báo 10/11 khớp exact** (Kaggle v1, 2026-10-06, pre-reg `391d720` + amend `22062e0` trước khi code, code `f9c333c` trước khi chạy) → [spec §20](design/SAGE-spec.md) — findings **F-U01…F-U05** |
 
 > Quy tắc: 1 câu hỏi = 1 tiêu chí "đã trả lời" rõ ràng. Giữ backlog ≤ 10 mục.
 

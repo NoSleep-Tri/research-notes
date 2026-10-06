@@ -955,8 +955,26 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 
 1. **Amend trước khi code & trước khi chạy** (2026-10-06, pre-reg `391d720` → amend push): sửa **số học** trong §20.1 — cycle 1 không có key đủ điều kiện `update` (0 key "đã tạo ≥1 chu kỳ") → `update` chạy cycle 2–6 = **400** event (không phải 480); `total 1659 → 1579`, `usable 1635 → 1555`, `needs_rate 0.0145 → 0.0152`, `UPDATE 480 → 400`, `max_share 0.37 → 0.39`. **Không liên quan bất kỳ kết quả nào** (chưa có code, chưa chạy) — chỉ sửa phép đếm thiết kế. Ngưỡng G1–G6 không đổi.
 
-*(chưa chạy — sẽ ghi thêm ở đây, nếu có)*
+**Không có thay đổi nào sau khi chạy.** Chạy v1 duy nhất (`tribu1/ds-009-training-dataset`, kernel id 137274509) — **6/6 pass ngay lần đầu**: không sửa code, không sửa ngưỡng, không sửa metric. Pre-reg `391d720` → amend `22062e0` (trước code) → code `f9c333c` (trước chạy) → kết quả (commit chứa §20.5).
 
 ### 20.5 Kết quả
 
-*(chưa chạy — sẽ ghi ở đây)*
+- **KPI: 6/6 PASS** (ngưỡng §20.2 giữ nguyên 100%):
+  - **G1 PASS** — `usable = 1555 ≥ 800` · `qa = 540 ≥ 500`.
+  - **G2 PASS** — `needs_rate = 0.0152 ≤ 0.10` · edge **24/24 bị tag** (`restate_drift 12 · retract_unseen 6 · poison_on_truth 6`).
+  - **G3 PASS** — `fidelity_policy = 1.0000 ≥ 0.995` · `fidelity_naive = 0.5630 ≤ 0.65` (**gap 0.437** giữa hai cách gán nhãn).
+  - **G4 PASS** — 4 nhãn: `ADD 600 (0.3859) · UPDATE 400 · NOOP 495 · DELETE 60` — `max_share 0.3859 ≤ 0.80`, `min 60 ≥ 20`.
+  - **G5 PASS** — `answer_acc = 1.0000` · `leakage = 0.0000`.
+  - **G6 PASS** — `attack_tagged = 1.0000` (**321/321** = suite 315 + on_truth 6) · `poison_noop_rate = 1.0000`.
+- **Dự báo vs observed** (non-gating): **10/11 khớp exact** — `total 1579` · `usable 1555` · `needs 0.0152` · `qa 540` · `max_share 0.386` · `min_count 60` · `acc 1.000` · `leak 0` · `adv_total 321` · `tagged 1.000`. Lệch duy nhất: **`fidelity_naive 0.55 → 0.563` (+0.013)** — overlap update thấp hơn ước tính một chút; không ảnh hưởng verdict, **ngưỡng 0.65 giữ nguyên**. `oracle_keys 540 = live_final 540`, `naive_store 600` (giữ cả 60 key đã retract — sai lệch thấy được cả ở số đếm).
+- **Artifacts**: [demo/out/ds009/](demo/out/ds009/) — `kpi.txt · summary.json · d29_opdist.png · d30_fidelity.png · d31_ambiguity.png · train_pairs.jsonl (1555 dòng) · qa_pairs.jsonl (540 dòng)`.
+
+**Findings mới (prefix F-U — *unseen/unknown*):**
+
+- **F-U01 — Round-trip là bộ nghiệm nhãn**: replay gold-op tái tạo store oracle **từng ký tự (`1.0000`)** trong khi naive (ADD keep-first) chỉ được **`0.5630`** — dataset từ stream **coherent**, và chính phép thử round-trip sẽ bắt ngay mọi sai hỏng của policy trong lần chạy sau (kể cả khi đổi stream). *Bằng chứng: G3, pre-registered. Confidence: cao.*
+- **F-U02 — Mâu thuẫn nhãn có thật, nhỏ, và bắt được bằng MỘT phép so sánh** (`declared kind ≠ computed label`): 24/1579 = **1.52%** edge quota, tag đủ 24/24 — nếu không tag: 12 `restate_drift` bị mất update, 6 `retract_unseen` xóa nhầm, 6 `poison_on_truth` không phân biệt được với no-op. *Bằng chứng: G2 + edge breakdown. Confidence: cao.*
+- **F-U03 — Provenance sống sót qua trích xuất**: 321/321 poison gắn `strategy`, toàn bộ `gold_op = NOOP` theo world-truth → data augmentation chống đầu độc (lớp 3 F-T01, cặp clean/injected của F-T04) **sẵn sàng dùng**. *Bằng chứng: G6. Confidence: cao (check tự động, bảo vệ regression).*
+- **F-U04 — Phân bố nhãn cân đối, không degenerate**: 4 op đều có, `max 38.6%`, `DELETE 60` — trái ngược với baseline naive tất yếu là "all-ADD"; đủ điều kiện làm nhãn cho train multi-class. *Bằng chứng: G4 + dự báo khớp exact. Confidence: cao.*
+- **F-U05 — Tầng-2 thí nghiệm #1 của Q-016 khép lại: data layer ĐỦ** — 1555 cặp ≈ **10× ngưỡng 152 cặp** của Memory-R1 (E1); còn **#2** (data attack tổng hợp → robustness thật) và **#3** (train có thắng rules F-L01 không) **cần DS-010 train smoke** — không thể trả lời bằng data-gen. *Bằng chứng: G1–G6 tổng hợp. Confidence: trung bình-cao.*
+
+**Kernel**: `tribu1/ds-009-training-dataset` (id 137274509, **v1 = bản chính thức, 6/6, chạy <150s CPU**) · artifacts [demo/out/ds009/](demo/out/ds009/) · code [demo/sage_demo9.py](demo/sage_demo9.py) (commit `f9c333c`) · **pre-reg `391d720` + amend `22062e0`**.

@@ -1,0 +1,117 @@
+{
+ "config": {
+  "SEED": 0,
+  "Q_SEED": 20261010,
+  "N_KEY": 600,
+  "CYCLES": 6,
+  "NEW_PER": 100,
+  "UPDATE_PER": 80,
+  "RESTATE_PER": 30,
+  "RETRACT_PER": 10,
+  "EDGE": [
+   2,
+   1,
+   1
+  ],
+  "BAIT": 0.15
+ },
+ "counts": {
+  "events": 1579,
+  "usable": 1555,
+  "needs_policy": 24,
+  "qa": 540,
+  "adv": 321,
+  "atk_suite": 315
+ },
+ "ops": {
+  "ADD": 600,
+  "NOOP": 495,
+  "DELETE": 60,
+  "UPDATE": 400
+ },
+ "edge": {
+  "restate_drift": 12,
+  "retract_unseen": 6,
+  "on_truth": 6
+ },
+ "attacks": {
+  "on_truth": 6,
+  "patient3": 60,
+  "patient2": 60,
+  "tie20_aware": 20,
+  "swarm10_aware": 10,
+  "drift15_aware": 15,
+  "spread30_aware": 30,
+  "single60_aware": 60,
+  "tie20_unaware": 20,
+  "swarm10_unaware": 10,
+  "spread30_unaware": 30
+ },
+ "fidelity": {
+  "policy": 1.0,
+  "naive": 0.562962962962963
+ },
+ "coverage": {
+  "needs_rate": 0.015199493350221659,
+  "edge_tagged": 1.0
+ },
+ "answer": {
+  "acc": 1.0,
+  "leakage": 0.0
+ },
+ "pred_vs_obs": {
+  "total": {
+   "pred": 1579,
+   "obs": 1579
+  },
+  "usable": {
+   "pred": 1555,
+   "obs": 1555
+  },
+  "needs_rate": {
+   "pred": 0.0152,
+   "obs": 0.015199493350221659
+  },
+  "qa": {
+   "pred": 540,
+   "obs": 540
+  },
+  "fidelity_naive": {
+   "pred": 0.55,
+   "obs": 0.562962962962963
+  },
+  "max_share": {
+   "pred": 0.386,
+   "obs": 0.3858520900321543
+  },
+  "min_count": {
+   "pred": 60,
+   "obs": 60
+  },
+  "answer_acc": {
+   "pred": 1.0,
+   "obs": 1.0
+  },
+  "leakage": {
+   "pred": 0.0,
+   "obs": 0.0
+  },
+  "adv_total": {
+   "pred": 321,
+   "obs": 321
+  },
+  "atk_tagged": {
+   "pred": 1.0,
+   "obs": 1.0
+  }
+ },
+ "kpi": "6/6",
+ "checks": {
+  "G1": true,
+  "G2": true,
+  "G3": true,
+  "G4": true,
+  "G5": true,
+  "G6": true
+ }
+}
