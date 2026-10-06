@@ -22,6 +22,7 @@
 | DS-007 | *(sinh từ đề xuất agent, bạn "ok đi")* **SAGE v0.3 integration + tự phá** — 6 demo chạy đồng thời có triệt tiêu nhau không? 2 xung đột pre-register C1/C2 + adversarial | TB (agent chọn) | ✅ **KPI 5/6 — E3 FAIL (negative finding, ngưỡng §18.2 giữ nguyên)** (Kaggle v2, 2026-10-06, pre-reg `dda1c65` + amendment `84570aa` trước khi code) → [spec §18](design/SAGE-spec.md) — findings **F-I01…F-I06** |
 | DS-008 | *(sinh từ F-I04/F-I05, bạn "tiếp")* **C3 resolution + patient-attacker limit** — tách thứ tự hóa thành bộ luật theo câu hỏi có cứu được E3 không? attacker kiên nhẫn (1 bait/cycle) có thắng mọi quy tắc nội tại không? | TB (agent chọn) | ✅ **KPI 6/6 PASS — lần đầu 6/6 ngay, không sửa code/ngưỡng** (Kaggle v1, 2026-10-06, pre-reg `d3e4a3c` trước khi code) → [spec §19](design/SAGE-spec.md) — findings **F-L01…F-L06** |
 | Q-015 | **Huấn luyện agent có bộ nhớ (SAGE): nên đưa dữ liệu gì vào training, và đầu ra của mô hình/hệ thống là gì?** | Cao (bạn hỏi) | ✅ Trả lời → [AN-015](surveys/training-data-for-memory-agents.md) |
+| Q-016 | **Đủ điều kiện để train chưa hay vẫn cần nghiên cứu thêm?** (nối Q-015) | Cao (bạn hỏi) | ✅ Trả lời → [AN-015 §7](surveys/training-data-for-memory-agents.md) — *đủ cho thí nghiệm nhỏ, thiếu engineering + 3 thí nghiệm; GPU 30h/tuần sẵn sàng* |
 
 > Quy tắc: 1 câu hỏi = 1 tiêu chí "đã trả lời" rõ ràng. Giữ backlog ≤ 10 mục.
 

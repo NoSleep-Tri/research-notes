@@ -60,4 +60,37 @@ Hai vế: (a) **input** — dữ liệu gì đưa vào để huấn luyện mộ
 
 ## 6. Hướng kiểm chứng tiếp
 
-**Có cần chạy Kaggle?** Có, tùy chọn — **DS-009 (candidate)**: sinh bộ dataset huấn luyện cho SAGE từ stream + attack suite: output `train_pairs.jsonl` (mỗi dòng = `{context, memory_bank, question, gold_op, gold_answer, citation}`) kèm thống kê (số cặp/op, tỷ lệ, độ lệch), KPI: ≥N cặp, phân bố op không lệch quá X%, gold lấy từ ground-truth stream (không hallucinate). Chạy CPU nhẹ, artifact về `out/ds009/`. Việc **train model thật** nằm ngoài điều kiện máy (cần GPU) → để separate, không nhận trong milestone hiện tại.
+**Có cần chạy Kaggle?** Có, tùy chọn — **DS-009 (candidate)**: sinh bộ dataset huấn luyện cho SAGE từ stream + attack suite: output `train_pairs.jsonl` (mỗi dòng = `{context, memory_bank, question, gold_op, gold_answer, citation}`) kèm thống kê (số cặp/op, tỷ lệ, độ lệch), KPI: ≥N cặp, phân bố op không lệch quá X%, gold lấy từ ground-truth stream (không hallucinate). Chạy CPU nhẹ, artifact về `out/ds009/`. ~~Việc **train model thật** nằm ngoài điều kiện máy (cần GPU)~~ → **sửa một phần bởi Q-016 (§7)**: quota check 2026-10-06 cho thấy Kaggle GPU **108.000s (30h)/tuần, dùng 0s** → train nhỏ *có* điều kiện hạ tầng; còn thiếu là pipeline, không phải GPU.
+
+## 7. (Q-016) Đủ điều kiện train chưa, hay cần nghiên cứu thêm?
+
+**Phán quyết: ĐỦ để chạy thí nghiệm huấn luyện nhỏ đầu tiên; CHƯA ĐỦ để cam kết train sẽ thắng baseline rules hay generalize.** Thứ thiếu nằm ở **engineering + 3 thí nghiệm nhỏ**, không phải ở lý thuyết — chưa cần đọc thêm paper để bắt đầu.
+
+### a. Đã đủ (7 điều kiện, evidence trong tay)
+
+| # | Điều kiện | Trạng thái |
+|---|---|---|
+| 1 | **Data recipe** (F-T01): 3 lớp; ngưỡng tối thiểu đã chứng minh = **152 cặp** (E1); stream tổng hợp sinh unlimited → data **không** phải bottleneck | ✅ |
+| 2 | **Output contract** (F-T02): `{op, key, content, citation_id, confidence, answer}`, gold_op derivable từ stream sinh có ground truth | ✅ |
+| 3 | **Reward**: KPI F1–F6 = dense metric sẵn (E21) + hybrid extrinsic/intrinsic (E4, E6) | ✅ |
+| 4 | **Phương pháp**: GRPO/PPO + LoRA recipe cụ thể, đã có ví dụ 152 cặp (E1), LoRA đủ rank ≈ full CPT (E10) | ✅ |
+| 5 | **Baseline để so (bar)**: rules F-L01 thắng 10/10 attack nội tại + F-T05 (rule-based thắng trained trong literature) | ✅ |
+| 6 | **Hạ tầng**: Kaggle **GPU 108.000s/tuần (30h), dùng 0s**, TPU 20h (quota check 2026-10-06) | ✅ |
+| 7 | **Đánh giá**: pre-reg + KPI + change-log đã chạy 8 lần, discipline đã luyện | ✅ |
+
+### b. Chưa đủ — 3 tầng, **không** đồng nhất với "nghiên cứu"
+
+**Tầng 1 — engineering thuần (không cần đọc thêm paper)**: pipeline train = env loop quanh stream SAGE + parser operation + reward function; chọn base model nhỏ (1.5–4B) + LoRA; kernel **bật internet** để pip (recipe hiện `enableInternet:false`); quản 30h GPU. → làm được ngay.
+
+**Tầng 2 — 3 thí nghiệm nhỏ phải chạy trước khi tin** (chưa chứng minh trong hệ ta):
+1. **Nhãn có sạch không** — gold_op (ADD/UPDATE/DELETE/NOOP) từ stream tự sinh có mâu thuẫn policy không → **DS-009** đo thật (§6).
+2. **Data attack tổng hợp → robustness thật?** — F-T06 confidence trung bình, gap ghi ở §5; mới chỉ có proxy (bộ luật thắng attack, DS-007/008).
+3. **Train có thắng rules không?** — bar = F-L01; trong literature rule-based đã thắng trained (F-T05), nên train *phải chứng minh* mình thắng bar này, không được giả định.
+
+**Tầng 3 — nghiên cứu literature thật (muốn chắc hơn, không chặn thí nghiệm)**: chưa có benchmark chuẩn để so chéo (E6: ngành *fragmented*); 5 evidence mới ở mức snippet (E4, E5, E17, E19, E20); websearch 401 → vài landmark chưa verify.
+
+### c. Khuyến nghị
+
+- Mục tiêu = **hệ thống dùng được**: rules đã đủ (F-T05 + F-L01) → **không cần train ngay**.
+- Mục tiêu = **vượt F-L02** (attacker kiên nhẫn thắng mọi luật nội tại — chỗ rules hết cách) hoặc giảm công sức viết luật thủ công → train **đáng làm**.
+- Lộ trình 2 bước = "điều kiện còn thiếu" thực sự: **DS-009** (sinh dataset + đo nhãn, CPU) → **DS-010** (train smoke: GRPO/LoRA 1–4B trên Kaggle GPU, so bar với rules). Nói "chạy" là pre-register §20/§21 rồi chạy.

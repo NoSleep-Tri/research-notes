@@ -1,3 +1,4 @@
+successfully downloaded text file (SHA: 78666981fe2622b6dffdde8fb07d00b4c02de656)
 successfully downloaded text file (SHA: 248f7a0c3d2ddf50e799e131fb458e344eba9967)
 successfully downloaded text file (SHA: 76c3785898b522f06135d02ceea2502a9d98af60)
 successfully downloaded text file (SHA: c84c04b556fbe8c19c01cbc1c6b1dc16c4193bfd)
@@ -5,7 +6,7 @@ successfully downloaded text file (SHA: c84c04b556fbe8c19c01cbc1c6b1dc16c4193bfd
 
 Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có **evidence + confidence**, rồi **thiết kế hệ thống** và **kiểm chứng bằng demo trên Kaggle**.
 
-**Trạng thái**: 15 survey (Q-001 → Q-015) · 262 entity / 356 relation knowledge graph · 8 hệ thống thiết kế, demo **5/5**, **3/3**, **3/3**, **3/3**, **3/3**, **4/4**, **5/6**, **6/6 PASS** (DS-007: E3 = negative finding giữ nguyên · DS-008: 6/6 ngay lần đầu, không sửa gì).
+**Trạng thái**: 15 survey (Q-001 → Q-015) · 263 entity / 357 relation knowledge graph · 8 hệ thống thiết kế, demo **5/5**, **3/3**, **3/3**, **3/3**, **3/3**, **4/4**, **5/6**, **6/6 PASS** (DS-007: E3 = negative finding giữ nguyên · DS-008: 6/6 ngay lần đầu, không sửa gì).
 
 ## Chỉ mục
 
