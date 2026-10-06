@@ -677,3 +677,85 @@ _Chưa có thay đổi nào (chưa chạy lần nào — §17 viết trước kh
 **Lệch dự báo (nói rõ, không giấu — không ngưỡng nào đổi)**: (i) `recency cur_acc = 0.5815`, dự báo `0.45` (lệch `+0.1315`) — tôi đã đánh giá thấp việc cửa sổ 0.40 giữ được bao nhiêu bản hiện hành; (ii) `value stale = 0.5466`, dự báo `0.45` (lệch `+0.0966`); (iii) `archive hist_acc = 1.0000`, dự báo `0.90` — citation tra kho theo key+thời gian là lookup chính xác, không có nhiễu nên không thể < 1.0. Cả 3 đều là **dự báo phụ** (không gate KPI) → sai số dự báo, không phải lỗi thí nghiệm. Dự báo **có gate** đều nằm trong khoảng: `keepall cur −0.0046`, `archive cur +0.0486`, `active +0.0041`.
 
 **Artifacts**: `research/design/demo/out/ds006/{kpi.txt, summary.json, d18_cur_stale.png, d20_hist.png, d21_budget.png}` · kernel `tribu1/ds-006-sage-memory-hygiene` **v1** · code [demo/sage_demo6.py](demo/sage_demo6.py).
+
+---
+
+## 18. DS-007 — *SAGE v0.3: tích hợp 6 demo thành một hệ thống* + **tự phá** (adversarial): acceptance **pre-registered**
+
+- **Ghi trước khi chạy**: 2026-10-06, §18 này tồn tại **trước khi code demo7 được viết** — quy trình §10/§12/§14/§15/§16/§17: **không hạ ngưỡng sau khi thấy số**; mọi thay đổi ghi ở §18.4 kèm số liệu thật.
+- **Câu hỏi khoa học** (đề xuất người dùng 2026-10-06): 6 cơ chế DS-001→DS-006 **chạy đồng thời** trên cùng một stream có **triệt tiêu nhau** không? Kèm vòng **tự phá**: chủ động tìm cách làm hệ thống hỏng (đảo vai trò DS-005 từng áp cho DS-003).
+- **2 xung đột dự kiến, viết trước**:
+  - **C1 — DS-004 (nén theo ngân sách) ↔ DS-006 (kho append-only + citation)**: nén kho giảm bộ nhớ có **phá câu trả lời lịch sử** không? (F-J05: nén chỉ an toàn khi record đủ trùng lặp.)
+  - **C2 — DS-002 (phải quên để thích nghi) ↔ DS-006 (không bao giờ xóa)**: đổi phase → fact hiện hành **hết đúng hàng loạt**; quét active pointer để thích nghi có **mất lịch sử** không?
+- **Truy xuất**: DS-001 (gating + coverage) · DS-002 (quên = ức chế, không xóa) · DS-003 (calibration, chống answer-skip) · DS-004 (nén + stub 0.1) · DS-005 (verifier ngoài vòng lặp, F-V03) · DS-006 (citation) · [AN-014](../surveys/agent-memory.md) F-P03/F-P04 (memory = bề mặt tấn công).
+- **Kernel**: title `DS-007 SAGE v0.3 integration` (slug do Kaggle slugify) · code: [demo/sage_demo7.py](demo/sage_demo7.py) · CPU-only, không internet. Prefix finding: **F-I** (integration). **Chưa tồn tại code tại thời điểm ghi §18.**
+
+### 18.1 Thiết kế thí nghiệm (định nghĩa **trước** — tránh metric thoái hóa)
+
+**Config cố định** (honest seeds `0..4`, query seed `20261010`):
+
+- **Stream**: `N_KEY = 600`, `CYCLES = 6`, **đổi phase sau cycle 3** (cycle 4–6 = phase 2; true value mọi key tái sinh). Mỗi cycle, trộn thứ tự:
+  - **600 clean** (100% key, trusted, `value = true ± 0.01`) · **60 noise** (untrusted, `U(0,1)`) · **60 ambient-bait** (trusted, lệch `±U(0.40,0.60)` khỏi true, hướng giữ trong `[0,1]`).
+- **Write gate (DS-001)**: (i) untrusted → reject · (ii) key chưa có current → accept · (iii) `|value − current| > 0.30` → **pending**.
+- **Detector phase (DS-002 — chống C2)**: cuối cycle, nếu `blocked_trusted / incoming_trusted > 0.40` → **sweep**: xóa toàn bộ current pointer (**không đụng kho**) + re-gate mọi pending theo thứ tự thời gian. Dự báo: chỉ cycle 4 kích hoạt (`≈0.54`), cycle khác `≤0.09`.
+- **Memory (DS-006)**: cold append-only mọi accepted record · citation `key → [(t, id)]`.
+- **Consensus-cluster = nén kiểu DS-004 nhưng gộp theo đồng thuận (đáp C1)**: gom accepted record theo giá trị (`ε = 0.05`, greedy) · cluster hợp lệ nếu `size ≥ 2` · chọn cluster theo **(size desc, t_last desc)** · scaffold = **1 record/key** chứa cluster hợp lệ · stub mọi raw record = `0.1`.
+- **Trả lời**: `t_q = 7.0` (current) · `t_q = 4.0` (historical, biên phase) → chọn cluster hợp lệ `t_last ≤ t_q` lớn nhất; không có → `unknown` (sai).
+- **Query**: 800 current + 400 historical, seed `20261010`.
+- **Storage**: `N_KEY×1.0 + 0.1×n_accepted` → `storage_ratio` so với `n_accepted`.
+- **Confidence (DS-003)**: cửa sổ `[t_q − 1, t_q)` · `conf = support/(support+opposition)` (±0.05), cửa sổ rỗng → `0.5` · **ECE** = `mean|conf − acc|` (honest run).
+- **Red-team (DS-005 + F-P04)** — 5 strategy × {`unaware`, `aware`} × **2 lớp** = 20 run, seed 0, budget **60 bait chèn cycle 6** (sau clean, `t` lớn nhất):
+
+  | Strategy | Phân bổ (key × số bait) |
+  |---|---|
+  | `tie20` | 20 × 3 |
+  | `swarm10` | 10 × 6 |
+  | `drift15` | 15 × 4 |
+  | `spread30` | 30 × 2 |
+  | `single60` | 60 × 1 |
+
+  - `aware` (biết gate 0.30 + rule consensus): bait = `true + 0.15` **cố định** (vượt gate, lệch > ε, cluster ≥ 3) · `unaware`: `U(0,1)` (bị gate chặn phần lớn, còn lại singleton).
+  - **Attack thắng** nếu `acc` trên **key bị tấn công** ` < 0.90`.
+  - **Lớp (a)**: chỉ pipeline tích hợp. **Lớp (c)**: (a) + **verifier ngoài vòng lặp**: sau cycle 5 và cycle 6, đọc độc lập `200/600` key, so `chosen-cur` vs true (±0.05); phát hiện ≥1 lệch → **audit toàn bộ** → câu trả lời current tính từ snapshot đọc độc lập (circuit breaker).
+
+**Kỳ vọng viết trước** (không ràng buộc KPI): `cur_acc(honest) ≈ 0.95` · `hist_acc ≈ 0.95` (stuck-key cycles 1–3 không có phase-1 cluster) · `storage_ratio ≈ 0.27` · `ECE ≈ 0.03–0.05` · `clean_accept ≈ 0.98` · `noise_reject = 1.00` · `coverage ≈ 0.86` · **C1**: scaffold gộp record trùng → storage `≤0.40` mà acc không đổi · **C2**: sweep chỉ xóa pointer → `hist ≥0.80`, phục hồi ≤ 2 cycle · `winrate(a) ≈ 0.30` (`aware` thắng 3/5: `tie20`/`swarm10`/`drift15`, thua `spread30`/`single60`; `unaware` 0/5) · `winrate(c) ≈ 0.00`.
+
+### 18.2 Acceptance (ngưỡng pre-registered)
+
+| ID | Kiểm chứng | Thí nghiệm | Acceptance (ngưỡng ghi trước) |
+|---|---|---|---|
+| **E1** | **Gate chống skip-all + chống đầu độc** (DS-001, học D9) | honest, tổng 6 cycle | `clean_accept ≥ 0.90` · `noise_reject ≥ 0.90` · `coverage ∈ [0.60, 1.00]` |
+| **E2** | **Trả lời đúng hiện tại & lịch sử** (DS-006) | honest, state cuối | `cur_acc ≥ 0.90` · `hist_acc ≥ 0.80` |
+| **E3** | **Đổi phase → thích nghi mà không mất lịch sử** (C2: DS-002 ↔ DS-006) | honest, theo cycle | `cur_acc(cycle 3) ≥ 0.90` ∧ `cur_acc(cycle 4) ≥ 0.90` ∧ `cur_acc(cycle 5) ≥ 0.90` ∧ `hist_acc ≥ 0.80` (cycle 6) |
+| **E4** | **Nén kho không phá citation** (C1: DS-004 ↔ DS-006) | honest, sau nén | `storage_ratio ≤ 0.40` ∧ `cur_acc ≥ 0.90` ∧ `hist_acc ≥ 0.80` (tính trên scaffold) |
+| **E5** | **Calibration thật + không answer-skip** (DS-003) | honest | `ECE ≤ 0.10` · `answer_coverage ≥ 0.90` |
+| **E6** | **Red-team 2 lớp chặn được attacker** (DS-005 + F-P04) | 20 run attack | `winrate(a) ≥ 0.25` · `winrate(c) ≤ 0.10` · `gap ≥ 0.20` · `honest_acc ≥ 0.90` |
+
+**KPI tổng: 6/6 module.**
+
+**Lý do ngưỡng**:
+- `0.90 / 0.80 / 0.40`: **dùng lại đúng** con số §15.2/§17.2 — không bịa ngưỡng mới cho phần giống nhau.
+- E1 `coverage ≥ 0.60`: học D9 (DS-003) — gate có thể "hack" bằng cách chặn hết; dự báo `≈0.86`, dư `0.26`. `noise_reject ≥ 0.90` chặn prototype "không tin gì cả".
+- E3 đo **theo từng cycle** thay vì tổng: phát hiện được "tổng thì đạt nhưng 2 cycle đầu sau đổi phase thì sập" — đó mới là nội dung C2.
+- E6 `winrate(a) ≥ 0.25` **thấp hơn** DS-005 (`0.50`): một nửa suite là `unaware` bị gate chặn sẵn (dự báo `0.30`) — vẫn đủ để chứng minh suite không vacuous; `gap ≥ 0.20` (dự báo `0.30`). Ngưỡng này **được chọn TRƯỚC khi chạy**, ghi rõ lý do ở đây.
+
+### 18.3 Cảnh báo metric thoái hóa (học từ §14–§17) — **tự chặn trước**
+
+1. Đổi ngưỡng gate `0.30`, detector `0.40`, `ε = 0.05`, `size ≥ 2`, tie-break sau khi thấy số → **cấm**.
+2. Hạ bất kỳ ngưỡng E1–E6 sau khi thấy số → **cấm**; module nào fail → **negative finding** ghi thẳng §18.5.
+3. Thêm cơ chế "phục hồi stuck-key" / sửa `t_q` / đổi consensus thành median **sau khi thấy acc** → **cấm**.
+4. Đổi red-team: bỏ strategy nào vì nó thua, đổi budget 60, đổi điều kiện thắng `<0.90`, đổi `200/600` sampling, đổi `δ = 0.15` → **cấm**.
+5. Cho lớp (c) thêm quyền ngoài verifier (đọc true value ở nơi khác) → **cấm**; mỗi lớp chỉ có đúng cơ chế ghi ở §18.1.
+6. Đổi seed honest `0..4` / query seed `20261010` → **cấm**.
+7. Loại `unknown` khỏi denominator (chỉ tính câu đã trả lời) → **cấm**; `unknown` = sai, `answer_coverage` báo cáo riêng.
+8. Thêm phase thứ 3, đổi số cycle/record mỗi cycle sau khi thấy số → **cấm**.
+9. Gộp E1–E6 thành 1 con số tổng để che module fail → **cấm** (6 module phải xuất riêng).
+10. Chỉ bug harness (sai code so với §18.1) được sửa — phải ghi change-log §18.4 kèm sự thật trước/sau.
+
+### 18.4 Change-log
+
+_Chưa có thay đổi nào (§18 viết trước khi code tồn tại — commit pre-registration sẽ ghi ở đây)._
+
+### 18.5 Kết quả
+
+_Chưa có — sẽ ghi sau lần chạy đầu tiên (kèm "lệch dự báo" như §16.5/§17.5, không sửa ngưỡng)._
