@@ -18,6 +18,7 @@
 | DS-004 | **SAGE v0.2** — *archive/compaction*: nén lịch sử thành scaffold tái sử dụng | TB | ✅ **KPI 3/3 PASS** (Kaggle v4, 2026-10-06, ngưỡng §15.2 giữ nguyên) → [spec §15](design/SAGE-spec.md) · [kpi.txt](design/demo/out/ds004/kpi.txt) — findings **F-J01…F-J05** |
 | DS-005 | **SAGE v0.2** — *red-team acceptance*: tự hack lấy KPI của chính mình (đối chứng 3 lớp: prereg · bản đồ đồng cấu · verifier ngoài) | TB | ✅ **KPI 3/3 PASS** (Kaggle v1, 2026-10-06, ngưỡng §16.2 giữ nguyên) → [spec §16](design/SAGE-spec.md) · [kpi.txt](design/demo/out/ds005/kpi.txt) — findings **F-Z01…F-Z05** |
 | Q-014 | **Bộ nhớ của agent LLM** — agent ghi/lấy/quên trí nhớ như thế nào, và SAGE nên học gì từ đó? | TB (tôi chọn) | ✅ Trả lời → [AN-014](surveys/agent-memory.md) — findings **F-P01…F-P06** |
+| DS-006 | *(sinh từ AN-014 §6)* **Memory hygiene** — F-P06: kho append-only + citation có thắng keep-all/recency/value không? | TB (agent chọn) | ⏳ Pre-registered §17 → chờ chạy Kaggle |
 
 > Quy tắc: 1 câu hỏi = 1 tiêu chí "đã trả lời" rõ ràng. Giữ backlog ≤ 10 mục.
 
@@ -30,6 +31,7 @@
 | DS-003 | **SAGE v0.2** — 3 công cụ tự kỷ luật: wirehead guard · confidence calibration · adaptive registry | ✅ **Demo 3/3 PASS** (Kaggle v3, 2026-10-06, qua 3 lần) → [spec §14](design/SAGE-spec.md) · [sage_demo3.py](design/demo/sage_demo3.py) · [kpi.txt](design/demo/out/ds003/kpi.txt) |
 | DS-004 | **SAGE v0.2** — *archive/compaction*: nén lịch sử thành scaffold tái sử dụng | ✅ **KPI 3/3 PASS** (Kaggle v4, 2026-10-06, ngưỡng §15.2 giữ nguyên) → [spec §15](design/SAGE-spec.md) · [kpi.txt](design/demo/out/ds004/kpi.txt) |
 | DS-005 | **SAGE v0.2** — *red-team acceptance*: tự hack KPI của chính mình, đối chứng 3 lớp phòng thủ | ✅ **KPI 3/3 PASS** (Kaggle v1, 2026-10-06, ngưỡng §16.2 giữ nguyên) → [spec §16](design/SAGE-spec.md) · [kpi.txt](design/demo/out/ds005/kpi.txt) |
+| DS-006 | **SAGE v0.2** — *memory hygiene*: kho append-only + citation vs keep-all/recency/value | ⏳ **Pre-registered §17** (2026-10-06, code viết sau §17, chưa chạy) → [spec §17](design/SAGE-spec.md) · [sage_demo6.py](design/demo/sage_demo6.py) |
 
 > **Bài học từ DS-003 (3 lần, 2 metric bị khai tử)**: cả 3 lần sửa đều là **metric/harness thoái hóa**, không lần nào hạ ngưỡng. `gating_acc` bị thắng bằng cách *không quyết định gì* (coverage=0) · hợp đồng `0.90` bị vô hiệu bằng cách *nằm ngoài vùng dữ liệu* · bandit "không học" vì *không chịu thử*. **Goodhart ngay trên cái thước đo của mình** — đúng F-R01.
 

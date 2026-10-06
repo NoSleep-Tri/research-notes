@@ -577,3 +577,68 @@ _Chưa có thay đổi nào khác (harness hoặc ngưỡng). Mọi mục cần 
 **Lệch dự báo (nói rõ, không giấu — không ngưỡng nào đổi)**: (i) `honest true_acc = 0.940`, không phải `≈0.98` như §16.1 — least-squares trên nhãn nhị phân + 2% noise thật sự đạt 0.94 (vẫn `≥ 0.90` → D17c2 pass); (ii) `inflation = +0.345` thay vì `+0.5` — do họ `knn/rbf/cluster` **generalize được một phần** (`0.72–0.79`), chỉ `lookup`/`grid_fine` là ~0.47. Cả hai là **dự báo phụ** (không gate KPI) nên đây là sai số dự báo, không phải lỗi thí nghiệm.
 
 **Artifacts**: `research/design/demo/out/ds005/{kpi.txt, summary.json, d15_winrate.png, d16_inflation.png, d17_pass_matrix.png}` · kernel `tribu1/sage-v0-5-ds-005-red-team-acceptance` **v1** · code [demo/sage_demo5.py](demo/sage_demo5.py).
+
+---
+
+## 17. DS-006 — *memory hygiene* (kho append-only + citation vs keep-all/recency/value): acceptance **pre-registered**
+
+- **Ghi trước khi chạy**: 2026-10-06, trước khi viết code demo — quy trình §10/§12/§14/§15/§16: **không hạ ngưỡng sau khi thấy số**; mọi thay đổi phải ghi ở §17.4 kèm số liệu thật.
+- **Câu hỏi khoa học** (đề xuất [AN-014](../surveys/agent-memory.md) §6, sinh từ **F-P06** + **F-P03**): với **cùng một người trả lời** (retrieval top-1 theo độ tương đồng, **không** tự sắp theo thời gian — đúng thiết bị "retrieve-then-reason" bị [E21] phê bình), 4 chính sách ghi-trữ nào xử lý fact bị **thay thế** (superseded) tốt hơn?
+  - `keepall` · `recency` · `value` (3 đường cơ sở) vs **`archive`** (kho append-only + citation ID → active set chỉ chứa bản hiện hành).
+  - Nếu `archive` không thắng → **negative finding**, ghi thẳng vào §17.5, **không sửa ngưỡng**.
+- **Truy xuất**: [AN-014](../surveys/agent-memory.md) F-P03 (lỗi sinh ở khâu ghi, QA score cuối che đi) · F-P06 (kho append-only + citation: ARC `99.40% vs 88.12%`) · E11 (ghost memory: fact cũ/mới lẫn lộn làm sai câu trả lời) · E10 (FAMA phạt xài memory lỗi thời) · E18 (chi phí context) — và **DS-004 §15** (ngân sách 0.40, giữ theo giá trị).
+- **Kernel**: `tribu1/sage-v0-6-ds-006-memory-hygiene` (Kaggle slugify từ title) · code: [demo/sage_demo6.py](demo/sage_demo6.py) · CPU-only, không internet. Prefix finding: **F-H** (hygiene).
+
+### 17.1 Thiết kế thí nghiệm (định nghĩa **trước** — tránh metric thoái hóa)
+
+- **Task**: `N_KEY = 1000` fact-key, mỗi key có `v` phiên bản (bản cũ → bị thay thế), phân bố `v` **cố định trước**: 20% → 2 · 40% → 3 · 30% → 4 · 10% → 6 (trung bình `≈ 3.4`, ⇒ `N ≈ 3400` record). Mỗi phiên bản: thời điểm `t ~ U(0,1)`, giá trị **khác nhau tuyệt đối** giữa các phiên bản (chọn lại = sai).
+- **Nội dung**: `key_vec ∈ R^64` (unit, seed cố định) · record `i` của key `k`: `content = key_vec_k + 0.15·ε_i` — **mỗi phiên bản một ε riêng** ⇒ top-1 similarity **không phân biệt được phiên bản** (ngẫu nhiên trong cùng key), và 1000 key ở 64 chiều ⇒ key khác đúng tách được (sim sai key ≈ ≤ 0.4 « 0.99).
+- **Query** (cố định cho mọi chính sách, seed `20261010`):
+  - **800 current-query** — "giá trị HIỆN TẠI của key k" (mẫu đồng đều trên mọi key);
+  - **400 historical-query** — "giá trị TRƯỚC ĐỢT thay thế cuối" (mẫu trên key có `v ≥ 2`).
+- **Người trả lời DÙNG CHUNG cho mọi chính sách**: top-1 cosine trên active set, **không** dùng thời gian (đây là thiết bị đo — nó mô phỏng đúng chỗ E11/E21 nói: retrieval trả fact lẫn lộn, answerer không tự phân biệt cũ/mới).
+- **4 chính sách** (cùng query, cùng phân bổ key):
+  1. `keepall` — giữ toàn bộ (active = 1.0, không ngân sách — tham chiếu);
+  2. `recency` — giữ `0.40·N` record **mới nhất**;
+  3. `value` — giữ `0.40·N` record theo điểm value (mô phỏng "giữ cái quan trọng", điểm value sinh ngẫu nhiên độc lập thời gian);
+  4. **`archive`** — kho append-only **toàn bộ** (cold, không tính vào context) + active set = **1 record hiện hành/key** + citation `key → [ (t_i, archive_id) ]`; current-query trả lời từ active set; historical-query **resolve qua citation** (tra kho theo key + thời gian).
+  - **`oracle_time` (diagnostic, KHÔNG gate)** — `keepall` nhưng người trả lời chọn bản **mới nhất** trong cụm cùng key: cho thấy thiếu sót của 3 cơ sở là **thiếu cấu trúc/không dùng thời gian**, không phải thiếu dữ liệu (học từ DS-004 §15.4: diagnostic phải tách khỏi KPI).
+- **4 metric / chính sách**: `cur_acc` · `hist_acc` · `stale_rate` (current-query bị trả lời bằng bản **cùng key nhưng đã thay thế**) · `active_ratio` (record trong context / N — *kho cold của `archive` = 1.0 được báo cáo riêng, không tính vào context*: đúng logic chi phí E17/E18 — thứ tốn token là context, không phải kho).
+- **Ngân sách `0.40`** áp cho `recency`, `value`, `archive` (giữ nguyên con số DS-004 §15.2); `keepall`/`oracle_time` = 1.0 (tham chiếu không ngân sách).
+- **Kỳ vọng viết trước** (không ràng buộc KPI): `cur_acc` — `archive ≈ 0.95` · `oracle_time ≈ 0.98` · `recency ≈ 0.45` · `keepall ≈ 0.33` · `value ≈ 0.30`; `stale_rate` — `archive ≈ 0.02` · `keepall ≈ 0.65` · `value ≈ 0.45` · `recency ≈ 0.30`; `hist_acc` — `archive ≈ 0.90`, 3 cơ sở ≈ `0.25–0.35`; `active_ratio(archive) ≈ 0.29`.
+
+### 17.2 Acceptance (ngưỡng pre-registered)
+
+| ID | Kiểm chứng | Thí nghiệm | Acceptance (ngưỡng ghi trước) |
+|---|---|---|---|
+| **D18** | **Không trả lời bằng fact đã lỗi thời** | `archive` | c1 `cur_acc ≥ 0.90` · c2 `stale_rate ≤ 0.10` |
+| **D19** | **Vượt 3 cơ sở trên câu hỏi hiện tại** | `archive` vs `keepall`/`recency`/`value` | `cur_acc(archive) ≥ cur_acc(p) + 0.10` với **mọi** `p` |
+| **D20** | **Không mất lịch sử khi trỏ citation** | `archive` vs 3 cơ sở | c1 `hist_acc ≥ 0.80` · c2 `hist_acc(archive) ≥ hist_acc(p) + 0.20` với mọi `p` |
+| **D21** | **Vẫn nằm trong ngân sách context** | `archive` | `active_ratio ≤ 0.40` |
+
+**KPI tổng: 4/4 module.**
+
+**Lý do ngưỡng**:
+- `0.90` / `0.10` (D18): đây là **điểm chính** của F-P03/F-P06 — nếu citation mà vẫn trả lời lỗi thời quá 10% thì cơ chế hỏng; `0.90` = cùng ngưỡng acc mà DS-004 D12 đặt ra, không bịa mới.
+- `+0.10` (D19): **3 hệ số độc lập** phải cùng thua ≥ 0.10 — đủ lớn hơn noise giữa-seed (DS-004 dùng đúng `+0.10` cho D13), đủ nhỏ để không phải "yêu cầu snapshot tuyệt đối".
+- `0.80` / `+0.20` (D20): historical-query **đòi tra kho theo thời gian** — 3 cơ sở không có citation nên chỉ đoán (`≈ 1/v`); `+0.20` thay vì `+0.10` vì đây là năng lực **riêng** của citation, phải tách khỏi D19.
+- `0.40` (D21): **dùng lại đúng ngân sách DS-004** — không đặt con số mới để dễ pass. Dự báo `≈ 0.29` ⇒ dư `0.11`.
+
+### 17.3 Cảnh báo metric thoái hóa (học từ §14/§15/§16) — **tự chặn trước**
+
+1. **Cho 3 cơ sở dùng `oracle_time`** (chọn bản mới nhất) sau khi thấy số → **cấm**: đổi người trả lời = đổi thiết bị đo giữa chừng. Nếu ai nói "cơ sở bị thiệt", câu trả lời nằm ở **`oracle_time` (diagnostic, không gate)** — nó chính là bằng chứng cho biết khoảng cách do cấu trúc hay do dữ liệu.
+2. Hạ `0.90`, `0.10`, `0.10`, `0.80`, `0.20`, `0.40` sau khi thấy số → **cấm**; fail ở module nào thì **negative finding** ghi thẳng.
+3. Đổi phân bố `v` (làm ít phiên bản hơn → `keepall` dễ hơn) sau khi thấy số → **cấm** (`20/40/30/10` ghi trước).
+4. Đổi tỉ lệ query 800/400, đổi `σ = 0.15`, `dim = 64`, `N_KEY = 1000` sau khi thấy số → **cấm**.
+5. Đếm kho cold của `archive` vào `active_ratio` (để tự phá D21) **hoặc** loại kho cold khỏi báo cáo (che chi phí thật) → **cấm**: hai con số `active_ratio` và `archive_ratio = 1.0` phải cùng xuất hiện trong output.
+6. `stale_rate` đổi thành "chỉ tính record cùng key **và** cùng thời điểm" (làm số nhỏ lại) → **cấm**; định nghĩa: *bản trả lời thuộc key đúng nhưng KHÔNG phải bản hiện hành*.
+7. Tự chọn seed cho tới khi `archive` đạt → **cấm** (seed `20261010` + `N_SEEDS = 10` ghi trước).
+8. Tách `value` khỏi nhóm so sánh D19 sau khi nó thua nặng → **cấm** (3 cơ sở phải đủ cả).
+
+### 17.4 Change-log
+
+_Chưa có thay đổi nào (chưa chạy lần nào — §17 viết trước khi tồn tại code). Mọi mục cần sửa sẽ ghi ở đây kèm số liệu thật trước/sau._
+
+### 17.5 Kết quả
+
+_Chưa có — sẽ ghi sau lần chạy đầu tiên (kèm phần "lệch dự báo" như §16.5, không sửa ngưỡng)._
