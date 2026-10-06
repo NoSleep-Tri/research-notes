@@ -510,6 +510,11 @@ def main():
     # trl/peft moi nhat (internet ON theo §21.1)
     subprocess.check_call([sys.executable, "-m", "pip", "install", "-q",
                            "--upgrade", "trl", "peft", "accelerate"])
+    # peft moi bat torchao >= 0.16 khi dispatch LoRA, image Kaggle chi co 0.10 ->
+    # ImportError o get_peft_model (§21.4 #1). torchao la optional dep, ta khong dung:
+    # go bo -> is_torchao_available() = False (find_spec None) -> dispatcher skip sach.
+    subprocess.check_call([sys.executable, "-m", "pip", "uninstall", "-y", "-q",
+                           "torchao"])
 
     # --- data regen + parity (§21.1) ---
     events = gen_events()

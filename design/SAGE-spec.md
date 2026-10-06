@@ -1048,6 +1048,11 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 
 ### 21.4 Change-log
 
+**#1 — 2026-10-06, TRƯỚC KHI CHẠY LẠI (v1 fail ở 108s, chưa arm nào train):**
+- **Bug harness — môi trường:** `pip install --upgrade peft` kéo bản mới có `is_torchao_available()` *nâng ngưỡng* `torchao ≥ 0.16.0`, image Kaggle đang cài `0.10.0` → `ImportError` ngay tại `get_peft_model` (stage A chưa train, stage base đã xong). **Fix:** `pip uninstall -y torchao` (dependency optional — peft trả `False` sạch khi `find_spec is None`, dispatcher LoRA bỏ qua torchao; ta không dùng quantization torchao). Nguồn: peft `import_utils.py`.
+- **Số đã thấy trước khi fix (ghi thành thật, không dùng để đổi ngưỡng):** parity `1579/1555 ✓`, split `train=1256 test=299 keys=600 leak=0`, `Bar1=0.7993` (dự báo 0.797), `Bar2=0.9699` (dự báo 0.961), `base acc=0.0234 parse=0.0401` (dự báo 0.30 — **lệch lớn**, sẽ báo ở pred-vs-obs), GPU = Tesla T4.
+- Ngưỡng **T1–T6 · reward · G · steps · lr · epochs · split · prompt template · bars: không đổi.**
+
 **#0 — 2026-10-06, TRƯỚC KHI CHẠY** (chưa thấy bất kỳ số liệu nào; sinh từ rà soát code trước-run):
 
 - GRPO arm: `gradient_accumulation_steps 1 → 2` (bs per-device vẫn `4` đúng §21.1). Lý do: hợp đồng công bố của TRL `GRPOConfig` (E7) — *"effective batch (num_processes × per_device_batch_size × gradient_accumulation_steps) must be evenly divisible by num_generations"* — với G=8 thì `1×4×1 = 4` không chia hết; `1×4×2 = 8` ✓. TRL hiện hành còn derive `generation_batch_size = bs × steps_per_generation` (= 8 prompt × G 8 = 64 completion/generation). Hậu quả: mỗi optimizer step thấy 8 prompt (B: 800, C: 480 prompt-slots thay vì 400/240) — **tăng** tín hiệu học, không giảm bất kỳ ngưỡng nào.
