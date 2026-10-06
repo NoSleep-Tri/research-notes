@@ -259,8 +259,8 @@ def minhash_bands(t, perms=32, cap=40):
                      for s in sh], dtype=np.uint64)
     out = np.full(perms, np.iinfo(np.uint64).max, dtype=np.uint64)
     for p in range(perms):
-        a = np.uint64((p * 0x9E3779B97F4A7C15 + 1) | 1)
-        b = np.uint64((p * 0xC2B2AE3D27D4EB4F + 7) | 1)
+        a = np.uint64(((p * 0x9E3779B97F4A7C15 + 1) & 0xFFFFFFFFFFFFFFFF) | 1)
+        b = np.uint64(((p * 0xC2B2AE3D27D4EB4F + 7) & 0xFFFFFFFFFFFFFFFF) | 1)
         out[p] = np.bitwise_and(vals * a + b, np.uint64(0xFFFFFFFFFFFFFFFF)).min()
     return [hashlib.md5(out[i * 4:(i + 1) * 4].tobytes()).hexdigest() for i in range(perms // 4)]
 
