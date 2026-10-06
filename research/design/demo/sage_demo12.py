@@ -2,7 +2,7 @@
 # Cau hoi: thu tu dan bay F-B02 (data >= kien truc > optimizer > init) co dung o regime 1 GPU khong?
 # Quy tac: KHONG sua nguong K1-K6 sau khi thay so; moi thay doi ghi §23.4.
 # Script nay resume duoc: cell da co results/*.json se bo qua.
-import os, json, math, time, hashlib, random, traceback
+import os, json, math, time, hashlib, random, traceback, shutil
 import numpy as np
 import torch
 import torch.nn as nn
@@ -10,8 +10,8 @@ import torch.nn.functional as F
 
 # ---------------- Config (§23.1) ----------------
 OUT = "/kaggle/working/ds012"          # results, kpi, plots (duoc luu thanh kernel output)
-TMP = "/kaggle/temp/ds012"              # bin token (ephemeral — khong phai output)
-for d in (OUT, f"{OUT}/results", f"{OUT}/plots", TMP):
+TMP = f"{OUT}/data"                    # bin token nam TRONG working -> persist qua session (prep chi tra 1 lan)
+for d in (OUT, f"{OUT}/results", f"{OUT}/plots", f"{OUT}/results_superseded", TMP):
     os.makedirs(d, exist_ok=True)
 
 C = dict(
@@ -424,8 +424,16 @@ def lr_at(step, peak):
 def train_cell(arm, seed, flats, meta):
     res_p = f"{OUT}/results/{arm}_s{seed}.json"
     if os.path.exists(res_p):
-        print(f"[skip] {arm} s{seed} done", flush=True)
-        return json.load(open(res_p))
+        old = json.load(open(res_p))
+        # Chi skip neu cell da chay DAY DU. Ket qua tu v2 (bi kill boi guard bug §23.4 #4)
+        # hoac chua xong -> luu tru vao results_superseded/ va chay lai.
+        if old.get("steps_done", 0) >= TOTAL_STEPS and not old.get("diverged"):
+            print(f"[skip] {arm} s{seed} done", flush=True)
+            return old
+        arch = f"{OUT}/results_superseded/{arm}_s{seed}.json"
+        shutil.move(res_p, arch)
+        print(f"[rerun] {arm} s{seed}: ket qua cu (steps={old.get('steps_done')}, "
+              f"diverged={old.get('diverged')}) -> luu tru {arch}", flush=True)
     torch.cuda.empty_cache()
     random.seed(seed)
     np.random.seed(seed)
@@ -455,6 +463,7 @@ def train_cell(arm, seed, flats, meta):
 
     hist, t0 = [], time.time()
     loss100, step, divergence = None, 0, False
+    grad_skips, nan_loss_skips, bad_streak = 0, 0, 0
     model.train()
     while step < TOTAL_STEPS:
         lr = lr_at(step, C["LR"])
@@ -464,27 +473,49 @@ def train_cell(arm, seed, flats, meta):
         x, y = get_batch(flat, rng, bs, seq)
         with torch.autocast("cuda", dtype=torch.float16):
             loss = model(x, y)
-        if not torch.isfinite(loss.detach()):
+        loss_ok = bool(torch.isfinite(loss.detach()))
+        if loss_ok:
+            for p in model.parameters():    # zero TAT ca (Muon group nam trong opt nhung van can)
+                p.grad = None
+            scaler.scale(loss).backward()
+            scaler.unscale_(opt)            # unscale TAT CA gradient + ghi found_inf (neu co)
+            grads_ok = all(torch.isfinite(p.grad).all()
+                           for p in model.parameters() if p.grad is not None)
+        else:
+            grads_ok = False                # khong backward -> scaler khong doi scale (khong tang nham)
+        if loss_ok and grads_ok:
+            bad_streak = 0
+            torch.nn.utils.clip_grad_norm_(model.parameters(), C["CLIP"])
+            if muon:
+                muon.step()
+            scaler.step(opt)                # khong found_inf -> cap nhat binh thuong
+            scaler.update()
+        elif loss_ok:
+            # grad khong huu han nhung loss van tot -> overflow fp16 tai peak LR, KHONG phai
+            # ket qua: scaler.step da ghi found_inf o unscale_ -> skip buoc nay + giam scale 2x
+            bad_streak += 1
+            grad_skips += 1
+            scaler.step(opt)
+            scaler.update()
+            if grad_skips <= 10 or grad_skips % 50 == 0:
+                print(f"[grad-skip] {arm} s{seed} step {step} (lan {grad_skips}, "
+                      f"scale={scaler.get_scale():g}) — scaler skip + halve", flush=True)
+        else:
+            # loss khong huu han: khong backward (tranh scaler tang scale nham), weight khong doi
+            bad_streak += 1
+            nan_loss_skips += 1
+            if nan_loss_skips <= 10 or nan_loss_skips % 50 == 0:
+                print(f"[nan-skip] {arm} s{seed} step {step} (lan {nan_loss_skips}) — bo qua buoc",
+                      flush=True)
+        if bad_streak >= 20:                # 20 buoc lien tuc khong huu han = khong phuc hoi duoc
             divergence = True
-            print(f"[diverge] {arm} s{seed} step {step}", flush=True)
+            print(f"[diverge] {arm} s{seed} step {step}: {bad_streak} buoc lien tuc khong huu han",
+                  flush=True)
             break
-        for p in model.parameters():        # zero TAT ca (Muon group nam trong opt nhung van can)
-            p.grad = None
-        scaler.scale(loss).backward()
-        scaler.unscale_(opt)                # unscale TAT CA gradient (ca 2 group) + danh dau UNSCALED
-        if any(p.grad is not None and not torch.isfinite(p.grad).all() for p in model.parameters()):
-            divergence = True
-            print(f"[diverge-grad] {arm} s{seed} step {step}", flush=True)
-            break
-        torch.nn.utils.clip_grad_norm_(model.parameters(), C["CLIP"])
-        if muon:
-            muon.step()
-        scaler.step(opt)
-        scaler.update()
         if step == 100:
             loss100 = eval_split(flats["hold"], model, bs=bs, seq=seq)
             print(f"[eval] {arm} s{seed} loss@100(hold) = {loss100:.4f}", flush=True)
-        if step % 50 == 0:
+        if step % 50 == 0 and loss_ok:
             hist.append((step, float(loss.item()), round(time.time() - t0, 1)))
             if step % 1000 == 0:
                 print(f"[train] {arm} s{seed} step {step}/{TOTAL_STEPS} loss {loss.item():.4f} "
@@ -497,6 +528,7 @@ def train_cell(arm, seed, flats, meta):
                loss_at_100=loss100, val_final=val_final, diverged=divergence,
                steps_done=step, wall_min=round(wall / 60, 1), tokens=int(step * C["BATCH_TOK"]),
                lr_peak=C["LR"], lr_muon=(C["LR_MUON"] if arm == "A2" else None),
+               grad_skips=grad_skips, nan_loss_skips=nan_loss_skips,
                batch_tok=C["BATCH_TOK"], hist=hist, prep_seconds=meta.get("prep_seconds"))
     json.dump(res, open(res_p, "w"), indent=1)
     print(f"[done] {arm} s{seed}: val {val_final:.4f} (loss@100 {loss100}) wall {wall/60:.1f}min", flush=True)
