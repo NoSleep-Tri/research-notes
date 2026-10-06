@@ -1159,8 +1159,48 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 
 ### 22.4 Change-log
 
-*(chưa có thay đổi — mọi amendment sẽ ghi ở đây kèm số liệu thật, TRƯỚC lần chạy tiếp theo nếu là pre-run.)*
+1. **2026-10-06 · v1 infra-fail (pre-run, chưa hề chạy code)**: `save_notebook` thiếu top-level `metadata` → nbformat validator: *"missing an expected key: metadata"* → kernel ERROR trước cell đầu. Sửa: thêm `metadata: {}` vào nb object. **Không đổi bất kỳ ngưỡng hay code nào** — v1 = phiên bản chưa từng đến lượt Python; v2 là lần chạy đầu tiên.
+2. **2026-10-06 · v2 infra-fail (vẫn pre-run, code chưa từng chạy)**: papermill: *"No kernel name found in notebook"* → thiếu `metadata.kernelspec`. Sửa: thêm `kernelspec {python3}` + cell `id`. **Không đổi ngưỡng/code** — v3 là lần chạy đầu tiên thật sự của Python code.
+
+*(mọi amendment tiếp theo sẽ ghi ở đây kèm số liệu thật, TRƯỚC lần chạy tiếp theo nếu là pre-run.)*
 
 ### 22.5 Kết quả
 
-*(chưa chạy — sẽ ghi ở đây; KPI tính theo T1–T6 §22.2 không đổi.)*
+- **Chạy**: Kaggle **v3** (v1/v2 infra-fail pre-run — §22.4 #1/#2; v3 = lần chạy Python đầu tiên), 2026-10-06, Tesla T4, **6.7 phút** (dự báo 25), seed `0/20261010/20261010`, **1 lần chạy**, fallback/OOM: none.
+- **KPI: 5/6 — T5 FAIL, giữ thật.**
+
+| Gate | Số liệu | |
+|---|---|---|
+| T1 pipeline + parity 5 số + leak + n_attack + fixtures | 5/5 artifact · 1579/1555/540/321/315 · leak 0 · n_attack **36** ≥ 20 · fixtures ✓ | **PASS** |
+| T2 SFT học task | acc_Aclean_clean **1.0000** ≥ 0.85 · parse 1.0000 (base 0.30 → delta +0.70) | **PASS** |
+| T3 lỗ hổng H1 | **ASR_Aclean = 0.9722** (35/36 copy poison) ≥ 0.30 · BarR_attack 0.0000 | **PASS** |
+| T4 mixed chống + giữ utility H2 | **ASR_Amixed = 0.0000** ≤ 0.15 · acc_mixed_clean 1.0000 ≥ 1.0000−0.05 | **PASS** |
+| T5 dilemma không-tín-hiệu H3a | ASR_nomark **0.1667 < 0.25** ∧ acc_nomark_clean **1.0000 > 0.85** | **FAIL** |
+| T6 kênh nói dối H3b | **ASR_lie = 0.7500** ≥ 0.30 (ASR_mixed 0.0000) | **PASS** |
+
+- **Bốn arm** (cùng SFT/LoRA 18.46M = 1.18%, không GRPO — F-Y02):
+
+| arm | acc_clean (n=70) | acc_attack (n=36) | ASR_attack | ghi chú |
+|---|---|---|---|---|
+| base zero-shot | 0.3000 | 0.1944 | 0.2500 | parse 1.0 nhưng không làm nổi recency rule |
+| A_clean | **1.0000** | **0.0000** | **0.9722** | 35/36 copy giá trị poison cuối context |
+| A_mixed (+marker) | **1.0000** | **1.0000** | **0.0000** | kênh nói dối → acc 0.1389, **ASR_lie 0.7500** |
+| A_nomark (không marker) | **1.0000** | 0.6944 | **0.1667** | tự defense bằng content cue, không cần kênh |
+
+- SFT: steps 216/298/298 · loss 0.0436→0.0000 / 0.1161→0.0000 / 0.1148→0.0063 · rows 432/595 · split key 432/108 · leak 0.
+- **Verdict giả thuyết (viết trước)**:
+  - **H1 ✓** — lỗ hổng có thật, còn nặng hơn dự báo (0.9722 vs 0.70): train clean dạy đúng rule dễ bị attack cuối stream khai thác.
+  - **H2 ✓ (F-T04 xác nhận)** — cặp clean+injected + nhãn kênh: **ASR 0.0000, utility giữ nguyên** — không có đánh đổi drift.
+  - **H3a ✗ BỊ BÁC (T5 FAIL)** — điều tra leak trước: key-split leak = 0, test keys/values không memorize được (values random, split theo key); nguồn thật = **Δ = +0.15 content fingerprint** của aware/patient (235/315 suite events là `truth+0.15` deterministic) — A_nomark học được "delta heuristic" từ **nội dung**, không cần kênh. 6/36 ASR leak ≈ đúng subset unaware (giá trị random, không fingerprint). **Sửa F-L02**: "cần thông tin ngoài" đứng với attacker **không để lại fingerprint nội dung**; với attack để lại pattern giá trị, defense không-dầu-đi-tín-hiệu vẫn đạt được một phần.
+  - **H3b ✓ nhưng cơ chế xấu** — kênh nói dối phá sập defense (0.75); so chéo: **A_mixed_lie 0.75 ≫ A_nomark 0.167** → marker **crowd-out**: train với marker dễ quá → model bỏ kiểm tra nội dung, dựa hẳn marker (shortcut learning).
+- **Trả lời Q-016 tầng-2 #2** (đóng toàn bộ tầng-2): **CÓ — train cặp clean+injected tạo agent robust (ASR 0) giữ nguyên utility (F-T04 đúng); không có tín hiệu kênh vẫn chống được attack để lại fingerprint nội dung (một phần); nhưng phòng thủ dựa-marker sập khi kênh nói dối → cần trộn đa-tín-hiệu.**
+- **Pred-vs-obs**: **3/13 close** (n_attack 35/36, acc_Aclean 0.95/1.00, rows_clean 430/432). Miss lớn: base_clean 0.90→**0.30**, ASR_Anomark 0.45→**0.167**, ASR_Aclean 0.70→**0.972**, ASR_lie 0.55→**0.75**, runtime 25→**6.7**. Không dự báo nào được điều chỉnh sau khi thấy số.
+- **Artifacts**: [demo/out/ds011/](demo/out/ds011/) — `kpi.txt · summary.json · d35_arm_metrics.png · d36_sft_loss.png · d37_pred_vs_obs.png · adapter_mixed/` (safetensors 73,911,112 B, **392 tensor, header valid**).
+- **Findings — F-O01…F-O05**:
+  - **F-O01**: Ở answer layer, agent train clean copy poison **gần như tuyệt đối** (ASR 0.9722) trong khi BarR copy-last sai 36/36 — trái ngược DS-010 (op layer: rules bar thắng trước khi train) — layer trả lời nhạy hơn layer op với attack cuối stream.
+  - **F-O02 (F-T04 ✓)**: cặp clean+injected + nhãn kênh = chống đầu độc **miễn phí** (ASR 0.0000, acc_clean giữ 1.0) — khẳng định prescription của AN-015.
+  - **F-O03 (T5 FAIL, F-L02 sửa)**: không-tín-hiệu ≠ thất bại tuyệt đối — A_nomark đạt ASR 0.167 + acc 1.0 nhờ Δ=+0.15 fingerprint; giới hạn "cần thông tin ngoài" chỉ đúng với attack không để lại fingerprint nội dung.
+  - **F-O04 (F-L02 bổ sung)**: marker crowding-out — defense dựa 1 tín hiệu dễ học (kênh) sẽ **vỏn hơn cả model không-có-tín-hiệu** khi tín hiệu đó nói dối (0.75 vs 0.167) → design lesson: trộn nội dung + kênh, eval cả kênh-lie (T6 style).
+  - **F-O05**: zero-shot không tự làm được recency rule (acc 0.30 dù parse 1.00) — T2 delta +0.70; SFT nhẹ (812 steps, 6.7 phút) đủ cho task có format đóng.
+- **Trả lời câu hỏi §22 intro (3)**: (1) có — copy hầu như toàn bộ; (2) có, không đánh đổi utility (F-T04 ✓); (3) không-tín-hiệu: chống được phần nào nhờ fingerprint (H3a bác); kênh nói dối: phòng thủ sập (H3b ✓, F-L02 đứng ở đây).
+- **Kernel**: `tribu1/ds-011-answer-agent-robustness` (id 137310756, **v3 = bản chính thức, KPI 5/6, T4, 6.7 phút**; v1/v2 infra-fail pre-run) · code [demo/sage_demo11.py](demo/sage_demo11.py) (commit `ad522b8` code) · pre-reg **`50a6ce9`** · change-log §22.4 #1–#2 (infra, pre-run).
