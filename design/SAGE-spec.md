@@ -1048,6 +1048,12 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 
 ### 21.4 Change-log
 
+**#2 — 2026-10-06, SAU v2 (KPI 4/6, T3/T4 FAIL) — TRƯỚC KHI CHẠY LẠI:**
+- **Bug đo lường (eval + reward):** `OP_RE = r'"op"\s*:\s*"?([A-Z]{4,6})"?'` bắt 4–6 ký tự HOA, nhưng nhãn `ADD` chỉ **3 ký tự** → `parse_op('{"op": "ADD"}') = None`. Bằng chứng: `summary.json.raw_samples` mẫu A = `{"op": "ADD"}` (model trả ĐÚNG) trong khi `recall.A.ADD = 0.0` cả 4 arm; prompt ví dụ trong template chính là `{"op": "ADD"}`. Hệ quả: (1) eval — mọi gold-ADD (120/299 test ≈ 40%) bị pred=None → T3/T4 sập; (2) GRPO reward (cùng `parse_op`) — mẫu ADD không bao giờ được credit EM (chỉ 0.3 valid-json) → trần reward của B/C bị kẹp ≈ 0.73 trên ~40% mẫu.
+- **Không ảnh hưởng:** SFT arm A (CE trên gold text, không parse); parity/leak/bars (labeler trực tiếp); T2 (base & A đều bị hạ cùng công thức → delta vẫn 0.565 ≥ 0.10).
+- **Fix:** `{4,6}` → `{3,6}` (an toàn vì `parse_op` còn filter `OP_VOCAB`) + **regression guard** `assert parse_op('{"op": "ADD"}') == "ADD"` cho mọi nhãn (chạy lúc import).
+- **Kỷ luật:** ngưỡng T1–T6, reward (0.3/0.7), G, steps, lr, split, prompt template, bars: **không đổi**. v2 (4/6) được ghi nhận stands as-run; v3 = đo lường-corrected, báo cả hai.
+
 **#1 — 2026-10-06, TRƯỚC KHI CHẠY LẠI (v1 fail ở 108s, chưa arm nào train):**
 - **Bug harness — môi trường:** `pip install --upgrade peft` kéo bản mới có `is_torchao_available()` *nâng ngưỡng* `torchao ≥ 0.16.0`, image Kaggle đang cài `0.10.0` → `ImportError` ngay tại `get_peft_model` (stage A chưa train, stage base đã xong). **Fix:** `pip uninstall -y torchao` (dependency optional — peft trả `False` sạch khi `find_spec is None`, dispatcher LoRA bỏ qua torchao; ta không dùng quantization torchao). Nguồn: peft `import_utils.py`.
 - **Số đã thấy trước khi fix (ghi thành thật, không dùng để đổi ngưỡng):** parity `1579/1555 ✓`, split `train=1256 test=299 keys=600 leak=0`, `Bar1=0.7993` (dự báo 0.797), `Bar2=0.9699` (dự báo 0.961), `base acc=0.0234 parse=0.0401` (dự báo 0.30 — **lệch lớn**, sẽ báo ở pred-vs-obs), GPU = Tesla T4.

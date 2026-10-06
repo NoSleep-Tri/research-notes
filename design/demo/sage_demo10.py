@@ -262,7 +262,9 @@ def rule_acc(rows, fn):
 
 
 # ================= 4. Parse + metrics =================
-OP_RE = re.compile(r'"op"\s*:\s*"?([A-Z]{4,6})"?')
+# #2 (§21.4): {4,6} bo qua nhan "ADD" (3 ki tu) -> recall ADD=0 ca 4 arm,
+# reward GRPO khong bao gio credit EM tren mau ADD. Fix {3,6} + vocab filter.
+OP_RE = re.compile(r'"op"\s*:\s*"?([A-Z]{3,6})"?')
 
 
 def parse_op(text):
@@ -271,6 +273,11 @@ def parse_op(text):
         return None
     op = m.group(1)
     return op if op in OP_VOCAB else None
+
+
+# regression guard: moi nhan trong OP_VOCAB phai parse duoc (label-len vs regex)
+for _lab in OP_VOCAB:
+    assert parse_op('{"op": "%s"}' % _lab) == _lab, "label parse regression: %s" % _lab
 
 
 def metrics(preds, golds):
