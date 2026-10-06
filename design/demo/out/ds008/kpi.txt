@@ -1,0 +1,18 @@
+DS-008 SAGE — KPI (pre-registered §19.2, commit d3e4a3c)
+variants=V0/V1/V2 same stream | honest seeds=[0, 1, 2, 3, 4] query=20261010 attack=0
+
+F1 adaptation (c3/c5/c6>=0.90, hist>=0.80): c3=0.9947 c4=0.1133(REPORT) c5=0.9497 c6=0.9947 hist6=0.9027 -> PASS
+F2 burst killed (<=0.10): tie20_a/swarm10_a/drift15_a winrate=0.000 -> PASS
+F3 inflation+single killed (<=0.10): spread30_a/single60_a/3xunaware winrate=0.000 -> PASS
+F4a patient limit NEGATIVE (>=0.50): winrate(V1,patient)=1.000 (pred 1.00) -> PASS
+F4b external repair (<=0.10): winrate(V2,patient)=0.000 (pred ~0) -> PASS
+F5 targeted escalation (avg<=2, collateral=0, cur(V2)>=cur(V1)-0.01): escal_avg=1.80 collateral=0 curV2=0.9975 curV1=0.9955 -> PASS
+F6 no-regression (storage<=0.40, ece<=0.10, cov>=0.90, cur>=0.90, hist>=0.80): storage=0.2557 ece=0.0343 answer_cov=0.9700 cur=0.9955 hist=0.9070 -> PASS
+
+KPI: 6/6 PASS
+winrate all12: V0=0.833 V1=0.167 | V2 patient=0.000 | V0 cur=0.9475 (DS-007 ref 0.9475)
+V1 per-cycle cur=[0.0, 0.9967, 0.9947, 0.1133, 0.9497, 0.9947]
+V0 per-cycle cur=[0.0, 0.956, 0.956, 0.0957, 0.116, 0.9457] (diagnostic)
+V2 escalation_cycles per seed=[[4, 5], [4, 5], [4], [4, 5], [4, 5]] | quarantined(seed0)=243 pending_end=109
+predicted vs observed (non-gating): V0_winrate 0.75/0.83, V1_winrate 0.17/0.17, V2_patient 0.00/0.00, V1_cur 0.95/1.00, V1_c3 0.98/0.99, V1_c5 0.95/0.95, V1_c6 0.99/0.99, V1_hist 0.90/0.91, V1_storage 0.26/0.26, V1_ece 0.04/0.03, V2_escal_avg 1.92/1.80
+patient detail: V0 patient2 acc=0.800 win=True esc=0 | V1 patient2 acc=0.167 win=True esc=0 | V2 patient2 acc=0.967 win=False esc=2 | V0 patient3 acc=0.050 win=True esc=0 | V1 patient3 acc=0.050 win=True esc=0 | V2 patient3 acc=1.000 win=False esc=2

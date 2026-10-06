@@ -859,11 +859,35 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 
 ### 19.4 Change-log
 
-_Chưa có — §19 viết trước khi code tồn tại (commit pre-registration ghi ở đây)._
+**Không có thay đổi nào.** Chạy v1 duy nhất (`tribu1/ds-008-c3-ordering-vs-patient-limit`, kernel id 137268883) — **6/6 pass ngay lần đầu**: không sửa code, không sửa ngưỡng, không sửa metric. Pre-reg `d3e4a3c` (trước khi code) → code `fde465a` (trước khi chạy) → kết quả (commit chứa §19.5).
 
 ### 19.5 Kết quả
 
-_Chưa có — ghi sau lần chạy đầu, kèm "lệch dự báo" (dự báo `V0 0.75 · V1 0.167 · V2 0.01 · escalation ≈2`), không sửa ngưỡng._
+- **KPI: 6/6 PASS** (ngưỡng §19.2 giữ nguyên 100%):
+  - **F1 PASS** — `cur(c3)=0.9947 · c4=0.1133 (REPORT-ONLY, chance) · c5=0.9497 · c6=0.9947 · hist6=0.9027` — **E3 fail của §18 được chữa**: V0 tái lập cùng chuỗi cho `c5=0.1160` (thất bại cũ) vs V1 `0.9497` — hồi phục 2 chu kỳ đúng dự báo.
+  - **F2 PASS** — `winrate(V1, {tie20, swarm10, drift15} aware) = 0.000` (acc 1.000/1.000/1.000).
+  - **F3 PASS** — `winrate(V1, {spread30, single60 aware} ∪ {3 unaware}) = 0.000` (thấp nhất: `swarm10_u 0.900`, `spread30_u 0.967` — outlier-prune + median-value chặn thổi phồng).
+  - **F4 PASS** (a ∧ b) — **a) NEGATIVE xác nhận đúng dự báo trước**: `winrate(V1, patient2)=1.0` (acc 0.167) · `winrate(V1, patient3)=1.0` (acc 0.050) → V1 thua **đúng 2/12, toàn bộ là patient**; **b)** `winrate(V2, patient) = 0.000` (acc 0.967 / 1.000).
+  - **F5 PASS** — escalation trung bình **1.80/run** (các chuỗi: `[4,5] [4,5] [4] [4,5] [4,5]` — c4 = stale sau đổi phase, c5 = stuck-window, **c6 không bao giờ nổ**) · **collateral = 0** record trung thực bị quarantine · `cur(V2)=0.9975 ≥ cur(V1)−0.01`. So với DS-007: audit nổ 10/10 run dạng snapshot → giờ 9 lần/5 run, có mục tiêu, không bao giờ trả lời thay.
+  - **F6 PASS** — `storage=0.2557 · ECE=0.0343 · answer_coverage=0.9700 · cur=0.9955 · hist=0.9070`.
+- **Parity V0 = DS-007 tuyệt đối**: `cur 0.9475 · hist 0.8995 · ECE 0.0491 · coverage 0.9672 · storage 0.2582` — khớp **từng chữ số** số liệu §18; aware 5/5 + unaware 3/5 cũng khớp → stream tái lập đúng, không harness drift.
+- **Winrate 12 attack**: V0 **0.833** (10/12) · V1 **0.167** (2/12 = patient) · V2-patient **0.000**.
+- **Lệch dự báo (non-gating, ghi trung thực — không sửa ngưỡng):**
+  1. `V0_winrate 0.75 → 0.83`: dự báo "V0 chặn patient2 nhờ size-first" **SAI** — patient2 cũng thắng V0 (acc 0.800): cơ chế = key có `clean4` bị phase1 hấp thụ (|true1−true2| ≤ ε) → phase2 co lại size2 = size bait → hòa size → `t_last` ưu tiên bait. Hai baseline có điểm mù giao nhau (F-L04).
+  2. `V1_cur 0.95 → 0.9955` và `escal 1.92 → 1.80` — **tốt hơn** dự báo (c6 escalation không nổ trong 5 seed).
+  3. `c4 0.1133` vs dự báo "≈0.08 chance" — cùng mức xác suất ngẫu nhiên, report-only.
+- **Cơ chế F4b đáng chú ý**: patient bị sửa không chỉ nhờ 50-key sample bắt trúng — escalation c5 (nổ do stuck-key, nguyên nhân độc lập) phát động full re-read → **quarantine toàn bộ bait đang trong kho bất kể sample có trúng key mục tiêu hay không** → phòng thủ nhiều lớp; đường thua duy nhất = c5 escape ∧ c6 sample miss (không xảy ra trong thí nghiệm). Residual 1/30 key ở `patient2|V2` (acc 0.967) chưa cô lập cơ chế — nghi ngờ cặp ambient-bait được corroboration thả (F-L05), ghi mở.
+
+**Findings mới (prefix F-L — *limit*):**
+
+- **F-L01 — C3 giải quyết bằng tách thứ tự hóa**: freshness-gate (`≥2 chu kỳ`) + recency-first + temporal-outlier prune chặn **cả 10 burst/inflation attack (10/10, winrate 0.000)** trong khi chữa E3 (c5 0.116→0.9497) và không mất lịch sử (hist 0.9070 ≥ 0.80), không thoái hóa (F6 toàn số cũ hoặc tốt hơn). *Bằng chứng: F1/F2/F3/F6, pre-registered. Confidence: cao.*
+- **F-L02 — Giới hạn attacker kiên nhẫn xác nhận (negative pre-registered)**: 1 bait/cycle qua kênh trusted qua **mọi thống kê (value, time, count)** — V1 thua cả `patient2` (acc 0.167) và `patient3` (acc 0.050); 2/12 attack thắng V1 là đúng 2 patient. Không có quy tắc nội tại nào "thông minh hơn" để bắt — cần thông tin ngoài (F-V03/F-P03). *Bằng chứng: F4a = 1.000 đúng dự báo 1.00. Confidence: cao.*
+- **F-L03 — Vòng ngoài có mục tiêu thay circuit-breaker coarse**: `patient* → 0/2` với escalation 1.80/run (collateral 0, không bao giờ trả lời thay — mọi câu trả lời vẫn từ ký ức); c4/c5 escalation đều là **true positive** (stale/stuck thực), c6 không nổ → không còn cảnh 10/10 run như F-I05. *Bằng chứng: F4b/F5. Confidence: cao.*
+- **F-L04 — Hai baseline có điểm mù giao nhau — không quy tắc nội tại thống trị**: V0 thua 10/12 (kể cả patient2 — dự báo trước SAI), V1 thua đúng 2 (patient2/3); V0 chặn được patient2 bằng size nhưng thua burst, V1 chặn burst bằng freshness nhưng thua patient → **xác nhận hai phía cho C3** (F-I04): best-attack cũ "stale-cluster inflation" bị recency-first triệt tiêu (single60_u 0.867→1.000 acc). *Bằng chứng: bảng 12×3. Confidence: cao.*
+- **F-L05 — Corroboration có rủi ro đồng lõa**: quy tắc "≥2 record bị chặn đồng ý" thả được cả **2 ambient-bait cùng key đồng ý giá trị** (cơ chế suy đoán giải thích `cur 0.9955 < 1` và residual key patient2|V2) → bản ghi blocked cần provenance/signature riêng, không chỉ value+time (F-V02, F-P03). *Bằng chứng: acc 0.9955 + 1/30 residual; chưa cô lập từng key. Confidence: trung bình.*
+- **F-L06 — Pre-reg + dự báo viết trước tách được parity, miss và beat**: V0 tái lập DS-007 đến từng chữ số (parity tuyệt đối, không drift); 1 dự báo sai (V0_winrate), 2 dự báo thấp hơn thực tế (cur, escalation) — đều ghi thẳng, ngưỡng không đổi. *Bằng chứng: bảng predicted vs observed §19.5. Confidence: cao.*
+
+**Kernel**: `tribu1/ds-008-c3-ordering-vs-patient-limit` (id 137268883, **v1 = bản chính thức, 6/6**) · artifacts [demo/out/ds008/](demo/out/ds008/) (`kpi.txt, summary.json, d26_phase.png, d27_winrate.png, d28_escalation.png`) · code [demo/sage_demo8.py](demo/sage_demo8.py) (commit `fde465a`) · **pre-reg `d3e4a3c`**.
 
 **Findings — prefix `F-I` (integration):**
 
