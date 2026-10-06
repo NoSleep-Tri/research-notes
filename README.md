@@ -1,9 +1,10 @@
+successfully downloaded text file (SHA: 76c3785898b522f06135d02ceea2502a9d98af60)
 successfully downloaded text file (SHA: c84c04b556fbe8c19c01cbc1c6b1dc16c4193bfd)
 # research-notes
 
 Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có **evidence + confidence**, rồi **thiết kế hệ thống** và **kiểm chứng bằng demo trên Kaggle**.
 
-**Trạng thái**: 14 survey (Q-001 → Q-014) · 247 entity / 333 relation knowledge graph · 7 hệ thống thiết kế, demo **5/5**, **3/3**, **3/3**, **3/3**, **3/3**, **4/4**, **5/6 PASS** (DS-007: E3 = negative finding, ngưỡng giữ nguyên).
+**Trạng thái**: 14 survey (Q-001 → Q-014) · 254 entity / 343 relation knowledge graph · 8 hệ thống thiết kế, demo **5/5**, **3/3**, **3/3**, **3/3**, **3/3**, **4/4**, **5/6**, **6/6 PASS** (DS-007: E3 = negative finding giữ nguyên · DS-008: 6/6 ngay lần đầu, không sửa gì).
 
 ## Chỉ mục
 
@@ -31,7 +32,7 @@ Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có *
 ### Tổng hợp & thiết kế
 
 - [SYNTHESIS.md](SYNTHESIS.md) — 14 survey → **6 chủ đề xuyên suốt** (T1–T6) + ma trận liên thông
-- [design/SAGE-spec.md](design/SAGE-spec.md) — **SAGE**: 6 lớp L0–L5, 8 nguyên tắc P1–P8 truy xuất survey; demo **5/5 PASS** (DS-001) + **3/3** (DS-002) + **3/3** (DS-003) + **3/3** (DS-004) + **3/3** (DS-005) + **4/4** (DS-006) + **5/6** (DS-007 — E3 FAIL negative, ngưỡng §18.2 giữ nguyên)
+- [design/SAGE-spec.md](design/SAGE-spec.md) — **SAGE**: 6 lớp L0–L5, 8 nguyên tắc P1–P8 truy xuất survey; demo **5/5 PASS** (DS-001) + **3/3** (DS-002) + **3/3** (DS-003) + **3/3** (DS-004) + **3/3** (DS-005) + **4/4** (DS-006) + **5/6** (DS-007 — E3 FAIL negative, ngưỡng §18.2 giữ nguyên) + **6/6** (DS-008 — C3 resolution + patient limit, pre-reg §19, lần đầu 6/6 ngay)
 - [backlog.md](backlog.md) · [questions/](questions/) · [templates/](templates/)
 
 ### Demo (Kaggle, CPU, pre-registered acceptance)
@@ -46,5 +47,6 @@ Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có *
 | **DS-005** | `tribu1/sage-v0-5-ds-005-red-team-acceptance` | **3/3 PASS** — winrate `0.60 → 0.30 → 0.00` (prereg → +bản đồ đồng cấu → +verifier ngoài) = **trùng tuyệt đối** dự báo viết trước · honest qua cả 3 · inflation `+0.345` | chạy **1 lần**, pre-register §16 trước, **ngưỡng §16.2 giữ nguyên** · findings F-Z01–F-Z05 |
 | **DS-006** | `tribu1/ds-006-sage-memory-hygiene` | **4/4 PASS** — `keepall` trả lời fact lỗi thời **67.5%** · `archive` cur **0.9986** / hist **1.0000** / stale **0.0000** với **29% context** · `oracle_time` = 1.0 → khoảng cách do **cấu trúc** | chạy **1 lần**, pre-register §17 commit `bb3ab41` **trước khi code**, **ngưỡng §17.2 giữ nguyên** · findings F-H01–F-H05 |
 | **DS-007** | `tribu1/ds-007-sage-v0-3-integration` | **5/6 — E3 FAIL (negative finding)** — E1 `0.9850/1.0000/0.8779` · E2 `0.9475/0.8995` · E4 storage `0.2582` · E5 ECE `0.0491` · E6 `0.800/0.000` · C1 nén↔citation **giải quyết** · **C3 mới**: 1 luật `(size, t_last)` = chống đầu độc (size-first) ↔ thích nghi (recency-first) → `c5 0.1133` answer inertia, hồi phục cycle 6 | pre-register §18 commit `dda1c65` **trước khi code** + amendment `84570aa` (2 lỗi nội bộ pre-run) · **v1→v2 sửa metric bug §18.4.3** (`c3 0.0783→0.9617`, verdict **không đổi**) · **ngưỡng §18.2 giữ nguyên** · findings F-I01–F-I06 |
-Code: [design/demo/sage_demo.py](design/demo/sage_demo.py), [sage_demo2.py](design/demo/sage_demo2.py), [sage_demo3.py](design/demo/sage_demo3.py), [sage_demo4.py](design/demo/sage_demo4.py), [sage_demo5.py](design/demo/sage_demo5.py), [sage_demo6.py](design/demo/sage_demo6.py), [sage_demo7.py](design/demo/sage_demo7.py).
-Mọi thay đổi ngưỡng/metric acceptance đều ghi ở **change-log** trong spec (§10, §12, §14, §15, §16, §17, §18) kèm số liệu thật — không sửa ngưỡng để chạm KPI.
+| **DS-008** | `tribu1/ds-008-c3-ordering-vs-patient-limit` | **6/6 PASS — lần đầu 6/6 ngay** — F1 `c3 0.9947 · c5 0.9497 · c6 0.9947 · hist 0.9027` (E3 DS-007 chữa: V0 cùng chuỗi `c5 0.1160`) · F2/F3 winrate `0.000` (10/10 attack nội tại chặn) · F4a `winrate(V1, patient) 1.000` = **negative dự báo trước** · F4b `winrate(V2, patient) 0.000` · F5 escalation `1.80/run`, collateral `0` · F6 `storage 0.2557 / ECE 0.0343 / cur 0.9955` · V0 = DS-007 **từng chữ số** (parity) | pre-register §19 commit `d3e4a3c` **trước khi code** + code `fde465a` trước khi chạy · **change-log §19.4 = không có thay đổi** · findings F-L01–F-L06 |
+Code: [design/demo/sage_demo.py](design/demo/sage_demo.py), [sage_demo2.py](design/demo/sage_demo2.py), [sage_demo3.py](design/demo/sage_demo3.py), [sage_demo4.py](design/demo/sage_demo4.py), [sage_demo5.py](design/demo/sage_demo5.py), [sage_demo6.py](design/demo/sage_demo6.py), [sage_demo7.py](design/demo/sage_demo7.py), [sage_demo8.py](design/demo/sage_demo8.py).
+Mọi thay đổi ngưỡng/metric acceptance đều ghi ở **change-log** trong spec (§10, §12, §14, §15, §16, §17, §18, §19) kèm số liệu thật — không sửa ngưỡng để chạm KPI.
