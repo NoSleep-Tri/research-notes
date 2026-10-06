@@ -1,13 +1,8 @@
-successfully downloaded text file (SHA: cf32e83f39eb9f94734070c65d618d9af988db9f)
-successfully downloaded text file (SHA: 78666981fe2622b6dffdde8fb07d00b4c02de656)
-successfully downloaded text file (SHA: 248f7a0c3d2ddf50e799e131fb458e344eba9967)
-successfully downloaded text file (SHA: 76c3785898b522f06135d02ceea2502a9d98af60)
-successfully downloaded text file (SHA: c84c04b556fbe8c19c01cbc1c6b1dc16c4193bfd)
 # research-notes
 
 Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có **evidence + confidence**, rồi **thiết kế hệ thống** và **kiểm chứng bằng demo trên Kaggle**.
 
-**Trạng thái**: 15 survey (Q-001 → Q-015, Q-016 trả lời trong AN-015 §7) · 269 entity / 364 relation knowledge graph · 9 hệ thống thiết kế, demo **5/5**, **3/3**, **3/3**, **3/3**, **3/3**, **4/4**, **5/6**, **6/6**, **6/6 PASS** (DS-007: E3 = negative finding giữ nguyên · DS-008 + DS-009: 6/6 ngay lần đầu, không sửa gì).
+**Trạng thái**: 15 survey (Q-001 → Q-017 — Q-016 trong AN-015 §7, Q-017 = AN-016) · 282 entity / 379 relation knowledge graph · 10 hệ thống thiết kế, demo **5/5 · 3/3 · 3/3 · 3/3 · 3/3 · 4/4 · 5/6 · 6/6 · 6/6 · 5/6 PASS** (DS-007: E3 = negative finding giữ nguyên · DS-008 + DS-009: 6/6 ngay lần đầu · **DS-010: train smoke GPU — T5 FAIL giữ thật**, T3/T4 PASS sau fix bug OP_RE, ngưỡng không đổi).
 
 ## Chỉ mục
 
@@ -36,10 +31,10 @@ Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có *
 ### Tổng hợp & thiết kế
 
 - [SYNTHESIS.md](SYNTHESIS.md) — 15 survey → **6 chủ đề xuyên suốt** (T1–T6) + ma trận liên thông
-- [design/SAGE-spec.md](design/SAGE-spec.md) — **SAGE**: 6 lớp L0–L5, 8 nguyên tắc P1–P8 truy xuất survey; demo **5/5 PASS** (DS-001) + **3/3** (DS-002) + **3/3** (DS-003) + **3/3** (DS-004) + **3/3** (DS-005) + **4/4** (DS-006) + **5/6** (DS-007 — E3 FAIL negative, ngưỡng §18.2 giữ nguyên) + **6/6** (DS-008 — C3 resolution + patient limit, pre-reg §19, lần đầu 6/6 ngay) + **6/6** (DS-009 — training dataset gold-op + round-trip, pre-reg §20, lần đầu 6/6 ngay, dự báo 10/11 khớp)
+- [design/SAGE-spec.md](design/SAGE-spec.md) — **SAGE**: 6 lớp L0–L5, 8 nguyên tắc P1–P8 truy xuất survey; demo **5/5 PASS** (DS-001) + **3/3** (DS-002) + **3/3** (DS-003) + **3/3** (DS-004) + **3/3** (DS-005) + **4/4** (DS-006) + **5/6** (DS-007 — E3 FAIL negative, ngưỡng §18.2 giữ nguyên) + **6/6** (DS-008 — C3 resolution + patient limit, pre-reg §19, lần đầu 6/6 ngay) + **6/6** (DS-009 — training dataset gold-op + round-trip, pre-reg §20, lần đầu 6/6 ngay, dự báo 10/11 khớp) + **5/6** (DS-010 — train smoke SFT+GRPO trên GPU T4, pre-reg §21; `acc_SFT 0.9900` vượt Bar2 `0.9699`, T5 FAIL giữ thật)
 - [backlog.md](backlog.md) · [questions/](questions/) · [templates/](templates/)
 
-### Demo (Kaggle, CPU, pre-registered acceptance)
+### Demo (Kaggle CPU/GPU, pre-registered acceptance)
 
 | Design | Kernel | KPI | Thay đổi qua các lần chạy |
 |---|---|---|---|
@@ -53,5 +48,6 @@ Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có *
 | **DS-007** | `tribu1/ds-007-sage-v0-3-integration` | **5/6 — E3 FAIL (negative finding)** — E1 `0.9850/1.0000/0.8779` · E2 `0.9475/0.8995` · E4 storage `0.2582` · E5 ECE `0.0491` · E6 `0.800/0.000` · C1 nén↔citation **giải quyết** · **C3 mới**: 1 luật `(size, t_last)` = chống đầu độc (size-first) ↔ thích nghi (recency-first) → `c5 0.1133` answer inertia, hồi phục cycle 6 | pre-register §18 commit `dda1c65` **trước khi code** + amendment `84570aa` (2 lỗi nội bộ pre-run) · **v1→v2 sửa metric bug §18.4.3** (`c3 0.0783→0.9617`, verdict **không đổi**) · **ngưỡng §18.2 giữ nguyên** · findings F-I01–F-I06 |
 | **DS-008** | `tribu1/ds-008-c3-ordering-vs-patient-limit` | **6/6 PASS — lần đầu 6/6 ngay** — F1 `c3 0.9947 · c5 0.9497 · c6 0.9947 · hist 0.9027` (E3 DS-007 chữa: V0 cùng chuỗi `c5 0.1160`) · F2/F3 winrate `0.000` (10/10 attack nội tại chặn) · F4a `winrate(V1, patient) 1.000` = **negative dự báo trước** · F4b `winrate(V2, patient) 0.000` · F5 escalation `1.80/run`, collateral `0` · F6 `storage 0.2557 / ECE 0.0343 / cur 0.9955` · V0 = DS-007 **từng chữ số** (parity) | pre-register §19 commit `d3e4a3c` **trước khi code** + code `fde465a` trước khi chạy · **change-log §19.4 = không có thay đổi** · findings F-L01–F-L06 |
 | **DS-009** | `tribu1/ds-009-training-dataset` | **6/6 PASS — lần đầu, dự báo 10/11 khớp exact** — G1 `usable 1555 + qa 540` · G2 `needs_policy 1.52%`, edge 24/24 tag · G3 **round-trip `1.0000` vs naive `0.5630`** · G4 `ADD 600 / UPDATE 400 / NOOP 495 / DELETE 60` (max share 0.3859) · G5 `acc 1.0000 / leakage 0` · G6 poison `321/321` → NOOP `1.0000` | pre-register §20 commit `391d720` **trước khi code** + amend `22062e0` (phép đếm, trước code) + code `f9c333c` trước khi chạy · **change-log §20.4 = không có thay đổi sau khi chạy** · findings F-U01–F-U05 |
-Code: [design/demo/sage_demo.py](design/demo/sage_demo.py), [sage_demo2.py](design/demo/sage_demo2.py), [sage_demo3.py](design/demo/sage_demo3.py), [sage_demo4.py](design/demo/sage_demo4.py), [sage_demo5.py](design/demo/sage_demo5.py), [sage_demo6.py](design/demo/sage_demo6.py), [sage_demo7.py](design/demo/sage_demo7.py), [sage_demo8.py](design/demo/sage_demo8.py), [sage_demo9.py](design/demo/sage_demo9.py).
-Mọi thay đổi ngưỡng/metric acceptance đều ghi ở **change-log** trong spec (§10, §12, §14, §15, §16, §17, §18, §19, §20) kèm số liệu thật — không sửa ngưỡng để chạm KPI.
+| **DS-010** | `tribu1/ds-010-train-smoke-sft-grpo` | **5/6 — T5 FAIL (giữ thật)** — T2 `base 0.4247 → acc_SFT 0.9900` · T3 `0.9900 > Bar2 0.9699 > Bar1 0.7993` · T4 `macroF1 0.9910` (recall ADD/UPDATE/DELETE 1.0) · T5 reward `0.5988 → 0.6375` (+0.039 < 0.10) · T6 `leak 0 · parity 1579/1555 · gap +0.0091` · runtime **15.0 phút** (dự báo 90) · cold-start B `0.4047 ≈ base`, `C = A` | pre-reg §21 commit `b00abca` trước khi code + `305966b` trước khi run · **3 version**: v1 env-fail torchao (fix §21.4 #1) · v2 4/6 bug `OP_RE {4,6}` bỏ sót `ADD` → eval+reward (fix §21.4 #2 `fe96ddd` **trước** v3) · **ngưỡng T1–T6 không đổi**, v2 archived · findings F-Y01–F-Y05 |
+Code: [design/demo/sage_demo.py](design/demo/sage_demo.py), [sage_demo2.py](design/demo/sage_demo2.py), [sage_demo3.py](design/demo/sage_demo3.py), [sage_demo4.py](design/demo/sage_demo4.py), [sage_demo5.py](design/demo/sage_demo5.py), [sage_demo6.py](design/demo/sage_demo6.py), [sage_demo7.py](design/demo/sage_demo7.py), [sage_demo8.py](design/demo/sage_demo8.py), [sage_demo9.py](design/demo/sage_demo9.py), [sage_demo10.py](design/demo/sage_demo10.py).
+Mọi thay đổi ngưỡng/metric acceptance đều ghi ở **change-log** trong spec (§10, §12, §14, §15, §16, §17, §18, §19, §20, §21) kèm số liệu thật — không sửa ngưỡng để chạm KPI.

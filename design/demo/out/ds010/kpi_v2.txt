@@ -1,0 +1,13 @@
+T1 pipeline (3 PNG + adapter_A, kpi/summary written last): have=5/5 missing=[] -> PASS
+T2 SFT learns (accA >= base+0.10): base=0.0234 accA=0.5886 delta=0.5652 -> PASS
+T3 beats rules bar (accA>=0.85): accA=0.5886 Bar1=0.7993 Bar2=0.9699 -> FAIL
+T4 macro-F1 (>=0.85): f1A=0.7410 | report accB=0.3311 accC=0.5886 accA/Bar2=0.5886/0.9699 f1(base,B,C)=0.194/0.158/0.741 recallA={'ADD': 0.0, 'UPDATE': 1.0, 'DELETE': 1.0, 'NOOP': 0.968} -> FAIL
+T5 GRPO cold-start B (reward+0.10, parse>=0.90): first=0.1512 last=0.4412 delta=0.2900 parse_end=1.0000 -> PASS
+T6 leak/parity/overfit (leak=0, 1579/1555, gap>=-0.10): leak=0 parity=True trainA=0.5971 testA=0.5886 gap=-0.0085 -> PASS
+
+KPI: 4/6 SEE §21.5
+data: total=1579 usable=1555 train=1256 test=299 keys=600 | bars Bar1=0.7993 Bar2=0.9699 | ops test gold={'ADD': 120, 'UPDATE': 74, 'DELETE': 11, 'NOOP': 94}
+SFT: steps=628 loss 0.1498->0.0039 | GRPO: B=100 C=60 reward-log entries | bs sft=4 grpo=4 accum=2 G=8 loss_type=grpo
+predicted vs observed (non-gating): test 311.000/299.000, acc_base 0.300/0.023, acc_A 0.930/0.589, acc_B 0.550/0.331, acc_C 0.930/0.589, Bar1 0.797/0.799, Bar2 0.961/0.970, macro_F1_A 0.900/0.741, reward_B_first 0.350/0.151, reward_B_last 0.800/0.441, train_acc_A 0.990/0.597, runtime_min 90.000/15.368
+fallback/OOM log: none
+note: seed 0/20261010 dat, nhung train/GPU khong deterministic — ket qua la 1 lan chay.

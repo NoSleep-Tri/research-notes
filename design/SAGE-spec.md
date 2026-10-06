@@ -1069,4 +1069,35 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 
 ### 21.5 Kết quả
 
-*(chưa chạy — sẽ ghi ở đây)*
+**3 phiên bản kernel — ghi cả 3, không xóa gì:**
+
+- **v1 (FAIL ở 108s)** — môi trường: `pip upgrade peft` kéo bản bắt `torchao ≥0.16`, image Kaggle có `0.10` → `ImportError` tại `get_peft_model` trước khi arm nào train. Fix `pip uninstall torchao` (§21.4 #1 — dependency optional).
+- **v2 (KPI 4/6, as-run, archived `kpi_v2.txt`/`summary_v2.json`)** — T1·T2·T5·T6 PASS; **T3·T4 FAIL** (`accA=0.5886`, `f1A=0.7410`, `recallADD=0.0`). Sau khi xem `raw_samples` (model trả `{"op": "ADD"}` ĐÚNG mà `recall=0`) → chẩn đoán **bug đo lường** (§21.4 #2): regex `OP_RE {4,6}` không match `ADD` (3 ký tự) → (1) evalPred=None toàn bộ gold-ADD (120/299 ≈ 40%); (2) GRPO reward không bao giờ credit EM trên mẫu ADD. Fix `{3,6}` + regression guard, ghi change-log **TRƯỚC** v3, ngưỡng không đổi.
+- **v3 (KPI 5/6 — bản chính thức, đo-lường-corrected):**
+  - **T1 PASS** — 5/5 artifact · runtime **15.0 phút** (dự báo 90 — nhanh 6×).
+  - **T2 PASS** — `base=0.4247` → `accA=0.9900`, `delta=0.5652 ≥ 0.10`.
+  - **T3 PASS** — `accA=0.9900 ≥ 0.85`; **vượt cả Bar2** (`0.9699`), không chỉ Bar1 (`0.7993`).
+  - **T4 PASS** — `macroF1A=0.9910 ≥ 0.85` · `recallA={ADD 1.0, UPDATE 1.0, DELETE 1.0, NOOP 0.968}` · report: `accB=0.4047`, `accC=0.9900`, `f1(base,B,C)=0.342/0.185/0.991`.
+  - **T5 FAIL — giữ thật, không sửa ngưỡng** — `first10=0.5988` → `last10=0.6375`, `delta=+0.0387 < +0.10`; điều kiện phụ `parse_end=1.0000 ≥ 0.90` đạt nhưng overall FAIL. **Giải thích (không bào chữa):** reward extractor đúng → base+template đã khởi điểm **0.60** (parse 1.0 + EM trên ADD-đơn-giản) → thiếu headroom +0.10; "v2 PASS +0.29" là artifact của parser hỏng (khởi điểm 0.151 bị đàn áp).
+  - **T6 PASS** — `leak=0` · `parity 1579/1555 ✓` · `trainA=0.9809`, `testA=0.9900`, `gap=+0.0091 ≥ −0.10` (test ≥ train, không overfit).
+- **Training**: SFT `steps=628`, loss `0.1490 → 0.0210`; GRPO `B=100 · C=60` steps, `bs=4 · accum=2 · G=8 · loss_type=grpo`; `fallback/OOM: none`; seed `0/20261010/20261010` (data deterministic, train GPU không — **1 lần chạy**).
+
+**Dự báo vs observed (v3, non-gating) — 4/12 khớp gần, 8 lệch — ghi đủ, không điều chỉnh dự báo:**
+
+- **Khớp**: `test 311→299` · `Bar1 0.797→0.799` · `Bar2 0.961→0.970` · `train_acc 0.990→0.981`.
+- **Lệch**: `acc_base 0.300→0.425` (base+template mạnh hơn dự báo sau khi parser đúng) · `acc_A 0.930→0.990` (H1-direction đúng, magnitude thấp hơn thực tế) · `acc_B 0.550→0.405` · `acc_C 0.930→0.990` · `macroF1_A 0.900→0.991` · `reward_B_first 0.350→0.599` & `last 0.800→0.638` (dự báo giả định reward như v2 — không còn đúng sau fix) · `runtime 90→15.0 phút`.
+- **Verdict giả thuyết**: **H1 đúng hướng** (SFT học được, 0.990 ≥ 0.93 dự báo) · **H2 đạt và vượt** (vừa vượt Bar1 vừa vượt Bar2 — "SFT ≈ Bar2 hoặc dưới một chút" → actually trên) · **H3 nửa đúng**: `C không hạ acc` ✓ (C = A = 0.9900), cold-start B cải thiện reward nhưng **không đủ +0.10** → T5 FAIL.
+
+**Trả lời câu hỏi §21:** (1) SFT-LoRA-1.5B học được memory-op tới **0.990/0.991** — gần như hoàn hảo trên split theo key; (2) **Train VƯỢT rules** — `0.9900 > Bar2 0.9699 > Bar1 0.7993` → tầng-2 #3 của Q-016 trả lời **lần 1: trained thắng rules trên task của chính mình** (trái ngược F-T05 ở Fortunate Recall — caveat: data synthetic-clean); (3) GRPO cold-start **không** thắng rules (`B=0.405 ≈ base 0.425 < Bar1`) và gate reward khởi điểm cao → **FAIL**; GRPO trên nền SFT **không thêm cũng không hại** (`C = A` từng số).
+
+**Artifacts**: [demo/out/ds010/](demo/out/ds010/) — `kpi.txt · summary.json · d32_acc.png · d33_reward.png · d34_f1.png · adapter_A/` (LoRA 18.46M params, 392 tensor, validate OK) · lịch sử `kpi_v2.txt · summary_v2.json`.
+
+**Findings mới (prefix F-Y — *yes, our task*):**
+
+- **F-Y01 — Train thắng rules bar trên task của chính mình**: `acc_SFT=0.9900` vượt Bar1-recency-content `0.7993` **+0.191** và Bar2 (recency+Δ-guard) `0.9699` **+0.020** — trả lời tầng-2 #3 Q-016 ở lần thử đầu, đối lập với F-T05 (rules thắng trained ở Fortunate Recall). Điều kiện: gold-label synthetic-clean + key-split không leak. *Bằng chứng: T3/T4 pre-registered, v3. Confidence: trung bình-cao (1 run).*
+- **F-Y02 — GRPO không thay thế được SFT, và không thêm gì trên nền SFT**: cold-start `B=0.4047` ≈ `base=0.4247`, vẫn < Bar1 → 100 steps GRPO+LoRA từ base không vượt barrier; `C (SFT→GRPO, 60 steps) = A` từng số (`0.9900/0.9910`) → củng cố playbook F-W03: **SFT warmup trước, GRPO chỉ tinh chỉnh**. *Bằng chứng: accB/accC T4. Confidence: cao.*
+- **F-Y03 — Lỗi regex-1-dòng làm hỏng cả eval lẫn reward**: `OP_RE {4,6}` bỏ sót `ADD` (3 ký tự) khiến `recallADD=0` cả 4 arm (v2) + GRPO mất EM credit trên ~40% mẫu — một chỗ sai làm hỏng **3 đường metric**; dấu hiệu nhận biết: `raw_samples` model trả đúng trong khi recall=0 (mâu thuẫn không thể giải thích bằng training). **Regression guard** `assert parse_op(gold)==gold` cho mọi nhãn giờ chạy lúc import. *Bằng chứng: §21.4 #2 + delta v2→v3 (`accA 0.589→0.990`). Confidence: cao.*
+- **F-Y04 — Gate reward cold-start phải xét headroom**: `delta ≥ +0.10` báo PASS giả khi extractor hỏng (v2: 0.151→0.441) và báo FAIL thật khi base+template đã khởi điểm 0.60 (v3: 0.599→0.638). Bài học: gate cải thiện reward cần chuẩn hoá theo headroom (`(last−first)/(1−first)` — v3 = 0.095) hoặc đặt absolute ceiling; **không** đổi ngưỡng sau số → T5 FAIL stands. *Bằng chứng: T5 hai lần chạy. Confidence: cao.*
+- **F-Y05 — Full 3-arm train trên T4 chỉ 15 phút**: SFT 628 steps + GRPO 160 steps + 5 lần eval = **15.0 phút** (dự báo 90), LoRA **1.18%** params (`18.46M/1.562B`), quota 30h-refresh-4-ngày → ~100 lần chạy nữa được; fallback OOM `none`. *Bằng chứng: runtime + params line. Confidence: cao.*
+
+**Kernel**: `tribu1/ds-010-train-smoke-sft-grpo` (id 137296696, **v3 = bản chính thức, KPI 5/6, GPU T4, 15.0 phút**; v1 env-fail, v2 4/6 parser-bug) · code [demo/sage_demo10.py](demo/sage_demo10.py) (commits `305966b` code · `39946e7` fix#1 · `fe96ddd` fix#2) · pre-reg **`b00abca`**.
