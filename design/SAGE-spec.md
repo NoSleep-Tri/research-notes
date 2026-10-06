@@ -899,3 +899,62 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 | **F-I04** | **C3 (xung đột mới, đo được 2 chiều): một luật thứ tự hóa phục vụ 2 mục tiêu trái chiều** — *chống đầu độc* cần `size-first`, *thích nghi* cần `recency-first` | Cùng luật `(size, t_last)`: (a) `spread30`/`single60` aware **thua** vì cluster bait size < clean → gate+consensus đủ; (b) nhưng `c5` **fail** vì cluster mới < cluster cũ → inertia; (c) tấn công thắng lớn nhất = **thổi phỒng cluster cũ** (bait lọt cluster phase-1 → size 4 > 3) → unaware thắng 3/5, `winrate(a) 0.80` vs dự báo 0.30 | cao — cơ chế truy được tới từng con số, cả 3 hiện tượng cùng 1 luật |
 | **F-I05** | **Verifier 2 lớp chặn 100% nhưng trigger coarse (kéo dài F-V03)** | `winrate(c) = 0.000/10` (gap 0.80) — nhưng `audit` trigger ở **cả 10/10 run**, kể cả attack thất bại: stuck-key ≈ 4.8% luôn lệch snapshot → circuit-breaker mạnh, false-incident cả khi không có attack → cần trigger phân biệt attack/anomaly | trung bình-cao — observation trực tiếp từ summary.json (`audit: true` mọi dòng layer c); chưa test cost false-positive theo thời gian |
 | **F-I06** | **Pre-register + dự báo viết trước cho TÁCH metric-bug khỏi mechanism-fail trong đối chiếu 1 lần chạy** | `c3` v1 = 0.0783 (so ground truth sai phase) vs `hist c3` cùng pipeline = 0.962 → đủ bằng chứng kết luận bug đo; sửa → `c3 0.9617` PASS mà **E3 vẫn FAIL** do `c5` (cơ chế) — không lẫn lộn, không sửa ngưỡng | cao — cả 2 số đều nằm trong artifacts v1/v2 |
+
+## 20. DS-009 — *Training dataset*: suy diễn gold-op từ stream: acceptance **pre-registered**
+
+- **Ghi trước khi chạy**: 2026-10-06, §20 tồn tại **trước khi code demo9 được viết** — quy trình §10/§12/§14/§15/§16/§17/§18/§19: **không hạ ngưỡng sau khi thấy số**; mọi thay đổi ghi §20.4 kèm số liệu thật.
+- **Câu hỏi** (thí nghiệm tầng-2 #1 của Q-016, sinh từ AN-015 §6/§7): (1) nhãn **gold_op** (ADD/UPDATE/DELETE/NOOP) suy ra từ stream tổng hợp có **duy nhất, sạch, bao quát** không? (2) replay các gold-op có **tái tạo đúng** store oracle (**round-trip**) không? (3) dataset + provenance attack có đủ dùng làm **data lớp 1+2** (F-T01) cho lần train sau?
+- **Giả thuyết, viết trước**:
+  - **H1 (round-trip)**: policy (recency-wins, poison → NOOP theo world-truth, canonical tie-break cho event mâu thuẫn) → `fidelity_policy = 1.000`; baseline **naive** (mọi event → ADD keep-first, không bao giờ xóa) → `fidelity_naive ≈ 0.55` (chỉ sống sót key không bao giờ bị update).
+  - **H2 (ambiguity)**: mâu thuẫn nhãn sinh từ **quota edge có chủ đích** (mỗi cycle: 2 `restate_drift` + 1 `retract_unseen` + 1 `poison_on_truth`) → `needs_policy_rate ≈ 0.015 ≤ 0.10`, **100% bị tag** — không bao giờ gán nhãn lén.
+  - **H3 (phân bố + provenance)**: 4 nhãn đều xuất hiện, `max_share ≈ 0.37`, `DELETE ≈ 60`; answer lấy từ oracle → `acc = 1.000`, `leakage = 0`; mọi poison event gắn `adversarial + strategy` → `tagged = 1.000`.
+- **Truy xuất**: F-T01 (3 lớp data), F-T02 (output contract `{op, citation_id, confidence, answer}`), F-T06 (khuyến nghị SAGE), Q-016 (tầng-2 thí nghiệm #1), F-P03/F-P06 (lỗi sinh ở khâu ghi · append-only + citation).
+- **Kernel**: title `DS-009 training dataset` · code [demo/sage_demo9.py](demo/sage_demo9.py) · CPU, không internet. Prefix finding: **F-U** (unseen/unknown). **Chưa tồn tại code tại thời điểm ghi §20.**
+
+### 20.1 Thiết kế thí nghiệm (định nghĩa trước)
+
+**Stream event-log** (seed `0`, `Q_SEED 20261010`, `N_KEY 600`, `CYCLES 6`, 100 key mới/cycle — **không phase, không answering pipeline**: DS-009 chỉ sinh data, không đo accuracy câu trả lời):
+
+- **Event trung thực/cycle**: `new` ×100 (value `U(0,1)`) · `update` ×80 (key đã tạo ≥1 chu kỳ, value `U(0,1)` — resample, khác cũ almost surely) · `restate` ×30 (value = current **đúng bằng**) · `retract` ×10 (key đang sống → oracle xóa).
+- **Quota edge/cycle** (mâu thuẫn có chủ đích, ghi trước): `restate_drift` ×2 (claim restate nhưng value ≠ current → declared NOOP ↔ computed UPDATE) · `retract_unseen` ×1 (retract key chưa tồn tại/đã chết → declared DELETE ↔ computed NOOP) · `poison_on_truth` ×1 (adversarial, value = current **đúng bằng** → store-only không phân biệt được NOOP/UPDATE).
+- **Attack suite** (insert bait trên key đã tồn tại, không đổi oracle): 5 aware (`tie20 · swarm10 · drift15 · spread30 · single60`, value = truth+0.15, cycle 6) · 3 unaware (`tie20 · swarm10 · spread30`, value `U(0,1)`, cycle 6) · `patient2` (30 key × cycle 5,6) · `patient3` (20 key × cycle 4,5,6) — = **315 poison event**.
+- **Oracle** = recency-wins trên event trung thực (adversarial không đổi oracle). **Policy gán nhãn**: `adversarial → NOOP`; nếu `declared kind ≠ computed label` → tag **`needs_policy`** + dùng canonical để replay tiếp. **Naive**: mọi event → `ADD` (keep-first), không bao giờ xóa.
+- **QA pairs**: mỗi key sống cuối = 1 câu (`"Giá trị hiện tại của key Kxxx?"`), `gold_answer` = giá trị oracle cuối, `citation` = eid event trung thực cuối — không chứa answer trong question (leakage check).
+
+**Tổng dự báo** (non-gating): `total = 1659` event (600+480+180+60+24+315) · `usable = 1635` · `needs_policy = 24 (0.0145)` · `qa = 540` · op: ADD 600 / UPDATE 480 / NOOP 495 / DELETE 60 · `fidelity_naive ≈ 0.55` · `answer_acc 1.000` · `leakage 0.000` · `attack_tagged 1.000`.
+
+**Artifacts**: `kpi.txt`, `summary.json`, `d29_opdist.png`, `d30_fidelity.png`, `d31_ambiguity.png`, `train_pairs.jsonl`, `qa_pairs.jsonl` → [demo/out/ds009/](demo/out/ds009/).
+
+### 20.2 Acceptance (ngưỡng pre-registered)
+
+| ID | Kiểm chứng | Acceptance |
+|---|---|---|
+| **G1** | **Quy mô** — dataset đủ lớn cho train (lớp 1+2 F-T01) | `usable_pairs ≥ 800` ∧ `qa_pairs ≥ 500` |
+| **G2** | **Chính sách bao phủ** — mâu thuẫn được nhận diện, không gán nhãn lén | `needs_policy_rate ≤ 0.10` ∧ `tagged_rate = 1.00` |
+| **G3** | **Round-trip** — replay gold tái tạo đúng store; naive thì không | `fidelity_policy ≥ 0.995` ∧ `fidelity_naive ≤ 0.65` |
+| **G4** | **Phân bố nhãn** — đủ 4 op, không lệch degenerate | `n_ops = 4` ∧ `max_op_share ≤ 0.80` ∧ `min_op_count ≥ 20` |
+| **G5** | **Answer đúng oracle, không leak** | `answer_acc ≥ 0.99` ∧ `leakage ≤ 0.01` |
+| **G6** | **Provenance attack** — poison được gắn nhãn môi trường | `attack_tagged ≥ 0.95` ∧ `poison_noop_rate = 1.00` |
+
+**KPI: 6/6 module.**
+
+**Lý do ngưỡng**: `G3 naive ≤ 0.65` — nếu naive cũng ≥0.995 thì policy không thêm giá trị gì → ghi trung thực là "data không nhạy cách gán nhãn". `G2 ≤ 0.10` dựa trên quota edge đã ghi trước (24/1659 ≈ 0.0145) — nếu tỷ lệ tự nhiên dâng vượt → policy chưa đủ bao quát → FAIL, không nới. `G1 800/500` = mức đủ nhỏ để không "vừa dựng xong đạt" giả tạo nhưng đủ lớn so với ngưỡng 152 cặp của Memory-R1 (E1, ~5×).
+
+### 20.3 Cảnh báo metric thoái hóa — **tự chặn trước**
+
+1. Hạ ngưỡng G1–G6 sau khi thấy số → **cấm**.
+2. Giảm quota edge (`2/1/1` per cycle) hay bỏ edge type để "chữa" G2/G6 → **cấm**.
+3. Bỏ attack suite / giảm poison event để "chữa" G6 hay G4 → **cấm**.
+4. Đổi seed (`0`, `Q_SEED 20261010`) / `N_KEY` / `CYCLES` / tỷ lệ event (`100/80/30/10`) sau khi thấy số → **cấm**.
+5. Đổi định nghĩa policy (recency-wins, poison→NOOP) hay naive (keep-first, không xóa) sau khi thấy fidelity → **cấm**.
+6. Tính `usable` bằng cách lặng lẽ drop bớt `needs_policy` khỏi denominator G2, hay bỏ QA/đổi answer format → **cấm**.
+7. Chỉ bug harness (code ≠ §20.1) được sửa — ghi §20.4 kèm sự thật trước/sau.
+8. Gộp 6 module thành 1 con số → **cấm** (G1–G6 xuất riêng).
+
+### 20.4 Change-log
+
+*(chưa chạy — sẽ ghi ở đây, nếu có)*
+
+### 20.5 Kết quả
+
+*(chưa chạy — sẽ ghi ở đây)*
