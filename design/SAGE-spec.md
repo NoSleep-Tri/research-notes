@@ -760,6 +760,44 @@ _Chưa có thay đổi nào (chưa chạy lần nào — §17 viết trước kh
 
 _Chưa có số liệu nào tồn tại tại thời điểm cả 2 sửa đổi này — nếu sau khi chạy cần sửa thêm, mọi entry mới phải kèm số liệu thật._
 
+3. **[SAU RUN v1 — METRIC BUG, không đổi ngưỡng]** Sửa ground truth per-cycle của câu "hiện tại": v1 luôn so với `true2` → số **giả** cho phase-1 (`c3 = 0.0783`, `c4 = 0.0817` — trong khi `hist c3` chạy cùng pipeline nhưng với `true1` cho kết quả ≈ 0.96, chứng minh được là bug đo chứ không phải bug cơ chế). Sửa trong code (`§18.4.3`): cycle ≤ 3 so `true1`, cycle ≥ 4 so `true2`. **Số thật v1 → v2**: `c3 0.0783 → 0.9617` · `c4 0.0817 → 0.0817` (target vốn đã đúng từ cycle 4) · `c5/c6/hist6: 0.1133 / 0.9517 / 0.9050` **không đổi** → **E3 vẫn FAIL, verdict 5/6 không đổi**. Kernel v2 (id 137264188) là bản chính thức; v1 giữ làm đối chiếu. Ngưỡng §18.2: **không hề thay đổi**.
+
 ### 18.5 Kết quả
 
-_Chưa có — sẽ ghi sau lần chạy đầu tiên (kèm "lệch dự báo" như §16.5/§17.5, không sửa ngưỡng)._
+**KPI: 5/6 — E3 FAIL (negative finding, không sửa ngưỡng).**
+Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phát hiện metric bug §18.4.3) · code [demo/sage_demo7.py](demo/sage_demo7.py) · artifacts `research/design/demo/out/ds007/{kpi.txt, summary.json, d22_phase.png, d23_storage.png, d24_gate_ece.png, d25_redteam.png}`.
+
+| E | Số đo (v2) | Ngưỡng | Kết quả |
+|---|---|---|---|
+| E1 | `clean_accept 0.9850` · `noise_reject 1.0000` · `coverage 0.8779` | ≥0.90 / ≥0.90 / 0.60–1.00 | **PASS** |
+| E2 | `cur 0.9475` · `hist 0.8995` | ≥0.90 / ≥0.80 | **PASS** |
+| E3 | `c3 0.9617` · **`c5 0.1133`** · `c6 0.9517` · `hist6 0.9050` (`c4 = 0.0817` report-only) | ≥0.90×3 / ≥0.80 | **FAIL** (một nhánh: c5) |
+| E4 | `storage 0.2582` · `cur 0.9475` · `hist 0.8995` | ≤0.40 / ≥0.90 / ≥0.80 | **PASS** |
+| E5 | `ECE 0.0491` · `answer_coverage 0.9672` | ≤0.10 / ≥0.90 | **PASS** |
+| E6 | `winrate(a) 0.800` · `winrate(c) 0.000` · `gap 0.800` · `honest 0.9475` | ≥0.25 / ≤0.10 / ≥0.20 / ≥0.90 | **PASS** |
+
+**Dự báo viết trước vs số thật** (non-gating): `cur 0.95/0.9475` ✓ · `storage 0.26/0.2582` ✓ · `clean_accept 0.98/0.9850` ✓ · `noise_reject 1.00/1.0000` ✓ · `coverage 0.88/0.8779` ✓ · `ECE 0.03/0.0491` (lệch nhẹ, vẫn pass) · `answer_coverage 1.00/0.9672` (lệch) · `hist 1.00/0.8995` (lệch — xem dưới) · **`winrate(a) 0.30/0.80` (lệch lớn — UNDERestimate)** · `winrate(c) 0.00/0.00` ✓.
+
+**Tách bạch E3 FAIL — 2 nguyên nhân độc lập:**
+1. **Metric bug** (§18.4.3): `c3` v1 = 0.0783 là số giả (so ground truth của phase sau); sửa → **0.9617** (PASS). Không liên quan cơ chế.
+2. **Mechanism FAIL thật**: `c5 = 0.1133` ≈ mức may rủi (P(|true1−true2| ≤ 0.05) = 0.0975). Nguyên nhân: luật chọn cluster **`(size desc, t_last desc)`** — chính luật chống đầu độc — khiến cluster phase-1 (**size 3**) thắng cluster phase-2 (**size 2**) → câu "hiện tại" vẫn trả giá trị cũ. Cluster mới chỉ hòa size ở **cycle 6** → `c6 = 0.9517`. **Dự báo "phục hồi đầy đủ ở cycle 5" (§18.1) SAI — hồi phục thực tế ở cycle 6 = 3 chu kỳ quan sát, không phải 2.**
+
+**Verdict 2 xung đột pre-registered + 1 xung đột mới:**
+- **C1 (nén ↔ citation): GIẢI QUYẾT** — consensus-cluster gộp record *trùng lặp* → `storage 0.2582 ≤ 0.40` mà câu trả lời không đổi (khác với F-J05: nén an toàn khi record đủ trùng).
+- **C2 (quên ↔ không xóa): MỘT NỬA** — sweep chỉ kích hoạt đúng cycle 4 (`ratio 0.5227`; cycle khác `≤ 0.1227`), không đụng kho → `hist 0.9050 ≥ 0.80` ✓; **nhưng** thích nghi chậm hơn dự báo 1 chu kỳ do answer inertia → E3 FAIL.
+- **C3 (MỚI, phát hiện từ chính thí nghiệm)**: một thứ tự hóa duy nhất phục vụ **2 mục tiêu trái chiều** — *chống đầuộc* cần `size-first` (bait đơn lẻ/bé thua → `spread30`/`single60` aware đều thua cơ chế này), *thích nghi* cần `recency-first` (nếu không, cluster cũ luôn thắng — chính là c5). Đo được cả 2 chiều trong cùng run.
+
+**Red-team 2 lớp (DS-005 + F-P04)**: `winrate(a) = 0.800` (aware **5/5**, unaware **3/5** — dự báo unaware 0/5): cơ chế thắng lớn nhất **không phải** tạo cluster giả lớn hơn mà là **thổi phồng cluster cũ** — bait lọt vào cluster phase-1 (|Δ| ≤ 0.05, đa số pass gate |Δ| ≤ 0.30) làm size 4 > cluster phase-2 size 3 → câu "hiện tại" trả giá trị cũ. Lớp (c): `winrate(c) = 0.000`, **audit trigger ở cả 10/10 run** kể cả attack không thành — trigger bởi stuck-key ≈ 4.8% luôn lệch snapshot → circuit-breaker **mạnh nhưng coarse**: chặn 100% kèm false-incident cả khi không có attack.
+
+**Những gì dự báo SAI (trung thực)**: (i) `hist` 1.00 → 0.8995: ~9.75% key có |true1−true2| ≤ 0.05 → clean4 "ghép nhầm" vào cluster phase-1 → `t_last > t_q = 4.0` → cluster bị loại khỏi cửa sổ historical → unknown (khớp chính xác mức P = 0.0975 — ranh giới cửa sổ, không mất dữ liệu); (ii) `winrate(a)` 0.30 → 0.80 (underestimate sức tấn công — overestimate khả năng của gate/consensus); (iii) `c4` dự báo "≈0.00 cấu trúc" → thật 0.0817 ≈ mức may rủi (có ~10% key hai phase tình cờ trùng giá trị trong ε). **Không ngưỡng nào bị sửa sau khi thấy số.**
+
+**Findings — prefix `F-I` (integration):**
+
+| ID | Finding | Bằng chứng | Confidence |
+|---|---|---|---|
+| **F-I01** | **6 cơ chế chạy đồng thời được, 5/6 module pass ngay lần đầu** — không cần sửa ngưỡng | E1 `0.9850/1.0000/0.8779` · E2 `0.9475/0.8995` · E4 `0.2582` · E5 `0.0491/0.9672` · E6 `0.800/0.000` — pre-registered §18.2, 5 seeds | cao — số đo trực tiếp, ngưỡng viết trước |
+| **F-I02** | **C1 GIẢI QUYẾT: nén theo đồng thuận không phá citation** — nén *record trùng lặp* (khác F-J05 khi record không trùng) | `storage 0.2582 ≤ 0.40` mà `cur/hist` giữ nguyên — scaffold gộp record cùng giá trị trong ε=0.05 nên mọi truy vấn vẫn trả lời được từ ngữ nghĩa đã gộp | cao — 5 seeds, gate giữ nguyên |
+| **F-I03** | **C2 THẤT MỘT NỬA: sweep + không xóa bảo toàn lịch sử nhưng thích nghi CHẬM hơn dự báo** — answer inertia: cluster cũ size 3 thắng cluster mới size 2 | `sweep` chỉ cycle 4 (`0.5227`), `hist6 0.9050 ≥ 0.80` ✓ **nhưng** `c5 = 0.1133` (≈ may rủi 0.0975), chỉ hòa size ở cycle 6 → `c6 0.9517` → **E3 FAIL**; dự báo "phục hồi cycle 5" SAI (thật = 3 chu kỳ) | cao — tái lập trên mọi seed (per-cycle seed0: `0.9617/0.0817/0.1133/0.9517`), metric bug đã tách riêng §18.4.3 |
+| **F-I04** | **C3 (xung đột mới, đo được 2 chiều): một luật thứ tự hóa phục vụ 2 mục tiêu trái chiều** — *chống đầu độc* cần `size-first`, *thích nghi* cần `recency-first` | Cùng luật `(size, t_last)`: (a) `spread30`/`single60` aware **thua** vì cluster bait size < clean → gate+consensus đủ; (b) nhưng `c5` **fail** vì cluster mới < cluster cũ → inertia; (c) tấn công thắng lớn nhất = **thổi phỒng cluster cũ** (bait lọt cluster phase-1 → size 4 > 3) → unaware thắng 3/5, `winrate(a) 0.80` vs dự báo 0.30 | cao — cơ chế truy được tới từng con số, cả 3 hiện tượng cùng 1 luật |
+| **F-I05** | **Verifier 2 lớp chặn 100% nhưng trigger coarse (kéo dài F-V03)** | `winrate(c) = 0.000/10` (gap 0.80) — nhưng `audit` trigger ở **cả 10/10 run**, kể cả attack thất bại: stuck-key ≈ 4.8% luôn lệch snapshot → circuit-breaker mạnh, false-incident cả khi không có attack → cần trigger phân biệt attack/anomaly | trung bình-cao — observation trực tiếp từ summary.json (`audit: true` mọi dòng layer c); chưa test cost false-positive theo thời gian |
+| **F-I06** | **Pre-register + dự báo viết trước cho TÁCH metric-bug khỏi mechanism-fail trong đối chiếu 1 lần chạy** | `c3` v1 = 0.0783 (so ground truth sai phase) vs `hist c3` cùng pipeline = 0.962 → đủ bằng chứng kết luận bug đo; sửa → `c3 0.9617` PASS mà **E3 vẫn FAIL** do `c5` (cơ chế) — không lẫn lộn, không sửa ngưỡng | cao — cả 2 số đều nằm trong artifacts v1/v2 |

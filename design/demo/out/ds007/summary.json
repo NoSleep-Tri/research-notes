@@ -1,0 +1,344 @@
+{
+ "config": {
+  "N_KEY": 600,
+  "CYCLES": 6,
+  "GATE_DELTA": 0.3,
+  "DETECT_THR": 0.4,
+  "EPS": 0.05,
+  "MIN_SIZE": 2,
+  "Q_SEED": 20261010,
+  "HONEST_SEEDS": [
+   0,
+   1,
+   2,
+   3,
+   4
+  ]
+ },
+ "avg": {
+  "cur_acc": 0.9475,
+  "hist_acc": 0.8995000000000001,
+  "answer_coverage": 0.9671666666666667,
+  "ece": 0.04908333333333333,
+  "clean_accept": 0.985,
+  "noise_reject": 1.0,
+  "coverage": 0.8778703703703703,
+  "storage_ratio": 0.25821239715356964
+ },
+ "per_cycle_seed0": {
+  "cur": [
+   0.0,
+   0.9616666666666667,
+   0.9616666666666667,
+   0.08166666666666667,
+   0.11333333333333333,
+   0.9516666666666667
+  ],
+  "hist": [
+   0.0,
+   0.9616666666666667,
+   0.9616666666666667,
+   0.91,
+   0.905,
+   0.905
+  ]
+ },
+ "e3_cycle4_report_only": 0.08166666666666667,
+ "per_seed": [
+  {
+   "cur_acc": 0.945,
+   "hist_acc": 0.9125,
+   "answer_coverage": 0.9708333333333333,
+   "ece": 0.04888888888888889,
+   "clean_accept": 0.9877777777777778,
+   "noise_reject": 1.0,
+   "coverage": 0.8803240740740741,
+   "n_accepted": 3803,
+   "sweep_cycles": [
+    4
+   ],
+   "ratios": [
+    0.0879,
+    0.1212,
+    0.1227,
+    0.5227,
+    0.1197,
+    0.1182
+   ],
+   "n_pending_end": 157,
+   "storage_ratio": 0.2577701814357086,
+   "seed": 0
+  },
+  {
+   "cur_acc": 0.96375,
+   "hist_acc": 0.865,
+   "answer_coverage": 0.9566666666666667,
+   "ece": 0.042916666666666665,
+   "clean_accept": 0.9888888888888889,
+   "noise_reject": 1.0,
+   "coverage": 0.88125,
+   "n_accepted": 3807,
+   "sweep_cycles": [
+    4
+   ],
+   "ratios": [
+    0.0909,
+    0.1288,
+    0.1288,
+    0.4652,
+    0.1167,
+    0.1152
+   ],
+   "n_pending_end": 153,
+   "storage_ratio": 0.2576044129235619,
+   "seed": 1
+  },
+  {
+   "cur_acc": 0.9375,
+   "hist_acc": 0.9275,
+   "answer_coverage": 0.9766666666666667,
+   "ece": 0.053611111111111116,
+   "clean_accept": 0.9822222222222222,
+   "noise_reject": 1.0,
+   "coverage": 0.8752314814814814,
+   "n_accepted": 3781,
+   "sweep_cycles": [
+    4
+   ],
+   "ratios": [
+    0.0848,
+    0.1258,
+    0.1258,
+    0.4909,
+    0.1333,
+    0.1379
+   ],
+   "n_pending_end": 179,
+   "storage_ratio": 0.2586881777307591,
+   "seed": 2
+  },
+  {
+   "cur_acc": 0.94625,
+   "hist_acc": 0.8775,
+   "answer_coverage": 0.9591666666666666,
+   "ece": 0.05430555555555556,
+   "clean_accept": 0.9838888888888889,
+   "noise_reject": 1.0,
+   "coverage": 0.8768518518518519,
+   "n_accepted": 3788,
+   "sweep_cycles": [
+    4
+   ],
+   "ratios": [
+    0.0894,
+    0.1364,
+    0.1318,
+    0.503,
+    0.1303,
+    0.1303
+   ],
+   "n_pending_end": 172,
+   "storage_ratio": 0.2583949313621964,
+   "seed": 3
+  },
+  {
+   "cur_acc": 0.945,
+   "hist_acc": 0.915,
+   "answer_coverage": 0.9725,
+   "ece": 0.04569444444444445,
+   "clean_accept": 0.9822222222222222,
+   "noise_reject": 1.0,
+   "coverage": 0.8756944444444444,
+   "n_accepted": 3783,
+   "sweep_cycles": [
+    4
+   ],
+   "ratios": [
+    0.0894,
+    0.1242,
+    0.1242,
+    0.4606,
+    0.1333,
+    0.1348
+   ],
+   "n_pending_end": 177,
+   "storage_ratio": 0.2586042823156225,
+   "seed": 4
+  }
+ ],
+ "attacks": [
+  {
+   "strategy": "tie20",
+   "aware": true,
+   "layer": "a",
+   "targeted_acc": 0.05,
+   "win": true,
+   "audit": false
+  },
+  {
+   "strategy": "tie20",
+   "aware": true,
+   "layer": "c",
+   "targeted_acc": 1.0,
+   "win": false,
+   "audit": true
+  },
+  {
+   "strategy": "tie20",
+   "aware": false,
+   "layer": "a",
+   "targeted_acc": 0.85,
+   "win": true,
+   "audit": false
+  },
+  {
+   "strategy": "tie20",
+   "aware": false,
+   "layer": "c",
+   "targeted_acc": 1.0,
+   "win": false,
+   "audit": true
+  },
+  {
+   "strategy": "swarm10",
+   "aware": true,
+   "layer": "a",
+   "targeted_acc": 0.0,
+   "win": true,
+   "audit": false
+  },
+  {
+   "strategy": "swarm10",
+   "aware": true,
+   "layer": "c",
+   "targeted_acc": 1.0,
+   "win": false,
+   "audit": true
+  },
+  {
+   "strategy": "swarm10",
+   "aware": false,
+   "layer": "a",
+   "targeted_acc": 0.7,
+   "win": true,
+   "audit": false
+  },
+  {
+   "strategy": "swarm10",
+   "aware": false,
+   "layer": "c",
+   "targeted_acc": 1.0,
+   "win": false,
+   "audit": true
+  },
+  {
+   "strategy": "drift15",
+   "aware": true,
+   "layer": "a",
+   "targeted_acc": 0.06666666666666667,
+   "win": true,
+   "audit": false
+  },
+  {
+   "strategy": "drift15",
+   "aware": true,
+   "layer": "c",
+   "targeted_acc": 1.0,
+   "win": false,
+   "audit": true
+  },
+  {
+   "strategy": "drift15",
+   "aware": false,
+   "layer": "a",
+   "targeted_acc": 1.0,
+   "win": false,
+   "audit": false
+  },
+  {
+   "strategy": "drift15",
+   "aware": false,
+   "layer": "c",
+   "targeted_acc": 1.0,
+   "win": false,
+   "audit": true
+  },
+  {
+   "strategy": "spread30",
+   "aware": true,
+   "layer": "a",
+   "targeted_acc": 0.8,
+   "win": true,
+   "audit": false
+  },
+  {
+   "strategy": "spread30",
+   "aware": true,
+   "layer": "c",
+   "targeted_acc": 1.0,
+   "win": false,
+   "audit": true
+  },
+  {
+   "strategy": "spread30",
+   "aware": false,
+   "layer": "a",
+   "targeted_acc": 0.9,
+   "win": false,
+   "audit": false
+  },
+  {
+   "strategy": "spread30",
+   "aware": false,
+   "layer": "c",
+   "targeted_acc": 1.0,
+   "win": false,
+   "audit": true
+  },
+  {
+   "strategy": "single60",
+   "aware": true,
+   "layer": "a",
+   "targeted_acc": 0.8166666666666667,
+   "win": true,
+   "audit": false
+  },
+  {
+   "strategy": "single60",
+   "aware": true,
+   "layer": "c",
+   "targeted_acc": 1.0,
+   "win": false,
+   "audit": true
+  },
+  {
+   "strategy": "single60",
+   "aware": false,
+   "layer": "a",
+   "targeted_acc": 0.8666666666666667,
+   "win": true,
+   "audit": false
+  },
+  {
+   "strategy": "single60",
+   "aware": false,
+   "layer": "c",
+   "targeted_acc": 1.0,
+   "win": false,
+   "audit": true
+  }
+ ],
+ "winrate_a": 0.8,
+ "winrate_c": 0.0,
+ "winrate_a_aware": 1.0,
+ "winrate_a_unaware": 0.6,
+ "kpi": "5/6",
+ "checks": {
+  "E1": true,
+  "E2": true,
+  "E3": false,
+  "E4": true,
+  "E5": true,
+  "E6": true
+ }
+}

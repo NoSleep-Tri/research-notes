@@ -1,0 +1,14 @@
+DS-007 SAGE v0.3 — KPI (pre-registered §18.2, commits dda1c65+84570aa)
+honest seeds=[0, 1, 2, 3, 4] query_seed=20261010 attack_seed=0
+
+E1 gating (>=0.90/>=0.90/0.60-1.00): clean_accept=0.9850 noise_reject=1.0000 coverage=0.8779 -> PASS
+E2 memory (>=0.90/>=0.80):            cur_acc=0.9475 hist_acc=0.8995 -> PASS
+E3 phase (c3/c5/c6>=0.90, hist>=0.80): c3=0.9617 c4=0.0817(REPORT-ONLY) c5=0.1133 c6=0.9517 hist6=0.9050 -> FAIL
+E4 compaction (<=0.40, acc>=0.90/0.80): storage_ratio=0.2582 cur=0.9475 hist=0.8995 -> PASS
+E5 calibration (<=0.10 / >=0.90):     ece=0.0491 answer_coverage=0.9672 -> PASS
+E6 red-team (>=0.25/<=0.10/gap>=0.20/acc>=0.90): win_a=0.800 win_c=0.000 gap=0.800 honest_acc=0.9475 -> PASS
+
+KPI: 5/6 SEE §18.5
+winrate(a) aware=1.000 unaware=0.600 | sweep_cycles(seed0)=[4] | ratios=[0.0879, 0.1212, 0.1227, 0.5227, 0.1197, 0.1182]
+predicted vs observed (non-gating): cur_acc 0.95/0.95, hist_acc 1.00/0.90, storage_ratio 0.26/0.26, ece 0.03/0.05, clean_accept 0.98/0.98, noise_reject 1.00/1.00, coverage 0.88/0.88, answer_coverage 1.00/0.97, winrate_a 0.30/0.80, winrate_c 0.00/0.00
+pending_end(seed0)=157 n_accepted(seed0)=3803
