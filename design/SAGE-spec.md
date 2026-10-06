@@ -697,7 +697,7 @@ _Chưa có thay đổi nào (chưa chạy lần nào — §17 viết trước kh
 - **Stream**: `N_KEY = 600`, `CYCLES = 6`, **đổi phase sau cycle 3** (cycle 4–6 = phase 2; true value mọi key tái sinh). Mỗi cycle, trộn thứ tự:
   - **600 clean** (100% key, trusted, `value = true ± 0.01`) · **60 noise** (untrusted, `U(0,1)`) · **60 ambient-bait** (trusted, lệch `±U(0.40,0.60)` khỏi true, hướng giữ trong `[0,1]`).
 - **Write gate (DS-001)**: (i) untrusted → reject · (ii) key chưa có current → accept · (iii) `|value − current| > 0.30` → **pending**.
-- **Detector phase (DS-002 — chống C2)**: cuối cycle, nếu `blocked_trusted / incoming_trusted > 0.40` → **sweep**: xóa toàn bộ current pointer (**không đụng kho**) + re-gate mọi pending theo thứ tự thời gian. Dự báo: chỉ cycle 4 kích hoạt (`≈0.54`), cycle khác `≤0.09`.
+- **Detector phase (DS-002 — chống C2)**: cuối cycle, nếu `blocked_trusted / incoming_trusted > 0.40` → **sweep**: xóa toàn bộ current pointer (**không đụng kho**) + **bypass consistency một lần, re-admit toàn bộ pending** (trusted) → `current[key] = record accepted có t lớn nhất`. Dự báo: chỉ cycle 4 kích hoạt (`≈0.54`), cycle khác `≤0.14`.
 - **Memory (DS-006)**: cold append-only mọi accepted record · citation `key → [(t, id)]`.
 - **Consensus-cluster = nén kiểu DS-004 nhưng gộp theo đồng thuận (đáp C1)**: gom accepted record theo giá trị (`ε = 0.05`, greedy) · cluster hợp lệ nếu `size ≥ 2` · chọn cluster theo **(size desc, t_last desc)** · scaffold = **1 record/key** chứa cluster hợp lệ · stub mọi raw record = `0.1`.
 - **Trả lời**: `t_q = 7.0` (current) · `t_q = 4.0` (historical, biên phase) → chọn cluster hợp lệ `t_last ≤ t_q` lớn nhất; không có → `unknown` (sai).
@@ -718,7 +718,7 @@ _Chưa có thay đổi nào (chưa chạy lần nào — §17 viết trước kh
   - **Attack thắng** nếu `acc` trên **key bị tấn công** ` < 0.90`.
   - **Lớp (a)**: chỉ pipeline tích hợp. **Lớp (c)**: (a) + **verifier ngoài vòng lặp**: sau cycle 5 và cycle 6, đọc độc lập `200/600` key, so `chosen-cur` vs true (±0.05); phát hiện ≥1 lệch → **audit toàn bộ** → câu trả lời current tính từ snapshot đọc độc lập (circuit breaker).
 
-**Kỳ vọng viết trước** (không ràng buộc KPI): `cur_acc(honest) ≈ 0.95` · `hist_acc ≈ 0.95` (stuck-key cycles 1–3 không có phase-1 cluster) · `storage_ratio ≈ 0.27` · `ECE ≈ 0.03–0.05` · `clean_accept ≈ 0.98` · `noise_reject = 1.00` · `coverage ≈ 0.86` · **C1**: scaffold gộp record trùng → storage `≤0.40` mà acc không đổi · **C2**: sweep chỉ xóa pointer → `hist ≥0.80`, phục hồi ≤ 2 cycle · `winrate(a) ≈ 0.30` (`aware` thắng 3/5: `tie20`/`swarm10`/`drift15`, thua `spread30`/`single60`; `unaware` 0/5) · `winrate(c) ≈ 0.00`.
+**Kỳ vọng viết trước** (không ràng buộc KPI): `cur_acc(honest) ≈ 0.95` · `hist_acc ≈ 1.00` (sweep bypass-admit → mọi key có phase-1 cluster; dự báo ban đầu `0.95` ở `dda1c65` dựa trên quy tắc sweep cũ — nếu lệch sẽ ghi ở §18.5) · `storage_ratio ≈ 0.26` · `ECE ≈ 0.03` · `clean_accept ≈ 0.98` · `noise_reject = 1.00` · `coverage ≈ 0.88` · `answer_coverage = 1.00` · `cur_acc(cycle 4) ≈ 0.00` (dự báo cấu trúc, không gate) · **C1**: scaffold gộp record trùng → storage `≤0.40` mà acc không đổi · **C2**: sweep chỉ xóa pointer → `hist ≥0.80`, phục hồi đầy đủ ở cycle 5 · `winrate(a) ≈ 0.30` (`aware` thắng 3/5: `tie20`/`swarm10`/`drift15`, thua `spread30`/`single60`; `unaware` 0/5) · `winrate(c) ≈ 0.00`.
 
 ### 18.2 Acceptance (ngưỡng pre-registered)
 
@@ -726,7 +726,7 @@ _Chưa có thay đổi nào (chưa chạy lần nào — §17 viết trước kh
 |---|---|---|---|
 | **E1** | **Gate chống skip-all + chống đầu độc** (DS-001, học D9) | honest, tổng 6 cycle | `clean_accept ≥ 0.90` · `noise_reject ≥ 0.90` · `coverage ∈ [0.60, 1.00]` |
 | **E2** | **Trả lời đúng hiện tại & lịch sử** (DS-006) | honest, state cuối | `cur_acc ≥ 0.90` · `hist_acc ≥ 0.80` |
-| **E3** | **Đổi phase → thích nghi mà không mất lịch sử** (C2: DS-002 ↔ DS-006) | honest, theo cycle | `cur_acc(cycle 3) ≥ 0.90` ∧ `cur_acc(cycle 4) ≥ 0.90` ∧ `cur_acc(cycle 5) ≥ 0.90` ∧ `hist_acc ≥ 0.80` (cycle 6) |
+| **E3** | **Đổi phase → thích nghi mà không mất lịch sử** (C2: DS-002 ↔ DS-006) | honest, theo cycle | `cur_acc(cycle 3) ≥ 0.90` ∧ `cur_acc(cycle 5) ≥ 0.90` ∧ `cur_acc(cycle 6) ≥ 0.90` ∧ `hist_acc ≥ 0.80` (cycle 6) — `cur_acc(cycle 4)` **được đo và báo cáo nhưng KHÔNG gate** (xem change-log §18.4.1: consensus `size ≥ 2` ⇒ cycle đầu sau đổi phase chỉ có 1 quan sát/key → cluster đơn lẻ, acc ≈ 0 **bắt buộc về cấu trúc**, không phải kết quả thực nghiệm) |
 | **E4** | **Nén kho không phá citation** (C1: DS-004 ↔ DS-006) | honest, sau nén | `storage_ratio ≤ 0.40` ∧ `cur_acc ≥ 0.90` ∧ `hist_acc ≥ 0.80` (tính trên scaffold) |
 | **E5** | **Calibration thật + không answer-skip** (DS-003) | honest | `ECE ≤ 0.10` · `answer_coverage ≥ 0.90` |
 | **E6** | **Red-team 2 lớp chặn được attacker** (DS-005 + F-P04) | 20 run attack | `winrate(a) ≥ 0.25` · `winrate(c) ≤ 0.10` · `gap ≥ 0.20` · `honest_acc ≥ 0.90` |
@@ -754,7 +754,11 @@ _Chưa có thay đổi nào (chưa chạy lần nào — §17 viết trước kh
 
 ### 18.4 Change-log
 
-_Chưa có thay đổi nào (§18 viết trước khi code tồn tại — commit pre-registration sẽ ghi ở đây)._
+0. **Commit pre-registration `dda1c65`** (2026-10-06): §18 nguyên bản tồn tại **trước khi có bất kỳ dòng code nào** — mốc để đối chiếu mọi sửa sau.
+1. **[TRƯỚC KHI CODE TỒN TẠI — 2026-10-06]** Sửa §18.2 E3: bỏ gate `cur_acc(cycle 4) ≥ 0.90`, gate `cycle 5 ∧ cycle 6` thay thế; `cycle 4` đo + báo cáo không gate. **Lý do** (dry-run lý luận, chưa có số liệu): consensus `size ≥ 2` ⇒ cycle 4 (cycle đầu sau đổi phase) mỗi key chỉ có 1 quan sát phase-2 → cluster đơn lẻ → không hợp lệ → `acc(cycle 4) ≈ 0` **bắt buộc về cấu trúc**. Bảng E3 nguyên bản còn **mâu thuẫn với chính §18.1** đã ghi trước "phục hồi ≤ 2 cycle". Đây là **lỗi nội bộ pre-registration**, không phải kết quả thực nghiệm. Claim C2 giữ nguyên: baseline cycle3, phục hồi đầy đủ cycle5–cycle6 (2 quan sát = ≤2 cycle), hist không mất. Original giữ ở `dda1c65`.
+2. **[TRƯỚC KHI CODE TỒN TẠI — 2026-10-06]** Sửa §18.1 quy tắc sweep: "re-gate pending theo t order" → "bypass consistency một lần + `current` = record accepted có t lớn nhất". **Lý do** (dry-run lý luận): re-gate theo t-order khiến bait cũ (t nhỏ, cycle 1–3) chen vào **trước** clean cycle 4 → clean4 bị `|Δ| > 0.30` chặn lại → ~85 key chết oan → E2/E3 fail do **bug thiết kế**, không phải phát hiện khoa học. Quy tắc mới giữ nguyên tinh thần "sweep = ức chế, không xóa kho". Original giữ ở `dda1c65`.
+
+_Chưa có số liệu nào tồn tại tại thời điểm cả 2 sửa đổi này — nếu sau khi chạy cần sửa thêm, mọi entry mới phải kèm số liệu thật._
 
 ### 18.5 Kết quả
 
