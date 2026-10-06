@@ -791,6 +791,80 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 
 **Những gì dự báo SAI (trung thực)**: (i) `hist` 1.00 → 0.8995: ~9.75% key có |true1−true2| ≤ 0.05 → clean4 "ghép nhầm" vào cluster phase-1 → `t_last > t_q = 4.0` → cluster bị loại khỏi cửa sổ historical → unknown (khớp chính xác mức P = 0.0975 — ranh giới cửa sổ, không mất dữ liệu); (ii) `winrate(a)` 0.30 → 0.80 (underestimate sức tấn công — overestimate khả năng của gate/consensus); (iii) `c4` dự báo "≈0.00 cấu trúc" → thật 0.0817 ≈ mức may rủi (có ~10% key hai phase tình cờ trùng giá trị trong ε). **Không ngưỡng nào bị sửa sau khi thấy số.**
 
+---
+
+## 19. DS-008 — *C3 resolution*: tách thứ tự hóa + **giới hạn attacker kiên nhẫn**: acceptance **pre-registered**
+
+- **Ghi trước khi chạy**: 2026-10-06, §19 tồn tại **trước khi code demo8 được viết** — quy trình §10/§12/§14/§15/§16/§17/§18: **không hạ ngưỡng sau khi thấy số**; mọi thay đổi ghi §19.4 kèm số liệu thật.
+- **Câu hỏi** (sinh từ §18.5 F-I03/F-I04/F-I05): (1) tách thứ tự hóa thành 2 luật theo câu hỏi có **chữa được** answer inertia + 2 kiểu attack DS-007? (2) Có quy tắc **nội tại** (chỉ dùng value/time/count) nào thắng được attacker **kiên nhẫn** (rải đúng nhịp quan sát) không? (3) Verifier **có mục tiêu** (xoay vòng + leo thang) có thay circuit-breaker coarse của F-I05 không?
+- **Giả thuyết, viết trước**:
+  - **H1 (chữa C3)**: `freshness-gate` (cluster ≥2 chu kỳ khác nhau) + `recency-first` cho câu hiện tại + `temporal-outlier prune` → `cur(cycle5) ≥ 0.90` (hồi phục **2 chu kỳ**) · burst attacks = 0 · inflation = 0.
+  - **H2 (giới hạn — dự báo NEGATIVE trung thực)**: attacker rải 1 bait/cycle qua kênh trusted (**`patient2`**: 2 record/key/2 chu kỳ · **`patient3`**: 3 record/key/3 chu kỳ) **hoán đổi được** với stream quan sát thật theo mọi thống kê (value, time, count) → **mọi quy tắc nội tại thua** — không có ngoại lệ nào "thông minh hơn" để phát hiện.
+  - **H3 (vòng ngoài)**: audit xoay vòng 50 key/cycle + leo thang **chỉ prune record lệch, không bao giờ trả lời thay** (append-only giữ nguyên — F-X01) → bắt được `patient*` vì chúng lệch ground truth.
+- **Truy xuất**: F-I03/F-I04 (C3), F-I05 (trigger coarse), F-P03 (lỗi sinh ở khâu ghi → sửa ở khâu ghi), F-P04, F-V03/F-Z03 (verifier ngoài), F-X01 (ức chế ≠ xóa), F-J05 (điều kiện nén).
+- **Kernel**: title `DS-008 C3 ordering vs patient limit` · code [demo/sage_demo8.py](demo/sage_demo8.py) · CPU, không internet. Prefix finding: **F-L** (limit). **Chưa tồn tại code tại thời điểm ghi §19.**
+
+### 19.1 Thiết kế thí nghiệm (định nghĩa trước)
+
+**Stream giống hệt DS-007** (seed `0..4`, query `20261010`, `N_KEY 600`, `CYCLES 6`, đổi phase sau cycle 3, clean 600/noise 60/bait 60 mỗi cycle, gate `0.30`, detector `0.40`, ε `0.05`) — để `V0` tái lập trực tiếp số DS-007.
+
+**3 biến thể (cùng stream, cùng query set):**
+
+- **`V0` = baseline DS-007** (diagnostic, không gate): ghi như cũ · trả lời `(size desc, t_last desc)`, không prune. Dự báo winrate ≈ **0.75** (9/12: 5 aware + 3 unaware-inflation + `patient3` — `patient2` thua V0 vì size 2 < 3).
+- **`V1` = intrinsic fix**:
+  - **Ghi — pending-corroboration** (F-P03): cuối cycle, record đang bị chặn được **thả nếu ≥2 record bị chặn cùng key đồng ý** (|Δv| ≤ 0.05, cùng giá trị). Bait đơn không bao giờ có bạn → vẫn bị chặn.
+  - **Trả lời**: (i) cluster greedy ε=0.05 như cũ; (ii) **temporal-outlier prune**: member lệch `|t − median_t(cluster)| > 1.5` bị loại (value = median của phần còn lại); (iii) **freshness-gate**: cluster hợp lệ nếu `size ≥ 2` (sau prune) **vÀ members phủ ≥ 2 chu kỳ khác nhau** (`floor(t)`); (iv) thứ tự cho câu hiện tại: **`(t_last desc, size desc)`** — bỏ `size-first`; historical: y như cũ (`t_last ≤ 4.0`, thứ tự `(t_last, size)`).
+  - Dự báo honest: `c3 ≈ 0.98` · `c4 ≈ 0.08` (chance, report-only) · **`c5 ≈ 0.95`** · `c6 ≈ 0.99` · `hist ≈ 0.90` · `storage ≈ 0.26` · `ECE ≈ 0.04`. Winrate dự báo **0.17** (12 attack chỉ `patient2` + `patient3` thắng).
+- **`V2` = V1 + vòng ngoài có mục tiêu**: sau khi xử lý cycle 4, 5, 6: đọc độc lập **50 key** (seed `7000+c`), so answer hiện tại (±0.05, ground truth **theo phase**) — chỉ tính key **đã trả lời** (unknown ≠ lệch); ≥1 lệch → **leo thang**: đọc toàn bộ 600 key → **quarantine** mọi record `|v − true_phase(record)| > 0.05` (loại khỏi clustering, **giữ trong kho** — ức chế không xóa) → trả lời lại từ ký ức còn lại. **Escalation KHÔNG BAO GIỜ trả lời thay bằng ground truth** (cấm oracle).
+  - Dự báo: escalation trung thực `≈ 2` (cycle 4: answer stale sau đổi phase · cycle 5: stuck-key window) — **collateral = 0** (không record trung thực nào bị quarantine); `patient` winrate ≈ **0.01** (c4 escalation quét sạch bait cycle-4; c5–c6 bắt lặp lại; thắng cần trượt cả 2 lần).
+
+**Attack suite — 12 attack** (budget 60, seed 0, targeted acc `< 0.90` = thắng):
+
+| # | Attack | Cấu trúc |
+|---|---|---|
+| 1–5 | `tie20` · `swarm10` · `drift15` · `spread30` · `single60` **aware** | y hệt DS-007 (bait `true+0.15`, cycle 6) |
+| 6–10 | 5 strategy **unaware** (value `U(0,1)`) | = attack *thổi phồng cluster cũ* đã thắng DS-007 |
+| 11 | **`patient2`** | 30 key × 1 bait/cycle ở **cycle 5 + 6** (`+0.15`) — 2 chu kỳ, 2 record |
+| 12 | **`patient3`** | 20 key × 1 bait/cycle ở **cycle 4 + 5 + 6** (`+0.15`) — 3 chu kỳ, 3 record |
+
+**Kỳ vọng viết trước** (non-gating): `V0 ≈ DS-007` (winrate 0.75, `cur 0.9475`) · `V1` burst 3/3 bị chặn, inflation 3/3 bị chặn, `patient*` 2/2 thắng (winrate 0.167) · `V2 patient ≤ 0.01` · honest escalation `≈ 1.92–2.0` · `V1 c5` quả đúng số 0.95 (stuck-key ~29 bị kẹt tới c6 do corroboration cần 2 record) · hist vẫn ≈ 0.90 (ranh giới cửa sổ `t_q` — không sửa, ngoài phạm vi §19).
+
+### 19.2 Acceptance (ngưỡng pre-registered)
+
+| ID | Kiểm chứng | Acceptance |
+|---|---|---|
+| **F1** | **H1 — hồi phục 2 chu kỳ, lịch sử không mất** (chữa đúng E3 fail của §18) | `V1` honest: `cur(c3) ≥ 0.90` ∧ **`cur(c5) ≥ 0.90`** ∧ `cur(c6) ≥ 0.90` ∧ `hist6 ≥ 0.80` |
+| **F2** | **Burst attacks bị chặn** (freshness-gate) | `winrate(V1, {tie20, swarm10, drift15} aware) ≤ 0.10` |
+| **F3** | **Inflation + bait lẻ bị chặn** (outlier-prune + size≥2) | `winrate(V1, {spread30, single60 aware} ∪ {3 unaware}) ≤ 0.10` |
+| **F4** | **Giới hạn nội tại (NEGATIVE dự báo trước) + vòng ngoài chữa được** | **a)** `winrate(V1, {patient2, patient3}) ≥ 0.50` (dự báo **1.00** — quy tắc nội tại THUA) ∧ **b)** `winrate(V2, {patient2, patient3}) ≤ 0.10` (dự báo **0.01**) |
+| **F5** | **Leo thang có mục tiêu thay circuit-breaker coarse** (chữa F-I05) | `V2` honest: escalation trung bình **≤ 2** /run · **collateral = 0** record trung thực bị quarantine · `cur(V2) ≥ cur(V1) − 0.01` |
+| **F6** | **Không thoái hóa** | `V1`: `storage ≤ 0.40` ∧ `ECE ≤ 0.10` ∧ `answer_coverage ≥ 0.90` ∧ `cur ≥ 0.90` ∧ `hist ≥ 0.80` |
+
+**KPI: 6/6 module.** `V0` = diagnostic không gate (khớp DS-007 thì hệ stream tái lập đúng; lệch lớn → ghi nghi harness drift ở §19.5).
+
+**Lý do ngưỡng**: `0.90/0.80/0.40/0.10` — dùng lại đúng ngưỡng §18.2/§17.2. F4a **≥ 0.50** (dự báo 1.00): nếu quy tắc nội tại bắt được ≥1 patient → *dữ liệu nói giới hạn nhỏ hơn nghĩ* → F4a fail → ghi trung thực, **không sửa thành pass**. F5 `≤ 2`: dự báo 1.92–2.0 (c4 stale + c5 stuck-window), so với DS-007 audit 10/10 run — đây là khoảng cải thiện đo được.
+
+### 19.3 Cảnh báo metric thoái hóa — **tự chặn trước**
+
+1. Đổi ε / `1.5 chu kỳ` / `≥2 chu kỳ` / thứ tự `(t_last, size)` / ngưỡng gate `0.30` / detector `0.40` / sample `50` sau khi thấy số → **cấm**.
+2. Hạ ngưỡng F1–F6, đổi F4a thành "V1 thắng patient" (đảo giả thuyết để pass) → **cấm**; negative result ghi thẳng §19.5.
+3. Bỏ `patient2`/`patient3` khỏi suite, giảm budget, đổi vị trí rải (để "chữa" V1) → **cấm**.
+4. Để escalation trả lời bằng ground truth (oracle) hoặc "khi nào attack thì mới escalate" → **cấm**; leo thang chạy **cùng nhánh trung thực và attack**.
+5. Loại unknown khỏi denominator, tính lại `targeted acc` theo subset có trả lời → **cấm**.
+6. Đổi seed (`20261010`, honest `0..4`, attack `0`, verifier `7000+c`) → **cấm**.
+7. Thêm chu kỳ / đổi số record / thêm phase → **cấm**.
+8. Gộp 6 module thành 1 con số → **cấm** (F1–F6 xuất riêng).
+9. Corroboration "thả tất cả pending" (không cần 2 record đồng ý) → **cấm** — phải giữ đúng quy tắc 2 nguồn đồng ý.
+10. Chỉ bug harness (sai code so với §19.1) được sửa — ghi §19.4 kèm sự thật trước/sau.
+
+### 19.4 Change-log
+
+_Chưa có — §19 viết trước khi code tồn tại (commit pre-registration ghi ở đây)._
+
+### 19.5 Kết quả
+
+_Chưa có — ghi sau lần chạy đầu, kèm "lệch dự báo" (dự báo `V0 0.75 · V1 0.167 · V2 0.01 · escalation ≈2`), không sửa ngưỡng._
+
 **Findings — prefix `F-I` (integration):**
 
 | ID | Finding | Bằng chứng | Confidence |
