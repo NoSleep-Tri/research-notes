@@ -2,7 +2,7 @@
 
 Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có **evidence + confidence**, rồi **thiết kế hệ thống** và **kiểm chứng bằng demo trên Kaggle**.
 
-**Trạng thái**: 16 survey (AN-001 → AN-016, trả lời Q-001 → Q-017 — Q-016 trong AN-015 §7, Q-017 = AN-016) · 288 entity / 390 relation knowledge graph · 11 hệ thống thiết kế, demo **5/5 · 3/3 · 3/3 · 3/3 · 3/3 · 4/4 · 5/6 · 6/6 · 6/6 · 5/6 · 5/6 PASS** (DS-007: E3 = negative finding giữ nguyên · DS-008 + DS-009: 6/6 ngay lần đầu · **DS-010: train smoke GPU — T5 FAIL giữ thật**, T3/T4 PASS sau fix bug OP_RE, ngưỡng không đổi · **DS-011: Answer Agent robustness — experiment cuối, T5 FAIL giữ thật = F-L02 bị bác một phần**, A_mixed `ASR 0.0000` giữ utility).
+**Trạng thái**: 17 survey (AN-001 → AN-017, trả lời Q-001 → Q-018 — Q-016 trong AN-015 §7, Q-017 = AN-016) · 288 entity / 390 relation knowledge graph · 11 hệ thống thiết kế, demo **5/5 · 3/3 · 3/3 · 3/3 · 3/3 · 4/4 · 5/6 · 6/6 · 6/6 · 5/6 · 5/6 PASS** (DS-007: E3 = negative finding giữ nguyên · DS-008 + DS-009: 6/6 ngay lần đầu · **DS-010: train smoke GPU — T5 FAIL giữ thật**, T3/T4 PASS sau fix bug OP_RE, ngưỡng không đổi · **DS-011: Answer Agent robustness — experiment cuối, T5 FAIL giữ thật = F-L02 bị bác một phần**, A_mixed `ASR 0.0000` giữ utility).
 
 ## Chỉ mục
 
@@ -27,10 +27,11 @@ Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có *
 | **Q-015** | **Huấn luyện agent có bộ nhớ** | [surveys/training-data-for-memory-agents.md](surveys/training-data-for-memory-agents.md) | Dữ liệu **3 lớp** (QA+bank 152 cặp · trajectory+reward · data tự sinh); đầu ra = **thao tác ground truth + answer**; rule-based vượt trained (76.9% vs 61–70.5%); chống quên = chọn data + replay |
 | **Q-016** | **Đủ điều kiện train chưa?** | [surveys/training-data-for-memory-agents.md](surveys/training-data-for-memory-agents.md) §7 | **Đủ cho thí nghiệm nhỏ** (method + reward + data + GPU 30h/tuần); thiếu engineering + 3 thí nghiệm |
 | **Q-017** | **Chuẩn bị train thật** | [surveys/first-training-run-readiness.md](surveys/first-training-run-readiness.md) | **F-W05: đủ tài liệu 8/8** (method+reward+data+model+scale+tooling+quota+failure playbook); thiếu runtime state → pre-run smoke |
+| **Q-018** | **Tạo model AI từ đầu** | [surveys/building-ai-models.md](surveys/building-ai-models.md) | Recipe mở đã rẻ ~2 magnitudes ($6.9K/1.5B, $286/151M); đòn bẩy **data ≥ kiến trúc > optimizer > init**; T4 hợp lý ở **10–100M + 1–12B token** |
 
 ### Tổng hợp & thiết kế
 
-- [SYNTHESIS.md](SYNTHESIS.md) — 16 survey → **6 chủ đề xuyên suốt** (T1–T6) + ma trận liên thông
+- [SYNTHESIS.md](SYNTHESIS.md) — 17 survey → **6 chủ đề xuyên suốt** (T1–T6) + ma trận liên thông
 - [design/SAGE-spec.md](design/SAGE-spec.md) — **SAGE**: 6 lớp L0–L5, 8 nguyên tắc P1–P8 truy xuất survey; demo **5/5 PASS** (DS-001) + **3/3** (DS-002) + **3/3** (DS-003) + **3/3** (DS-004) + **3/3** (DS-005) + **4/4** (DS-006) + **5/6** (DS-007 — E3 FAIL negative, ngưỡng §18.2 giữ nguyên) + **6/6** (DS-008 — C3 resolution + patient limit, pre-reg §19, lần đầu 6/6 ngay) + **6/6** (DS-009 — training dataset gold-op + round-trip, pre-reg §20, lần đầu 6/6 ngay, dự báo 10/11 khớp) + **5/6** (DS-010 — train smoke SFT+GRPO trên GPU T4, pre-reg §21; `acc_SFT 0.9900` vượt Bar2 `0.9699`, T5 FAIL giữ thật)` + **5/6** (DS-011 — Answer Agent robustness, pre-reg §22; A_mixed `ASR 0.0000` giữ utility = F-T04 ✓, T5 FAIL = F-L02 bác một phần, kênh-lie `ASR 0.7500` marker crowd-out)
 - [backlog.md](backlog.md) · [questions/](questions/) · [templates/](templates/)
 - **Cấu trúc repo**: [questions/](questions/) = **11 file** Q-001 → Q-011 (Q-012 → Q-017 sinh trong backlog, được trả lời trực tiếp trong survey) · [design/](design/) = **1 file spec** `SAGE-spec.md` — **DS-002 → DS-011 không có file riêng mà là các mục §12 → §22** của spec, demo code ở `design/demo/`

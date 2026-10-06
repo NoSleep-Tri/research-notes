@@ -1,4 +1,4 @@
-# SYNTHESIS — Kết hợp 16 survey thành 1 bức tranh, rồi thiết kế hệ thống
+# SYNTHESIS — Kết hợp 17 survey thành 1 bức tranh, rồi thiết kế hệ thống
 
 - **Ngày**: 2026-10-06 · **Phạm vi**: Q-001 → Q-017 + **DS-001 → DS-011** (thiết kế dẫn xuất)
 - **Mục đích**: gom các survey rời thành **chủ đề xuyên suốt**, chỉ ra **ma trận liên thông** và **agenda nghiên cứu tiếp**
@@ -26,6 +26,7 @@
 | **Q-015** | **Huấn luyện agent có bộ nhớ** — dữ liệu gì vào, đầu ra gì? | `surveys/training-data-for-memory-agents.md` | Dữ liệu **3 lớp**: QA+bank (Memory-R1 chỉ cần **152 cặp**) · trajectory+reward · **data tự sinh**; đầu ra = **thao tác có ground truth** (ADD/UPDATE/DELETE/NOOP, SID) + answer; **rule-based vượt trained** (76.9% vs 61–70.5%); chống quên = chọn data + replay, **không phải regularization** | arXiv (~20 paper) + DS-005/007/008 |
 | **Q-016** | **Đủ điều kiện train chưa hay cần nghiên cứu thêm?** (nối Q-015) | `surveys/training-data-for-memory-agents.md` §7 | **Đủ cho thí nghiệm nhỏ** (phương pháp + reward + dữ liệu + GPU 30h/tuần); thiếu engineering + 3 thí nghiệm trước thang lớn | AN-015 §7 + số liệu DS-005/007/008 |
 | **Q-017** | **Chuẩn bị train thật**: model / SFT vs GRPO / compute trên Kaggle? | `surveys/first-training-run-readiness.md` | **F-W05: đủ tài liệu 8/8** (method + reward + data + model family + scale + tooling + quota + failure playbook); thiếu duy nhất = runtime state → pre-run smoke (DS-010) | arXiv (Memory-R1 2508.19828, GRPO+LoRA, OXRL...) + AN-015 |
+| **Q-018** | **Tạo model AI từ đầu** — kiến trúc / dữ liệu / huấn luyện / tinh chỉnh; 1 GPU tạo được gì? | `surveys/building-ai-models.md` | Recipe mở đã rẻ ~2 magnitudes ($6.9K/1.5B, $286/151M); đòn bẩy **data ≥ kiến trúc chuẩn > optimizer > init**; T4 hợp lý ở **10–100M + 1–12B token** (Step Law <59M); seed variance ≈ recipe spread → multi-seed bắt buộc | arXiv (Puro-2B, ufakzeka-1, JugnuLM, FineWeb, Chinchilla, OLMo 2/3...) |
 | **DS-001** | *(thiết kế)* **SAGE** — bộ não biết mình dở ở đâu | `design/SAGE-spec.md` | 6 lớp L0–L5, 8 nguyên tắc P1–P8 truy xuất survey; **demo 5/5 PASS** | Tổng hợp từ Q-001→011 |
 | **DS-002** | *(mở rộng)* **SAGE v0.2** — kiểm chứng trực tiếp F-A03 / F-X02 / F-X03 | `design/SAGE-spec.md` §12 | **demo 3/3 PASS** (3 lần): U-curve sinh từ phân bố loss · quên đều phá trục **100×**, không quên thì không thích nghi **29×** · replay giữ `0.839` vs naive `0.431` | Q-010 + Q-011 |
 | **DS-003** | *(mở rộng)* **SAGE v0.2** — 3 công cụ tự kỷ luật: wirehead guard · calibration · registry | `design/SAGE-spec.md` §14 | **demo 3/3 PASS** (3 lần): holdout cố định **nói dối 8.41 điểm** và càng hỏi càng dối · ECE `0.258 → 0.022` · adaptive registry `0.920` vs static `0.577` | Q-009 + Q-007 |
@@ -167,7 +168,7 @@ L3 · Ý THỨC (giao diện)    "bản báo cáo đến sau" — LeDoux, AST, G
 
 ## 5. Trạng thái dự án vs PLAN.md
 
-- **M2 (survey 5–10 paper/câu hỏi)**: ✅ vượt — **16 survey** (AN-001 → AN-016, trả lời Q-001 → Q-017 — Q-016 trong AN-015 §7), Q-006 dùng 19 paper arXiv, Q-007 dùng 16 paper, Q-009 dùng ~22 paper, Q-010 dùng ~20 paper, Q-011 dùng ~26 paper, Q-012 dùng **18 DOI Europe PMC + ~8 arXiv**, Q-013 dùng **6 trang Wiki nền tảng + ~15 arXiv**, Q-014 dùng **~30 paper arXiv**, Q-015 dùng **~20 paper arXiv + 3 demo nội bộ**.
+- **M2 (survey 5–10 paper/câu hỏi)**: ✅ vượt — **17 survey** (AN-001 → AN-017, trả lời Q-001 → Q-018 — Q-016 trong AN-015 §7), Q-006 dùng 19 paper arXiv, Q-007 dùng 16 paper, Q-009 dùng ~22 paper, Q-010 dùng ~20 paper, Q-011 dùng ~26 paper, Q-012 dùng **18 DOI Europe PMC + ~8 arXiv**, Q-013 dùng **6 trang Wiki nền tảng + ~15 arXiv**, Q-014 dùng **~30 paper arXiv**, Q-015 dùng **~20 paper arXiv + 3 demo nội bộ**.
 - **KPI graph**: **288 entity / 390 relation** (mục tiêu ban đầu 100 entity ✅).
 - **DS-001 (thiết kế + demo)**: ✅ `design/SAGE-spec.md` + `design/demo/` — Kaggle `tribu1/sage-v0-1-demo-ds-001` v3 = **5/5 PASS** (D1 replay +38.7pp · D2 18× · D3 Goodhart · D4 −33.4% · D5 +5.7pp).
 - **DS-002 (mở rộng demo)**: ✅ `design/SAGE-spec.md` §12 + `design/demo/sage_demo2.py` — Kaggle `tribu1/sage-v0-2-demo-ds-002` v5 = **3/3 PASS** (D6 U-gap 0.838 · D7 100× + 29× · D8 replay 0.839 vs naive 0.431). **3 lần chạy** (1/3 → 2/3 → 3/3), mọi thay đổi ghi ở change-log §12, **3 ngưỡng không đổi**. **Kết quả âm**: loss of plasticity không quan sát được ở scale toy (3/3 lần).
