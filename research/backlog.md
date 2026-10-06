@@ -2,7 +2,7 @@
 
 | ID | Câu hỏi | Ưu tiên | Trạng thái |
 |---|---|---|---|
-| Q-018 | **Tạo model AI từ đầu** — kiến trúc / dữ liệu / huấn luyện / tinh chỉnh: công thức nào đã kiểm chứng, và với compute 1 GPU (Kaggle T4) thì tạo được model gì thật sự? | Cao (bạn chỉ thị "tiếp tục nghiên cứu tạo model ai") | ✅ Trả lời → [AN-017](surveys/building-ai-models.md) — findings **F-B01…F-B05**; đề xuất **DS-012** pretrain from-scratch trên T4 (chờ duyệt / lệnh chạy) |
+| Q-018 | **Tạo model AI từ đầu** — kiến trúc / dữ liệu / huấn luyện / tinh chỉnh: công thức nào đã kiểm chứng, và với compute 1 GPU (Kaggle T4) thì tạo được model gì thật sự? | Cao (bạn chỉ thị "tiếp tục nghiên cứu tạo model ai") | ✅ Trả lời → [AN-017](surveys/building-ai-models.md) — findings **F-B01…F-B05**; **DS-012** pre-reg §23 → code → kernel `tribu1/ds-012-pretrain-from-scratch` **đang chạy** (pre-reg `9314d36`, amend `70b5f83`, code `ffe1967`, bugfix `b2a8138`) |
 | Q-001 | Con người học như thế nào? | Cao | ✅ Trả lời → [AN-001](surveys/how-humans-learn.md) |
 | Q-002 | Ý thức hình thành từ vô thức như thế nào? | Cao | ✅ Trả lời bước đầu → [AN-002](surveys/consciousness-emergence.md) |
 | Q-003 | Hệ thần kinh *biết* phải làm gì để sống như thế nào? | Cao | ✅ Trả lời bước đầu → [AN-003](surveys/survival-knowledge.md) |
