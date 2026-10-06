@@ -2,7 +2,7 @@
 
 Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có **evidence + confidence**, rồi **thiết kế hệ thống** và **kiểm chứng bằng demo trên Kaggle**.
 
-**Trạng thái**: 13 survey (Q-001 → Q-013) · 226 entity / 296 relation knowledge graph · 5 hệ thống thiết kế, demo **5/5**, **3/3**, **3/3**, **3/3**, **3/3 PASS**.
+**Trạng thái**: 14 survey (Q-001 → Q-014) · 234 entity / 312 relation knowledge graph · 5 hệ thống thiết kế, demo **5/5**, **3/3**, **3/3**, **3/3**, **3/3 PASS**.
 
 ## Chỉ mục
 
@@ -25,9 +25,11 @@ Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có *
 
 | **Q-013** | **Tự chứng minh mình không bị hack** | [surveys/self-verification.md](surveys/self-verification.md) | **Không thể tự chứng minh — nhưng cấu trúc bên ngoài chứng minh được**: spec ngoài khóa trước · deterministic · verifier ngoài reward |
 
+| **Q-014** | **Bộ nhớ của agent LLM** | [surveys/agent-memory.md](surveys/agent-memory.md) | 4 công việc **write · store · read · forget**; lỗi **sinh ở khâu ghi** rồi lan sang trả lời; memory = **bề mặt tấn công lớn nhất** (ghi 1 lần, kích hoạt mãi) |
+
 ### Tổng hợp & thiết kế
 
-- [SYNTHESIS.md](SYNTHESIS.md) — 13 survey → **6 chủ đề xuyên suốt** (T1–T6) + ma trận liên thông
+- [SYNTHESIS.md](SYNTHESIS.md) — 14 survey → **6 chủ đề xuyên suốt** (T1–T6) + ma trận liên thông
 - [design/SAGE-spec.md](design/SAGE-spec.md) — **SAGE**: 6 lớp L0–L5, 8 nguyên tắc P1–P8 truy xuất survey; demo **5/5 PASS** (DS-001) + **3/3** (DS-002) + **3/3** (DS-003) + **3/3** (DS-004) + **3/3** (DS-005)
 - [backlog.md](backlog.md) · [questions/](questions/) · [templates/](templates/)
 

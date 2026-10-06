@@ -17,6 +17,7 @@
 | Q-013 | Một hệ thống **tự chứng minh mình không bị hack** được không? (hệ quả từ F-G01) | TB (tôi chọn) | ✅ Trả lời → [AN-013](surveys/self-verification.md) |
 | DS-004 | **SAGE v0.2** — *archive/compaction*: nén lịch sử thành scaffold tái sử dụng | TB | ✅ **KPI 3/3 PASS** (Kaggle v4, 2026-10-06, ngưỡng §15.2 giữ nguyên) → [spec §15](design/SAGE-spec.md) · [kpi.txt](design/demo/out/ds004/kpi.txt) — findings **F-J01…F-J05** |
 | DS-005 | **SAGE v0.2** — *red-team acceptance*: tự hack lấy KPI của chính mình (đối chứng 3 lớp: prereg · bản đồ đồng cấu · verifier ngoài) | TB | ✅ **KPI 3/3 PASS** (Kaggle v1, 2026-10-06, ngưỡng §16.2 giữ nguyên) → [spec §16](design/SAGE-spec.md) · [kpi.txt](design/demo/out/ds005/kpi.txt) — findings **F-Z01…F-Z05** |
+| Q-014 | **Bộ nhớ của agent LLM** — agent ghi/lấy/quên trí nhớ như thế nào, và SAGE nên học gì từ đó? | TB (tôi chọn) | ✅ Trả lời → [AN-014](surveys/agent-memory.md) — findings **F-P01…F-P06** |
 
 > Quy tắc: 1 câu hỏi = 1 tiêu chí "đã trả lời" rõ ràng. Giữ backlog ≤ 10 mục.
 
@@ -35,3 +36,5 @@
 > **Kết quả âm của DS-002 (không che)**: *loss of plasticity* **không quan sát được** ở scale toy — 3 lần chạy, mọi arm học task mới đều đạt `plasticity_ratio ≈ 1.0`. F-X03 chỉ được xác nhận ở nhánh retention.
 
 > **Bài học từ DS-004 (PASS lần đầu thấy số, không sửa ngưỡng)**: diagnostic được đặt nhãn *"trần acc"* nhưng **số liệu thật bác nhãn** — `sage 0.9525 > oracle 0.6971` → đó là *baseline value-only raw*, trần thật = `keepall = 1.0` (§15.4 lần 2). Kèm **F-J05**: nén chỉ an toàn khi record đủ trùng lặp — σ = 0.2 (fidelity 0.374) thì `sage` **thua** raw-thuần. Vận hành: v1–v3 chết vì papermill đòi `.ipynb` (§15.4) — *nhãn sai trên diagnostic không giết KPI, nhưng phải sửa trước khi ai đọc nhầm*.
+
+> **Bài học từ Q-014 (AN-014, 30 paper arXiv)**: *"agent ghi càng tích cực càng dễ bị hack"* (F-P04, MPBench) — trực tiếp mâu thuẫn với bản năng thiết kế "lưu mọi thứ"; và lỗi memory **sinh ở khâu ghi rồi lan sang trả lời, trong khi QA score cuối che nó đi** (F-P03, HaluMem + ghost memory) — đúng hình hài Goodhart ở tầng benchmark. Gợi ý DS-006 "memory hygiene": keep-all · recency · decay theo giá trị · **append-only + citation ID**.
