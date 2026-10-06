@@ -6,7 +6,7 @@
 
 > **Triết lý nền** (từ AN-008): *"Loại bỏ hết khuyết điểm" là bất khả thi — phần lớn lỗi là một nửa của tính năng.*
 > Vậy SAGE **không phải là não sạch lỗi**, mà là não **biết mình có lỗi gì**, **không tự tin khi không nên**, và **bù bằng scaffold bên ngoài** — đúng đường P2 (bằng chứng mạnh nhất, rẻ nhất).
-> Nguyên tắc: **mục tiêu không phải không犯 lỗi, mà là mỗi lỗi đã biết đều có cơ chế phát hiện + bù.**
+> Nguyên tắc: **mục tiêu không phải không mắc lỗi, mà là mỗi lỗi đã biết đều có cơ chế phát hiện + bù.**
 
 ---
 
@@ -99,7 +99,7 @@
 ```
 
 - **Pain-as-constraint**: như CIP — thiếu đau → học tiếp tục sai (Q-003 F-S01) → SAGE mô tả ranh giới bất khả xâm phạm như **thanh chắn**, không phải điểm số (không thể "bù" bằng phần thưởng elsewhere).
-- **Goodhart guard**: mọi proxy đều ghi `correlation với truth = ?` + ngày đo; correlation rơi →自动 downgrade L4 confidence.
+- **Goodhart guard**: mọi proxy đều ghi `correlation với truth = ?` + ngày đo; correlation rơi → tự động downgrade L4 confidence.
 
 ---
 
@@ -122,12 +122,12 @@ Bảng gồm: *(lỗi · điều kiện kích hoạt · bài test phát hiện �
 
 | Lỗi | Kích hoạt khi | Test | Bù |
 |---|---|---|---|
-| Optimizer's curse / Goodhart | tối ưu proxy > n候选 | so proxy vs holdout | §4 verifier |
+| Optimizer's curse / Goodhart | tối ưu proxy > n candidates | so proxy vs holdout | §4 verifier |
 | Anchoring | có số đầu tiên | RCF: so lớp quá khứ | ref-class trước |
 | Confirmation | đã có niềm tin | premortem + red-team | pass đối kháng |
 | Availability | có ví dụ nhớ đậm | base rate tham chiếu | statistics > anecdote |
 | Illusion of skill | domain "năng" như tài chính | so với xác suất thuần | check baseline |
-| Interpolation ≠ extrapolation | input lệch distribution | drift检测 | abstain → L5 |
+| Interpolation ≠ extrapolation | input lệch distribution | drift detection | abstain → L5 |
 | Awareness-not-enough | bias tự động, vô thức | — | **cấu trúc quy trình**, không "cố" |
 
 *Protected list (P7)*: pain · fast fear · forgetting-for-generalisation · boredom(điều hướng) — **cấm sửa**.
@@ -256,7 +256,7 @@ Bảng gồm: *(lỗi · điều kiện kích hoạt · bài test phát hiện �
 - **D8 FAIL toàn bộ — thí nghiệm mất hiệu lực, không phải giả thuyết bị phản bác.** `retention` = `0.480 / 0.485 / 0.482 / 0.478` cho `naive / replay / decay / reset` — **cả 4 ≈ ngẫu nhiên (0.5)**, kể cả arm `reset` chỉ train **một** task. Nhưng `fresh_task7_acc = 0.988` → **task 7 học được, task 6 thì không** ⇒ **bộ task sinh ngẫu nhiên có task mà net h=4 không fit nổi** → không có gì để đo. Hai lỗi thiết kế:
   1. **Không xác minh task học được** → v4: `d8_verify()` sinh weight cho đến khi **net mới tinh đạt ≥0.95** trên test-split riêng, ghi `task_verify_acc` + `task_verify_tries`.
   2. **`retention` tính cả task vừa train xong** → đẩy `naive` lên ≈0.56 dù nó **quên sạch 6 task cũ** → v4: `retention_old` = trung bình **các task CŨ** (0…K−2), task vừa học xong **không** tính; `retention_all` chỉ để tham khảo.
-  3. `HID 4 → 6`, `KTRAIN 7 → 5`: phải có **dung lượng cho replay giữ được ≥2 task cũ** nhưng **không đủ chỗ để naive giữ hết** — nếu thừa容量 thì cả hai arm đều giữ và gap về 0; nếu thiếu thì replay cũng không giữ nổi.
+  3. `HID 4 → 6`, `KTRAIN 7 → 5`: phải có **dung lượng cho replay giữ được ≥2 task cũ** nhưng **không đủ chỗ để naive giữ hết** — nếu thừa dung lượng thì cả hai arm đều giữ và gap về 0; nếu thiếu thì replay cũng không giữ nổi.
   4. Feature `sign(u*v)` (hàm đứt đoạn, net h=6 không fit nổi) → thay bằng `u*v*(u-v)` (mượt).
   → **c1/c2/c3 giữ nguyên ngưỡng** (0.15 / 0.10 / 0.85); chỉ sửa metric + harness.
 - **Thành thật ghi lại**: `naive_plasticity_loss_pct = −0.3` → **không quan sát được loss of plasticity ở scale này** (arm nào cũng ~1.0 khi học task mới). Đây là **kết quả âm** cho F-X03 ở quy mô toy — không được che. Nếu lần 2 vẫn vậy → ghi thành negative finding + khoảng trống research.
@@ -938,7 +938,7 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 
 **KPI: 6/6 module.**
 
-**Lý do ngưỡng**: `G3 naive ≤ 0.65` — nếu naive cũng ≥0.995 thì policy không thêm giá trị gì → ghi trung thực là "data không nhạy cách gán nhãn". `G2 ≤ 0.10` dựa trên quota edge đã ghi trước (24/1659 ≈ 0.0145) — nếu tỷ lệ tự nhiên dâng vượt → policy chưa đủ bao quát → FAIL, không nới. `G1 800/500` = mức đủ nhỏ để không "vừa dựng xong đạt" giả tạo nhưng đủ lớn so với ngưỡng 152 cặp của Memory-R1 (E1, ~5×).
+**Lý do ngưỡng**: `G3 naive ≤ 0.65` — nếu naive cũng ≥0.995 thì policy không thêm giá trị gì → ghi trung thực là "data không nhạy cách gán nhãn". `G2 ≤ 0.10` dựa trên quota edge đã ghi trước (24/1579 ≈ 0.0152) — nếu tỷ lệ tự nhiên dâng vượt → policy chưa đủ bao quát → FAIL, không nới. `G1 800/500` = mức đủ nhỏ để không "vừa dựng xong đạt" giả tạo nhưng đủ lớn so với ngưỡng 152 cặp của Memory-R1 (E1, ~5×).
 
 ### 20.3 Cảnh báo metric thoái hóa — **tự chặn trước**
 
