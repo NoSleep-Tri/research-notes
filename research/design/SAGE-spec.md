@@ -1225,11 +1225,12 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 | **K6** | pred-vs-obs | bảng dự báo §23.5 vs số đo | ≥ 4/7 mục close (±30%) | — |
 
 - **Arm (mọi tham số không được đổi giữa arm, chỉ thay đúng 1 biến)**:
-  - **A1 baseline**: Qwen3-style + **AdamW** + LR/batch theo **E4 Step Law <59M**: `η* = 0.0985·N^-0.508·D^0.238` (N=14e6, D=0.3e9 → η* ≈ **3.0e-3**), `B* = 3.6e-4·D^0.931` → **batch 1024** (làm tròn). Warmup 1k + cosine.
+  - **A1 baseline**: Qwen3-style + **AdamW** + LR/batch theo **E4 Step Law <59M**: `η* = 0.0985·N^-0.508·D^0.238` (N=14e6, D=0.3e9 → η* ≈ **2.4e-3** — sửa tại §23.4 #1), `B* = 3.6e-4·D^0.931` → **batch ≈ 28k token** (~27 seq × 1024) — B theo paper là **token, không phải sequence**. Warmup 1k + cosine.
   - **A2 = A1 + Muon** (optimizer duy nhất đổi; AdamW cho embedding/head, đúng chuẩn Muon-usage).
   - **A3 = A1 + data pipeline**: minhash-dedup + quality filter (perplexity proxy/length/langid) — **không** dùng "blend đa dạng" (E3-R3 negative đã biết, giữ nguyên như 1 pre-registered negative control: nếu blend thắng filter → ghi trái dự báo).
 - **Cấm** (giống §18.3/§19.3): hạ ngưỡng K1–K6 sau khi thấy số · đổi corpus/token budget sau khi có arm đầu · chọn seed tốt · dừng run "do recon" nếu loss đang xấu (để hết chạy, ghi số thật). **Chỉ bug harness** (code ≠ §23.1) được sửa → §23.4 kèm trước/sau.
-- **Change-log §23.4**: _[chưa có thay đổi — chưa chạy lần nào]_
+- **Change-log §23.4**:
+  1. **[TRƯỚC KHI CODE — 2026-10-06]** Sửa 2 **phép đếm** trong §23.1 A1 (đọc lại paper Step Law 2609.27581 §3.1 Notation + §6.5.2, trước khi tồn tại code): (i) η* tính lại đúng công thức = **2.4e-3** (bản nháp ghi 3.0e-3 — sai tính tay); (ii) `B*` theo paper là **đơn vị token** → `3.6e-4·(3e8)^0.931 ≈ 28,000 token` ≈ 27 seq × 1024, **không phải batch 1024 sequence**. **Không liên quan kết quả nào** (chưa code, chưa chạy); ngưỡng K1–K6 không đổi. Bản gốc của §23.1 nằm ở pre-reg `9314d36`.
 - **Dự báo §23.5 (viết trước, non-gating)**: K1 PASS cả 9 run · K2 PASS (A2 −0.08) · K3 PASS (A3 −0.04) · K4 **spread ≈ 0.07 → rất có thể INCONCLUSIVE cho K3** (đúng tinh thần F-B04: effect cùng cỡ seed variance ở model 14M) · runtime/run ≈ 1.5h T4 · pred-vs-obs 4/7.
 - **Fallback duy nhất cho phép** (ghi change-log **trước** khi chạy): HF hub không tới được → corpus local; OOM → giảm hidden 384→320 (giữ nguyên ngưỡng, ghi trước). <mọi fallback khác> = cấm.
 - **Findings prefix**: **F-X01…F-X06** — nếu K4 cho spread nuốt effect → F-X = *"ở 14M/0.3B token, seed variance ≥ optimizer/data effect — F-B04 tái lập trên T4, không đủ thống kê để method war ở scale này"*.<end of file>
