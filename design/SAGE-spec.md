@@ -1048,7 +1048,13 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 
 ### 21.4 Change-log
 
-*(chưa chạy — sẽ ghi ở đây, nếu có)*
+**#0 — 2026-10-06, TRƯỚC KHI CHẠY** (chưa thấy bất kỳ số liệu nào; sinh từ rà soát code trước-run):
+
+- GRPO arm: `gradient_accumulation_steps 1 → 2` (bs per-device vẫn `4` đúng §21.1). Lý do: hợp đồng công bố của TRL `GRPOConfig` (E7) — *"effective batch (num_processes × per_device_batch_size × gradient_accumulation_steps) must be evenly divisible by num_generations"* — với G=8 thì `1×4×1 = 4` không chia hết; `1×4×2 = 8` ✓. TRL hiện hành còn derive `generation_batch_size = bs × steps_per_generation` (= 8 prompt × G 8 = 64 completion/generation). Hậu quả: mỗi optimizer step thấy 8 prompt (B: 800, C: 480 prompt-slots thay vì 400/240) — **tăng** tín hiệu học, không giảm bất kỳ ngưỡng nào.
+- `loss_type` đặt tường minh `"grpo"` (mặc định mặc định của TRL hiện hành là `"dapo"`) — §21.1 ghi "GRPO" nên chốt đúng bộ luật chuẩn GRPO, tránh lệch mặc định ngầm.
+- `max_prompt_length` không còn tồn tại trong `GRPOConfig` (TRL main) → bỏ khỏi cấu hình; prompt ~130 token ≪ mọi giới hạn nên không ảnh hưởng.
+- `dropout` không thêm (LoRA `lora_dropout=0.0`) — giữ nguyên §21.1 (không ghi trong spec, ghi rõ ở đây để minh bạch).
+- Ngưỡng **T1–T6 · reward 0.3/0.7 · G=8 · steps 100/60 · lr · epochs · LoRA rank · split seed 20261010 · prompt template · bars: không đổi.**
 
 ### 21.5 Kết quả
 
