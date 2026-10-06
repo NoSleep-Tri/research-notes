@@ -907,7 +907,7 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 - **Giả thuyết, viết trước**:
   - **H1 (round-trip)**: policy (recency-wins, poison → NOOP theo world-truth, canonical tie-break cho event mâu thuẫn) → `fidelity_policy = 1.000`; baseline **naive** (mọi event → ADD keep-first, không bao giờ xóa) → `fidelity_naive ≈ 0.55` (chỉ sống sót key không bao giờ bị update).
   - **H2 (ambiguity)**: mâu thuẫn nhãn sinh từ **quota edge có chủ đích** (mỗi cycle: 2 `restate_drift` + 1 `retract_unseen` + 1 `poison_on_truth`) → `needs_policy_rate ≈ 0.015 ≤ 0.10`, **100% bị tag** — không bao giờ gán nhãn lén.
-  - **H3 (phân bố + provenance)**: 4 nhãn đều xuất hiện, `max_share ≈ 0.37`, `DELETE ≈ 60`; answer lấy từ oracle → `acc = 1.000`, `leakage = 0`; mọi poison event gắn `adversarial + strategy` → `tagged = 1.000`.
+  - **H3 (phân bố + provenance)**: 4 nhãn đều xuất hiện, `max_share ≈ 0.39`, `DELETE ≈ 60`; answer lấy từ oracle → `acc = 1.000`, `leakage = 0`; mọi poison event gắn `adversarial + strategy` → `tagged = 1.000`.
 - **Truy xuất**: F-T01 (3 lớp data), F-T02 (output contract `{op, citation_id, confidence, answer}`), F-T06 (khuyến nghị SAGE), Q-016 (tầng-2 thí nghiệm #1), F-P03/F-P06 (lỗi sinh ở khâu ghi · append-only + citation).
 - **Kernel**: title `DS-009 training dataset` · code [demo/sage_demo9.py](demo/sage_demo9.py) · CPU, không internet. Prefix finding: **F-U** (unseen/unknown). **Chưa tồn tại code tại thời điểm ghi §20.**
 
@@ -915,13 +915,13 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 
 **Stream event-log** (seed `0`, `Q_SEED 20261010`, `N_KEY 600`, `CYCLES 6`, 100 key mới/cycle — **không phase, không answering pipeline**: DS-009 chỉ sinh data, không đo accuracy câu trả lời):
 
-- **Event trung thực/cycle**: `new` ×100 (value `U(0,1)`) · `update` ×80 (key đã tạo ≥1 chu kỳ, value `U(0,1)` — resample, khác cũ almost surely) · `restate` ×30 (value = current **đúng bằng**) · `retract` ×10 (key đang sống → oracle xóa).
+- **Event trung thực/cycle**: `new` ×100 (value `U(0,1)`) · `update` ×80 ở **cycle 2–6** (cycle 1 chưa có key nào "đã tạo ≥1 chu kỳ" → không có update hợp lệ; tổng **400**) · `restate` ×30 (value = current **đúng bằng**) · `retract` ×10 (key đang sống → oracle xóa).
 - **Quota edge/cycle** (mâu thuẫn có chủ đích, ghi trước): `restate_drift` ×2 (claim restate nhưng value ≠ current → declared NOOP ↔ computed UPDATE) · `retract_unseen` ×1 (retract key chưa tồn tại/đã chết → declared DELETE ↔ computed NOOP) · `poison_on_truth` ×1 (adversarial, value = current **đúng bằng** → store-only không phân biệt được NOOP/UPDATE).
 - **Attack suite** (insert bait trên key đã tồn tại, không đổi oracle): 5 aware (`tie20 · swarm10 · drift15 · spread30 · single60`, value = truth+0.15, cycle 6) · 3 unaware (`tie20 · swarm10 · spread30`, value `U(0,1)`, cycle 6) · `patient2` (30 key × cycle 5,6) · `patient3` (20 key × cycle 4,5,6) — = **315 poison event**.
 - **Oracle** = recency-wins trên event trung thực (adversarial không đổi oracle). **Policy gán nhãn**: `adversarial → NOOP`; nếu `declared kind ≠ computed label` → tag **`needs_policy`** + dùng canonical để replay tiếp. **Naive**: mọi event → `ADD` (keep-first), không bao giờ xóa.
 - **QA pairs**: mỗi key sống cuối = 1 câu (`"Giá trị hiện tại của key Kxxx?"`), `gold_answer` = giá trị oracle cuối, `citation` = eid event trung thực cuối — không chứa answer trong question (leakage check).
 
-**Tổng dự báo** (non-gating): `total = 1659` event (600+480+180+60+24+315) · `usable = 1635` · `needs_policy = 24 (0.0145)` · `qa = 540` · op: ADD 600 / UPDATE 480 / NOOP 495 / DELETE 60 · `fidelity_naive ≈ 0.55` · `answer_acc 1.000` · `leakage 0.000` · `attack_tagged 1.000`.
+**Tổng dự báo** (non-gating): `total = 1579` event (600+400+180+60+24+315) · `usable = 1555` · `needs_policy = 24 (0.0152)` · `qa = 540` · op: ADD 600 / UPDATE 400 / NOOP 495 / DELETE 60 · `fidelity_naive ≈ 0.55` · `answer_acc 1.000` · `leakage 0.000` · `attack_tagged 1.000`.
 
 **Artifacts**: `kpi.txt`, `summary.json`, `d29_opdist.png`, `d30_fidelity.png`, `d31_ambiguity.png`, `train_pairs.jsonl`, `qa_pairs.jsonl` → [demo/out/ds009/](demo/out/ds009/).
 
@@ -953,7 +953,9 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 
 ### 20.4 Change-log
 
-*(chưa chạy — sẽ ghi ở đây, nếu có)*
+1. **Amend trước khi code & trước khi chạy** (2026-10-06, pre-reg `391d720` → amend push): sửa **số học** trong §20.1 — cycle 1 không có key đủ điều kiện `update` (0 key "đã tạo ≥1 chu kỳ") → `update` chạy cycle 2–6 = **400** event (không phải 480); `total 1659 → 1579`, `usable 1635 → 1555`, `needs_rate 0.0145 → 0.0152`, `UPDATE 480 → 400`, `max_share 0.37 → 0.39`. **Không liên quan bất kỳ kết quả nào** (chưa có code, chưa chạy) — chỉ sửa phép đếm thiết kế. Ngưỡng G1–G6 không đổi.
+
+*(chưa chạy — sẽ ghi thêm ở đây, nếu có)*
 
 ### 20.5 Kết quả
 
