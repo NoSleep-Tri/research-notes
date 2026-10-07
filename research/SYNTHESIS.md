@@ -87,7 +87,7 @@ L3 · Ý THỨC (giao diện)    "bản báo cáo đến sau" — LeDoux, AST, G
 
 ---
 
-## 3. Ma trận liên thông (trích từ knowledge graph, 299 entity / 400 relation)
+## 3. Ma trận liên thông (trích từ knowledge graph, 300 entity / 402 relation)
 
 | Từ → Đến | Ý nghĩa |
 |---|---|
@@ -165,15 +165,16 @@ L3 · Ý THỨC (giao diện)    "bản báo cáo đến sau" — LeDoux, AST, G
 | **DS-011** | **Answer Agent robustness** — train cặp clean+injected có chống đầu độc GIỮ utility? (sinh từ F-T04/F-U03 + Q-016 tầng-2 #2; bạn "chọn đi" → **experiment cuối, rồi chốt**) | DS-009 (F-U03 poison), AN-015 (F-T04), F-L02, Q-016 | ✅ **xong (2026-10-06)** — **KPI 5/6, T5 FAIL giữ thật** (Kaggle v3, pre-reg `50a6ce9` trước khi code, `ad522b8` trước khi run; v1/v2 infra-fail pre-run → §22.4 #1–#2, ngưỡng T1–T6 không đổi): A_clean `ASR 0.9722` · **A_mixed `ASR 0.0000` + acc 1.0** (F-T04 ✓) · A_nomark `0.167` → **F-L02 bác một phần** · kênh-lie `0.7500` (marker crowd-out) · runtime 6.7 phút; prefix **F-O** |
 | **Q-018** | **Tạo model AI từ đầu** — kiến trúc / dữ liệu / huấn luyện / tinh chỉnh; 1 GPU T4 tạo được model gì thật sự? (bạn chỉ thị "tiếp tục nghiên cứu tạo model ai") | AN-014, Q-009/010/015/016, DS-009/010 | ✅ **xong (2026-10-06)** — [AN-017](surveys/building-ai-models.md): recipe mở rẻ ~2 magnitudes ($6.9K/1.5B, $286/151M); thứ tự đòn bẩy data ≥ kiến trúc > optimizer > init; ranh giới T4 = 10–100M/1–12B token; prefix **F-B** |
 | **DS-012** | **Pretrain from-scratch** — thứ tự đòn bẩy F-B02 có đúng ở scale 1 GPU không? multi-seed ablation (sinh từ AN-017 §6) | AN-017 (F-B02/F-B04), Q-018 | ⚠️ **v1/v2 fail · v3 CANCEL_ACKNOWLEDGED 0/9 cell (2026-10-07)** — guard sai chỗ v2 → fix #4 `c17d609` (GradScaler-style skip), v3 chết ở cell 1 step 10000/10850; **bins + `data_meta.json` sống** (prep 1230.3s tái dùng); K1–K6 giữ nguyên; prefix **F-X** |
-| **DS-012b** | **Scale-down 6M token/run (~25 phút)** — effect tách khỏi seed spread ở scale nhỏ không? (bạn chọn phương án D) | DS-012, AN-017 (F-B04), Q-018 | ⏳ **pre-reg §24 pushed `7ea467e`** — pred-vs-obs ghi trước (K1' 9/9, ΔK2' 0.03 pred FAIL, ΔK3' 0.01 pred FAIL); **code chưa viết** (quy tắc pre-reg → code) |
-| **Q-019** | **Train trên TPU** — Kaggle TPU v5e-8 có giúp pretrain 12.6M nhanh hơn T4, và nhanh hơn bao nhiêu? (bạn chỉ thị "chuyển qua nghiên cứu train trên tpu") | Q-018, DS-012, DS-012b | ✅ **xong (2026-10-07)** — [AN-018](surveys/tpu-training.md): peak 24× ≠ speedup, **0.7×–3× chưa đo** (run ngắn bị nuốt XLA compile), bf16 bỏ GradScaler = pre-reg mới bắt buộc; đề xuất **DS-013 smoke benchmark** (§25 chưa viết); prefix **F-Q** |
+| **DS-012b** | **Scale-down 6M token/run (~25 phút)** — effect tách khỏi seed spread ở scale nhỏ không? (bạn chọn phương án D) | DS-012, AN-017 (F-B04), Q-018 | ⏳ **pre-reg §24 pushed `7ea467e` → HOÃN 2026-10-07** theo chỉ thị "tập trung train 1 model" (change-log §24.4 #1 — pre-reg giữ nguyên, **ngưỡng không sửa**, code chưa viết) |
+| **DS-012c** | **Train ĐÚNG 1 model** — A1 × seed 11, full 0.3B token (10.850 bước) + checkpoint thật (bạn chỉ thị "tập trung train 1 model thôi đi") | DS-012, DS-012b (hoãn) | 🚀 **RUNNING kernel v4 (2026-10-07)** — pre-reg §25 `bd5dea1` TRƯỚC code `91dd354`; K1' = §23 K1 · K2' parity ≤0.05 · K3' wall ≤150'; pred wall 95' / val_final 3.45; **kết quả chưa có** |
+| **Q-019** | **Train trên TPU** — Kaggle TPU v5e-8 có giúp pretrain 12.6M nhanh hơn T4, và nhanh hơn bao nhiêu? (bạn chỉ thị "chuyển qua nghiên cứu train trên tpu") | Q-018, DS-012, DS-012b | ✅ **xong (2026-10-07)** — [AN-018](surveys/tpu-training.md): peak 24× ≠ speedup, **0.7×–3× chưa đo** (run ngắn bị nuốt XLA compile), bf16 bỏ GradScaler = pre-reg mới bắt buộc; đề xuất **DS-013 smoke benchmark** (§26 — chưa viết; §25 đã dành cho DS-012c); prefix **F-Q** |
 
 ---
 
 ## 5. Trạng thái dự án vs PLAN.md
 
 - **M2 (survey 5–10 paper/câu hỏi)**: ✅ vượt — **18 survey** (AN-001 → AN-018, trả lời Q-001 → Q-019 — Q-016 trong AN-015 §7), Q-006 dùng 19 paper arXiv, Q-007 dùng 16 paper, Q-009 dùng ~22 paper, Q-010 dùng ~20 paper, Q-011 dùng ~26 paper, Q-012 dùng **18 DOI Europe PMC + ~8 arXiv**, Q-013 dùng **6 trang Wiki nền tảng + ~15 arXiv**, Q-014 dùng **~30 paper arXiv**, Q-015 dùng **~20 paper arXiv + 3 demo nội bộ**.
-- **KPI graph**: **299 entity / 400 relation** (mục tiêu ban đầu 100 entity ✅).
+- **KPI graph**: **300 entity / 402 relation** (mục tiêu ban đầu 100 entity ✅).
 - **DS-001 (thiết kế + demo)**: ✅ `design/SAGE-spec.md` + `design/demo/` — Kaggle `tribu1/sage-v0-1-demo-ds-001` v3 = **5/5 PASS** (D1 replay +38.7pp · D2 18× · D3 Goodhart · D4 −33.4% · D5 +5.7pp).
 - **DS-002 (mở rộng demo)**: ✅ `design/SAGE-spec.md` §12 + `design/demo/sage_demo2.py` — Kaggle `tribu1/sage-v0-2-demo-ds-002` v5 = **3/3 PASS** (D6 U-gap 0.838 · D7 100× + 29× · D8 replay 0.839 vs naive 0.431). **3 lần chạy** (1/3 → 2/3 → 3/3), mọi thay đổi ghi ở change-log §12, **3 ngưỡng không đổi**. **Kết quả âm**: loss of plasticity không quan sát được ở scale toy (3/3 lần).
 - **DS-003 (mở rộng demo)**: ✅ `design/SAGE-spec.md` §14 + `design/demo/sage_demo3.py` — Kaggle `tribu1/sage-v0-3-demo-ds-003` v3 = **3/3 PASS** (D9 holdout cố định nói dối **8.41** và tăng theo số lần hỏi · D10 ECE `0.258→0.022`, violation `0.203→0.000` · D11 adaptive `0.920` vs static `0.577`). **3 lần chạy**, mọi thay đổi ghi ở change-log §14 — **cả 3 lần sửa đều là bug metric/harness, không hạ ngưỡng nào**. Bài học: *cái thước tự bị hack 3 lần liên tiếp* = Goodhart tái hiện ngay trong phòng lab.

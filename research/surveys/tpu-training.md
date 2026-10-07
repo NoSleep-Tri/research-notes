@@ -50,7 +50,7 @@ DS-012 (pretrain 9 cell trên T4) **v3 bị cancel ở 0/9 cell**, full plan ư�
 
 ## 6. Hướng kiểm chứng tiếp
 
-**Có — cần 1 smoke benchmark pre-registered (đề xuất DS-013, ghi §25 vào spec TRƯỚC KHI code)**, đối chiếu đúng số T4 đã đo:
+**Có — cần 1 smoke benchmark pre-registered (đề xuất DS-013, ghi §26 vào spec TRƯỚC KHI code — §25 đã dành cho DS-012c, đổi số 2026-10-07)**, đối chiếu đúng số T4 đã đo:
 
 - **Câu hỏi**: với đúng config §24 (217 bước, 27×1024 tok, model 12.6M), TPU v5e-8 **1 chip** (bf16) có `median s/step ≤ 0.285s` (**≥1.5× T4**) sau khi tính cả XLA compile **không**?
 - **KPI viết trước (đề xuất)**: **K-T1** 3/3 lần chạy không crash / không recompile giữa chừng · **K-T2** median s/step (100 bước steady, trừ compile) ≤ 0.285 → chọn TPU cho run tới; nếu > 0.285 → **ở lại T4 + ghi negative finding** (không hạ ngưỡng) · **K-T3** loss không NaN/Inf qua 217 bước bf16.
