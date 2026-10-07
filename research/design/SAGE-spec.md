@@ -1394,4 +1394,13 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 - **Change-log §30.x**:
   1. **[TRƯỚC CODE — 2026-10-07]** `3.000` = **ngưỡng do bạn đặt** (không phải pred của tôi). Pred 3.10 (2.90–3.35) chọn SAU KHI đã thấy toàn bộ đường cong v3/v4/v7/v8 (4.5485@1000 → ~3.21/300M) — **chưa thấy con số nào của run §30**. Các tham số 110/100/1e-2/1050 là **config của 1 hệ thống duy nhất** (big-batch), không tune từng cái sau kết quả. Lặp ~10 epoch + eval dời 100→1000 **disclose ở trên, trước chạy**.
 - **Findings prefix**: **F-X25…F-X28**.
-- **Launch**: kernel v10 — **chỉ SAU khi v9 (§29) kết thúc** (tránh tranh GPU + lấy số profile tinh chỉnh wall). ETA ~3h, quota còn ~19h → đủ.<end of file>
+- **Launch**: kernel v10 — **chỉ SAU khi v9 (§29) kết thúc** (tránh tranh GPU + lấy số profile tinh chỉnh wall). ETA ~3h, quota còn ~19h → đủ.
+- **Change-log §30.2**:
+  1. **[TRƯỚC CODE — 2026-10-07]** Kế hoạch code cụ thể (env-gated, **mặc định = hành vi cũ y hệt**):
+     - Config block sau `TOTAL_STEPS`: `RUN_ACC` (default 1) · `EVAL_STEPS` (default 100) · `RUN_WARMUP`/`RUN_LR`/`RUN_TOTAL` (default = không set → giữ 1000/2.4e-3/và tổng token cũ);
+     - Micro-loop: zero-grad **trước** loop; mỗi micro `get_batch` → forward → nếu finite thì `scaler.scale(micro/ACC).backward()` (**gradient = TRUNG BÌNH qua ACC micro** → LR/clip/scaler semantics giữ nguyên, ACC=1 → giá trị bit-identical); **micro nào NaN → bỏ micro, NaN bất kỳ → skip cả bước** (giống ngữ nghĩa `loss_ok` cũ, sinh `loss_ok = (n_fin == ACC)`);
+     - `loss_f = loss_sum/n_fin` thay `loss.item()` cho hist/print (ACC=1 → cùng giá trị);
+     - eval dời sang `step == EVAL_STEPS` (§30.1 đã disclose: field `loss_at_100` giữ `val@EVAL_STEPS`); in `loss@{EVAL_STEPS}(hold)`;
+     - res: `tokens × ACC` + 2 field mới `acc`, `micro_nan` (không đụng field cũ);
+     - render: block **K-F1…K-F3 chỉ in khi `ACC > 1`** (kpi.txt của run đầy đủ không đổi); marker cuối: `[DS-012f] DONE` khi `ACC > 1`, ngược lại `[DS-012d] DONE` — **hành vi mặc định không đổi**;
+     - **Không** đụng: arch/corpus/seed/guard §27/profiler §29/ckpt-parity path.<end of file>

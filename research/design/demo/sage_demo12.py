@@ -35,6 +35,17 @@ C = dict(
 MAX_CELLS_THIS_SESSION = 1             # §25.1(i): 1 model/session (scheduling, KHONG phai nguong)
 TOTAL_STEPS = C["TOTAL_TOK"] // C["BATCH_TOK"]
 
+# §30 (pre-reg §30 — 9b106f3, change-log §30.2): env-gated big-batch
+# mac dinh = hanh vi cu y het (ACC=1, eval@100, warmup 1000, LR 2.4e-3, tong token cu)
+ACC = int(os.environ.get("RUN_ACC", "1") or "1")               # so micro-batch tich luy moi buoc
+EVAL_STEPS = int(os.environ.get("EVAL_STEPS", "100") or "100") # buoc eval holdout (cu: 100)
+if os.environ.get("RUN_WARMUP"):
+    C["WARMUP"] = int(os.environ["RUN_WARMUP"])
+if os.environ.get("RUN_LR"):
+    C["LR"] = float(os.environ["RUN_LR"])
+if os.environ.get("RUN_TOTAL"):
+    TOTAL_STEPS = int(os.environ["RUN_TOTAL"])
+
 try:
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
@@ -475,6 +486,7 @@ def train_cell(arm, seed, flats, meta):
     hist, t0 = [], time.time()
     loss100, step, divergence = None, 0, False
     grad_skips, nan_loss_skips, bad_streak = 0, 0, 0
+    micro_nan_total = 0
     prof = PROFILE > 0
     lim = PROFILE if prof else TOTAL_STEPS
     ph_wall, iter_walls, ev_pairs = {}, [], []
@@ -491,20 +503,28 @@ def train_cell(arm, seed, flats, meta):
         opt.param_groups[0]["lr"] = lr          # nhom AdamW (A2: group 1 = muon, lr=0, khong doi)
         if muon:
             muon.param_groups[0]["lr"] = lr / C["LR"] * C["LR_MUON"]
-        x, y = get_batch(flat, rng, bs, seq)
-        if prof:
-            torch.cuda.synchronize(); tw1 = time.time()
-            _ph("batch", tw1 - t0p); t0p = tw1
-        with torch.autocast("cuda", dtype=torch.float16):
-            loss = model(x, y)
-        if prof:
-            torch.cuda.synchronize(); tw1 = time.time()
-            _ph("forward", tw1 - t0p); t0p = tw1
-        loss_ok = bool(torch.isfinite(loss.detach()))
+        for p in model.parameters():        # zero TAT ca TRUOC micro-loop (§30.2; ACC=1 -> giong cu)
+            p.grad = None
+        loss_sum, n_fin, micro_nan = 0.0, 0, 0
+        for _mi in range(ACC):              # §30: ACC=1 -> vong lap 1 lan, hanh vi cu
+            x, y = get_batch(flat, rng, bs, seq)
+            if prof:
+                torch.cuda.synchronize(); tw1 = time.time()
+                _ph("batch", tw1 - t0p); t0p = tw1
+            with torch.autocast("cuda", dtype=torch.float16):
+                mloss = model(x, y)
+            if prof:
+                torch.cuda.synchronize(); tw1 = time.time()
+                _ph("forward", tw1 - t0p); t0p = tw1
+            if bool(torch.isfinite(mloss.detach())):
+                loss_sum += float(mloss.item()); n_fin += 1
+                scaler.scale(mloss / ACC).backward()   # gradient = TRUNG BINH qua ACC micro (§30.2)
+            else:
+                micro_nan += 1
+        micro_nan_total += micro_nan
+        loss_ok = (n_fin == ACC)            # micro nao nan -> bo qua ca buoc (ngu y hanh vi loss_ok cu)
+        loss_f = (loss_sum / n_fin) if n_fin else float("nan")
         if loss_ok:
-            for p in model.parameters():    # zero TAT ca (Muon group nam trong opt nhung van can)
-                p.grad = None
-            scaler.scale(loss).backward()
             scaler.unscale_(opt)            # unscale TAT CA gradient + ghi found_inf (neu co)
             # §27 fix#5: reduce isfinite TREN GPU, doc CPU dung 1 lan/buoc (truoc do ~50 lan)
             # toan hoc y het: all(isfinite(g)) <=> sum(isfinite) == sum(numel)
@@ -515,7 +535,7 @@ def train_cell(arm, seed, flats, meta):
             else:
                 grads_ok = True              # y het all([]) ban cu
         else:
-            grads_ok = False                # khong backward -> scaler khong doi scale (khong tang nham)
+            grads_ok = False                # co micro nan -> bo qua buoc, scaler khong doi scale
         if prof:
             torch.cuda.synchronize(); tw1 = time.time()
             _ph("backward", tw1 - t0p); t0p = tw1
@@ -555,13 +575,13 @@ def train_cell(arm, seed, flats, meta):
             print(f"[diverge] {arm} s{seed} step {step}: {bad_streak} buoc lien tuc khong huu han",
                   flush=True)
             break
-        if not prof and step == 100:        # §29: profile bo eval@100 (khong can, tranh lam met)
+        if not prof and step == EVAL_STEPS: # §29: profile bo eval; §30: buoc eval chuyen duoc bang EVAL_STEPS
             loss100 = eval_split(flats["hold"], model, bs=bs, seq=seq)
-            print(f"[eval] {arm} s{seed} loss@100(hold) = {loss100:.4f}", flush=True)
+            print(f"[eval] {arm} s{seed} loss@{EVAL_STEPS}(hold) = {loss100:.4f}", flush=True)
         if step % 50 == 0 and loss_ok:
-            hist.append((step, float(loss.item()), round(time.time() - t0, 1)))
+            hist.append((step, loss_f, round(time.time() - t0, 1)))
             if step % 1000 == 0:
-                print(f"[train] {arm} s{seed} step {step}/{TOTAL_STEPS} loss {loss.item():.4f} "
+                print(f"[train] {arm} s{seed} step {step}/{TOTAL_STEPS} loss {loss_f:.4f} "
                       f"{(time.time()-t0)/60:.1f}min", flush=True)
         if prof:
             iter_walls.append(time.time() - t_iter0)
@@ -609,11 +629,12 @@ def train_cell(arm, seed, flats, meta):
     wall = time.time() - t0
     res = dict(arm=arm, seed=seed, params_total=tot, params_non_emb=non_emb,
                loss_at_100=loss100, val_final=val_final, diverged=divergence,
-               steps_done=step, wall_min=round(wall / 60, 1), tokens=int(step * C["BATCH_TOK"]),
+               steps_done=step, wall_min=round(wall / 60, 1), tokens=int(step * C["BATCH_TOK"] * ACC),
                lr_peak=C["LR"], lr_muon=(C["LR_MUON"] if arm == "A2" else None),
                grad_skips=grad_skips, nan_loss_skips=nan_loss_skips,
                ckpt=ckpt_p, ckpt_bytes=ckpt_bytes, val_reload=val_reload, parity=parity,
-               batch_tok=C["BATCH_TOK"], hist=hist, prep_seconds=meta.get("prep_seconds"))
+               batch_tok=C["BATCH_TOK"], acc=ACC, micro_nan=micro_nan_total,
+               hist=hist, prep_seconds=meta.get("prep_seconds"))
     json.dump(res, open(res_p, "w"), indent=1)
     print(f"[done] {arm} s{seed}: val {val_final:.4f} (loss@100 {loss100}) wall {wall/60:.1f}min", flush=True)
     del model, opt, muon
@@ -743,6 +764,19 @@ def render_kpi(kpis, results):
                  f"nan_loss_skips={r0.get('nan_loss_skips')} logged -> {ks3}")
         L.append(f"K-S4 artifact (giong K2'): {ks4}")
         L.append(f"KPI-S (§27) {sum([ks1, ks2, ks3, ks4])}/4")
+        # §30 K-F1..K-F3 (nguong §30; chi in khi RUN_ACC > 1 — run day du khong doi)
+        if ACC > 1:
+            hmap = {int(s): l for s, l, _t in r0.get("hist", [])}
+            kf1v = hmap.get(1000)
+            kf1 = (kf1v is not None and kf1v <= 3.000)
+            kf2v = r0.get("loss_at_100")    # §30.1: eval da dời sang EVAL_STEPS -> field doa la val@1000
+            kf2 = (kf2v is not None and kf2v <= 3.45)
+            kf3 = ((not r0.get("diverged")) and ((r0.get("grad_skips") or 0) <= 100))
+            L.append(f"K-F1 train@1000 (hist): {kf1v} <= 3.000 -> {kf1}")
+            L.append(f"K-F2 val@1000 (field loss_at_100): {kf2v} <= 3.45 -> {kf2}")
+            L.append(f"K-F3 log: div={r0.get('diverged')} grad_skips={r0.get('grad_skips')} (<=100) "
+                     f"micro_nan={r0.get('micro_nan')} -> {kf3}")
+            L.append(f"KPI-F (§30) {sum([bool(kf1), bool(kf2), bool(kf3)])}/3")
     npass = sum([kpis["K1"]["pass_"], kpis["K2"]["verdict"] == "PASS", kpis["K3"]["verdict"] == "PASS",
                  kpis["K4"]["measured"], kpis["K5"]["pass_"], kpis["K6"]["pass_"]])
     L.append(f"KPI {npass}/6 (K2-K6 = method-effect 9-cell, HOAN §24.4 #1 — khong tinh acceptance DS-012c/DS-012d)")
@@ -837,7 +871,7 @@ def main():
         make_plots(results, kpis)
     except Exception as e:
         print(f"[plot error] {type(e).__name__}: {e}", flush=True)
-    print("[DS-012d] DONE", flush=True)
+    print("[DS-012f] DONE" if ACC > 1 else "[DS-012d] DONE", flush=True)
 
 
 if __name__ == "__main__":
