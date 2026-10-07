@@ -3,6 +3,9 @@
 #   SCOPE = 1 MODEL (A1 x seed 11) — them checkpoint + reload-parity; K2-K6 method-effect HOAN (§24.4 #1)
 # DS-012d §27 (pre-register §27 push TRUOC code, commit bfcccd6, 2026-10-07): fix#5 —
 #   block grads_ok giam isfinite TREN GPU (truoc ~50 doc CPU/buoc -> 1); toan hoc y het, numerics giu nguyen.
+# DS-012e §29 (pre-register §29 push TRUOC code, commits b54e87b + ce65426, 2026-10-07): profile mode —
+#   env PROFILE_STEPS>0 -> 300 buoc do 4 pha wall (sync bien) + GPU-busy bang cuda events -> profile.json,
+#   KHONG ckpt/eval/aggregate; mac dinh 0 = run day du binh thuong khong doi hanh vi.
 # Cau hoi: thu tu dan bay F-B02 (data >= kien truc > optimizer > init) co dung o regime 1 GPU khong?
 # Quy tac: KHONG sua nguong K1-K6 sau khi thay so; moi thay doi ghi §23.4.
 # Script nay resume duoc: cell da co results/*.json se bo qua.
@@ -425,6 +428,10 @@ def lr_at(step, peak):
     return 0.1 * peak + 0.9 * peak * 0.5 * (1 + math.cos(math.pi * min(1.0, prog)))
 
 
+# §29 profile: PROFILE_STEPS env (v9 launch dung preamble 1 dong set = 300); mac dinh 0 = run day du
+PROFILE = int(os.environ.get("PROFILE_STEPS", "0") or "0")
+
+
 def train_cell(arm, seed, flats, meta):
     res_p = f"{OUT}/results/{arm}_s{seed}.json"
     if os.path.exists(res_p):
@@ -468,15 +475,31 @@ def train_cell(arm, seed, flats, meta):
     hist, t0 = [], time.time()
     loss100, step, divergence = None, 0, False
     grad_skips, nan_loss_skips, bad_streak = 0, 0, 0
+    prof = PROFILE > 0
+    lim = PROFILE if prof else TOTAL_STEPS
+    ph_wall, iter_walls, ev_pairs = {}, [], []
+    def _ph(name, wall):
+        ph_wall[name] = ph_wall.get(name, 0.0) + wall
     model.train()
-    while step < TOTAL_STEPS:
+    while step < lim:
+        if prof:
+            torch.cuda.synchronize()
+            t_iter0 = t0p = time.time()
+            _ev_s = torch.cuda.Event(enable_timing=True)
+            _ev_s.record()
         lr = lr_at(step, C["LR"])
         opt.param_groups[0]["lr"] = lr          # nhom AdamW (A2: group 1 = muon, lr=0, khong doi)
         if muon:
             muon.param_groups[0]["lr"] = lr / C["LR"] * C["LR_MUON"]
         x, y = get_batch(flat, rng, bs, seq)
+        if prof:
+            torch.cuda.synchronize(); tw1 = time.time()
+            _ph("batch", tw1 - t0p); t0p = tw1
         with torch.autocast("cuda", dtype=torch.float16):
             loss = model(x, y)
+        if prof:
+            torch.cuda.synchronize(); tw1 = time.time()
+            _ph("forward", tw1 - t0p); t0p = tw1
         loss_ok = bool(torch.isfinite(loss.detach()))
         if loss_ok:
             for p in model.parameters():    # zero TAT ca (Muon group nam trong opt nhung van can)
@@ -493,6 +516,9 @@ def train_cell(arm, seed, flats, meta):
                 grads_ok = True              # y het all([]) ban cu
         else:
             grads_ok = False                # khong backward -> scaler khong doi scale (khong tang nham)
+        if prof:
+            torch.cuda.synchronize(); tw1 = time.time()
+            _ph("backward", tw1 - t0p); t0p = tw1
         if loss_ok and grads_ok:
             bad_streak = 0
             torch.nn.utils.clip_grad_norm_(model.parameters(), C["CLIP"])
@@ -517,12 +543,19 @@ def train_cell(arm, seed, flats, meta):
             if nan_loss_skips <= 10 or nan_loss_skips % 50 == 0:
                 print(f"[nan-skip] {arm} s{seed} step {step} (lan {nan_loss_skips}) — bo qua buoc",
                       flush=True)
+        if prof:
+            torch.cuda.synchronize(); tw1 = time.time()
+            _ph("optim", tw1 - t0p)
+            _ev_e = torch.cuda.Event(enable_timing=True)
+            _ev_e.record()                  # sau khi stream da drain -> GPU window cua buoc
+            ev_pairs.append((_ev_s, _ev_e))
+            t0p = tw1
         if bad_streak >= 20:                # 20 buoc lien tuc khong huu han = khong phuc hoi duoc
             divergence = True
             print(f"[diverge] {arm} s{seed} step {step}: {bad_streak} buoc lien tuc khong huu han",
                   flush=True)
             break
-        if step == 100:
+        if not prof and step == 100:        # §29: profile bo eval@100 (khong can, tranh lam met)
             loss100 = eval_split(flats["hold"], model, bs=bs, seq=seq)
             print(f"[eval] {arm} s{seed} loss@100(hold) = {loss100:.4f}", flush=True)
         if step % 50 == 0 and loss_ok:
@@ -530,8 +563,38 @@ def train_cell(arm, seed, flats, meta):
             if step % 1000 == 0:
                 print(f"[train] {arm} s{seed} step {step}/{TOTAL_STEPS} loss {loss.item():.4f} "
                       f"{(time.time()-t0)/60:.1f}min", flush=True)
+        if prof:
+            iter_walls.append(time.time() - t_iter0)
         step += 1
 
+    if prof:                              # §29: profile mode -> ghi profile.json, BO qua ckpt/eval/aggregate
+        n_it = max(1, len(iter_walls))
+        tot_w = sum(ph_wall.values())
+        tot_i = sum(iter_walls) if iter_walls else 1e-9
+        gpu_s = (sum(s.elapsed_time(e) for s, e in ev_pairs) / 1000.0) if ev_pairs else 0.0
+        prof_out = {
+            "mode": "ds012e_profile", "profile_steps": PROFILE, "steps_done": step,
+            "n_iter": len(iter_walls),
+            "s_step_iter_mean": round(tot_i / n_it, 4),
+            "s_step_iter_median": (round(sorted(iter_walls)[len(iter_walls) // 2], 4)
+                                   if iter_walls else None),
+            "coverage": round(tot_w / tot_i, 4),
+            "gpu_busy_s_total": round(gpu_s, 3),
+            "gpu_busy_frac": round(gpu_s / tot_i, 4),
+            "phases": {k: {"wall_mean": round(v / n_it, 4),
+                           "wall_frac": (round(v / tot_w, 4) if tot_w > 0 else None)}
+                       for k, v in ph_wall.items()},
+            "loss_hist_last": (list(hist[-1]) if hist else None),
+            "grad_skips": grad_skips, "nan_loss_skips": nan_loss_skips,
+            "env": {"torch": torch.__version__,
+                    "gpu": (torch.cuda.get_device_name(0) if torch.cuda.is_available() else None)},
+            "note": "5 sync/buoc (1 dau buoc + 4 bien pha); s_step instrumented KHONG doi chieu production 0.4158",
+        }
+        json.dump(prof_out, open(f"{OUT}/profile.json", "w"), indent=1, default=str)
+        print("[profile] " + json.dumps(prof_out, indent=1, default=str), flush=True)
+        del model, opt, muon
+        torch.cuda.empty_cache()
+        return prof_out
     val_final = eval_split(flats["hold"], model, bs=bs, seq=seq)
     # §25.1(ii): model PHAI TON TAI duoc — save + reload-parity (K2')
     ckpt_p = f"{OUT}/model_{arm}_s{seed}.pt"
@@ -761,6 +824,11 @@ def main():
             print(f"[error] {arm} s{seed}:", flush=True)
             traceback.print_exc()
 
+    if PROFILE > 0:                       # §29: profile run -> DONE chi khi co profile.json, bo aggregate
+        ok_pf = os.path.exists(f"{OUT}/profile.json")
+        print("[DS-012e] DONE" if ok_pf else "[DS-012e] PROFILE FAILED — khong co profile.json",
+              flush=True)
+        return
     results = load_results()
     kpis = aggregate(meta, results)
     json.dump(kpis, open(f"{OUT}/summary.json", "w"), indent=1, default=str)
