@@ -1288,4 +1288,46 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 - **Cấm**: hạ K1'–K4' sau khi thấy số · đổi corpus/batch/seed/LR/warmup · **chạy thêm arm/seed trong session này** (scope = đúng 1 model) · chọn "checkpoint tốt nhất" trong nhiều lần save · dừng run do recon. <mọi fallback khác> = cấm. **Mọi thay đổi → §25.5 kèm trước/sau.**
 - **Change-log §25.5**:
   1. **[BUG HARNESS SAU v4 — 2026-10-07, TRƯỚC KHI CHẠY v5]** v4 **train xong 100%** (số thô `results/A1_s11.json`, đã tải về `out/ds012c/results_A1_s11.json`): `steps_done 10850` · `val_final 3.4254263` · `ckpt_bytes 50373361` · `val_reload 3.4254263` `parity 0.0` · `wall 79.2'` · `grad_skips 4` `nan_loss_skips 0` · `prep 1329.9s` — **nhưng crash ở khâu tổng hợp**: `aggregate()` L576 `med["A2"]` → `KeyError: 'A2'` (code §25 đổi `ARMS=["A1"]` nhưng L556–557 build `med` chỉ từ arm có mặt, L576–577 vẫn đọc `med["A2"]/med["A3"]`) → `kpi.txt`/`summary.json`/`plots/` + `[DS-012c] DONE` **không được sinh**, status ERROR. **Sửa (harness báo cáo duy nhất — KHÔNG đổi numerics, KHÔNG đổi ngưỡng K1'–K4')**: (i) L576–577 dùng `med.get(...)` — arm thiếu → `dk=None` → verdict `MISSING` (đúng design có sẵn của `verdict()`); (ii) `render_kpi` **thêm dòng K2'/K3'/K4' + KPI' tổng** theo §25.3 (ckpt ≥25MB · parity ≤0.05 · wall ≤150' · grad_skips/nan_loss_skips đủ log) — trước fix, §25 chỉ có header + §23 K1, **3 KPI §25 chưa từng được render ra file**; (iii) dòng `KPI x/6` gắn nhãn "method-effect 9-cell HOAN §24.4 #1". **Quyết định acceptance**: **v5** (cùng config A1×s11, chỉ fix bookkeeping) = run chính thức sinh artifact; **v4 = số thô song song, ghi trung thực** (cross-check tái lập cùng seed, không bỏ). Đánh giá v4 theo §25.3 (raw): **K1' PASS** (3.4254 ≤ 3.5045) · **K2' PASS** (50.4MB ≥ 25MB, parity 0.0) · **K3' PASS** (79.2 ≤ 150) · **K4' PASS** (đủ log) → **4/4**. Pred-vs-obs v4: wall 79.2 ∈ 67–124 ✓ · val 3.4254 vs pred 3.45 ✓ · grad_skips 4 ∈ 1–200 ✓ · **prep pred 0s → obs 1329.9s MISS** — thừa nhận: giả định "bins persist qua session" (§23.4 #4) **sai** — Kaggle `/kaggle/working` mới mỗi session → **3/4**. Không fallback nào khác được dùng; không sửa ngưỡng.
-- **Findings prefix**: **F-X13…F-X16** (tiếp tục họ F-X của DS-012).<end of file>
+- **Findings prefix**: **F-X13…F-X16** (tiếp tục họ F-X của DS-012).
+
+---
+
+## §27 — DS-012d: fix#5 "bỏ ~50 sync/bước" — pre-register (TRƯỚC CODE)
+
+> **Slot chương**: §26 giữ chỗ cho DS-013 TPU smoke (chưa viết — xem `tpu-training.md`); §28 = wide-shallow (AN-019, chờ duyệt). Section này ghi TRƯỚC KHI code fix#5 — 2026-10-07, sau khi §25/DS-012c đóng bằng v7.
+
+- **Mục tiêu**: chạy **lại đúng config A1 × seed 11** (đã PASS §25 — baseline = v7) với **DUY NHẤT một thay đổi code: bỏ host-sync thừa trong guard không-phải-số-hữu-hạn** → tăng tốc ≥1.5× **giữ nguyên numerics** (K-S2 kiểm chứng). Đúng hạng #1 của speed-plan (AN-019 **F-AA01**: systems đứng trên mọi thuật toán).
+- **Baseline đã đo — thừa nhận ĐÃ THấy trước khi chọn ngưỡng**: `0.4296 s/step` (v7: t@1000 = 541.0s → t@10000 = 4407.0s / 9000 bước) · `0.427 s/step` (v3) · `val_final` = `3.4254263` (v4) / `3.4260309` (v7) → trung bình **3.4257** · `grad_skips 4` (cả 2 run) · wall 79.2' / 83.7' · prep 1230–1330s · **CHƯA THấy**: s/step sau fix, val sau fix, skips sau fix. Chẩn đoán "~50 sync/bước" = **số đo** (mỗi ~50 tensor grad 1 lần `isfinite().all()` đọc về CPU + 1 lần loss).
+
+- **Thay đổi code DUY NHẤT** (`sage_demo12.py`, train loop, block `grads_ok`):
+
+  *Trước* (~50–52 host-sync/bước — mỗi tensor 1 lần đọc CPU):
+  ```python
+  grads_ok = all(torch.isfinite(p.grad).all()
+                 for p in model.parameters() if p.grad is not None)
+  ```
+  *Sau* (reduce trên GPU, **đọc CPU đúng 2 lần/bước**: 1× loss, 1× tổng grad):
+  ```python
+  grads = [p.grad for p in model.parameters() if p.grad is not None]
+  fin = [torch.isfinite(g).sum() for g in grads]
+  grads_ok = bool(torch.stack(fin).sum().item() == sum(g.numel() for g in grads))
+  ```
+  **Toán học y hệt**: `all(isfinite(g))` ⟺ `Σ isfinite == Σ numel` — cùng kiểm tra, khác chỗ reduce. Flow `loss_ok` (loss NaN → không backward → scaler không đổi) **giữ nguyên**. Không đụng LR/batch/corpus/seed/arch/eval/ckpt/clip.
+
+- **Giữ nguyên toàn bộ §25.1**: 12.59M · 27648 tok/step · 10850 bước · warmup 1000 cosine→10% · η* 2.4e-3 · fp16 + GradScaler + fix#4 · holdout 10M ×3 · ckpt + reload parity. Prep vẫn ~1240s/session (F-X15 — **ngoài scope**, không đụng).
+
+- **KPI (K-S1…K-S4, gate)**:
+  - **K-S1 (tốc độ)**: `s/step = (t@10000 − t@1000) / 9000` lấy từ `hist` ≤ **0.28** (≥ 1.5× baseline 0.4296).
+  - **K-S2 (tương đương numerics)**: `|val_final − 3.4257| ≤ 0.05` ∧ `val_final ≤ 0.5 × loss@100` ∧ `not diverged`.
+  - **K-S3 (hành vi counter)**: `grad_skips ≤ 12` ∧ `nan_loss_skips` có log (kỳ vọng 0) ∧ `bad_streak < 20` mọi lúc. Nếu `grad_skips = 0` → **ghi nghi vấn detection** (baseline luôn ~4) vào findings — không tự động FAIL nhưng không được bỏ qua.
+  - **K-S4 (artifact)**: `ckpt ≥ 25MB` ∧ `parity ≤ 0.05`.
+  - **Wall = report-only** (không gate — prep dao động 1230–1330s làm mờ), pred 55'.
+  - **FAIL giữ thật**: K-S1 FAIL dù K-S2 PASS → **SPEED-FAIL** (vẫn ghi); K-S2 FAIL → numerics đổi → run FAIL toàn phần, không giải thích away.
+
+- **Pred-vs-obs §27.1 (4, ghi trước)**: (1) `s/step` pred **0.15–0.22** (2–3×; gate ≤0.28) · (2) `wall` pred **55 phút** (close 35–80) · (3) `val_final` pred **3.43** (close = dải K-S2) · (4) `grad_skips` pred **2–8**.
+
+- **Cấm**: đổi bất kỳ thứ gì ngoài block guard (đổi thêm = pre-reg mới) · hạ ngưỡng sau khi thấy số · chạy arm/seed khác (vẫn đúng 1 model) · re-run lén nếu FAIL · chọn best-of. **Mọi thay đổi → §27.x kèm trước/sau.**
+- **Change-log §27.x**:
+  1. **[TRƯỚC CODE — 2026-10-07]** Ngưỡng `K-S1 = 0.28` (≥1.5×) và `K-S2 = ±0.05` **chọn SAU KHI đã thấy baseline v3/v4/v7** (liệt kê đủ ở trên — disclosure trung thực); margin K-S2 ≈ 80× nondeterminism cùng seed đã đo (Δ0.0006) — đủ rộng cho thay đổi chỗ reduce, đủ hẹp bắt thay đổi numerics thật. **Chưa thấy bất kỳ con số nào của run fix#5**. Thay đổi chương §26→§27/§28 (số chương wide-shallow/DS-013 giữ chỗ) — sửa tham chiếu AN-019/backlog/SYNTHESIS, không liên quan số liệu.
+- **Findings prefix**: **F-X17…F-X20**.
+- **Launch**: kernel `tribu1/ds-012-pretrain-from-scratch` v8 — SaveAndRunAll, GPU, **source upload explicit** (như v7 — v5/v6 chết 6s khi không đính kèm text).<end of file>

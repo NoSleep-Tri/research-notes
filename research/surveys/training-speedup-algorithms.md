@@ -43,7 +43,7 @@ Mục tiêu tối ưu của mỗi kỹ thuật khác nhau — bottleneck của m
 |---|---|---|---|
 | **CUDA kernel / systems** | wall trực tiếp | ✅ **Ưu tiên 1** | E18 — 8% MFU, 50 sync/step |
 | **Muon (A2 arm đã có)** | FLOPs-to-target 1.3–1.4× @<520M | ⚠️ Có, nhưng fair-tuning thu hẹp | E7, E8, E9 |
-| **μP** | HP budget — transfer LR theo width | ✅ Có — **cho thí nghiệm §26 đổi width**, phải làm u-µP-style (fp16!) | E1–E4 |
+| **μP** | HP budget — transfer LR theo width | ✅ Có — **cho thí nghiệm §28 đổi width**, phải làm u-µP-style (fp16!) | E1–E4 |
 | **Chinchilla ratio** | data-optimal token/param | ✅ Đã ngầm đúng: 3e8/12.6M ≈ 24 ≈ 20 | internal |
 | **Selective Backprop** | FLOPs (bỏ backward loss thấp) | ⚠️ Có — nhóm data lever, **sau** systems fix | E13 |
 | **Rho-1 (selective LM)** | tokens-to-target | ✅ Cùng hướng arm A3 (lọc data) — candidate chính nhóm thuật toán | E12 |
@@ -73,7 +73,7 @@ Mục tiêu tối ưu của mỗi kỹ thuật khác nhau — bottleneck của m
 ## 4. Findings (1–3 ý, kèm confidence)
 
 - **F-AA01**: Thứ tự giữ nguyên: **systems (fix #5 → compile) đứng trên mọi thuật toán** — lợi nhuận đo được của systems (2–3× ước tính) > lợi nhuận thuật toán đã chứng minh (1.1–1.4×), và mọi thuật toán sau đó đều được nhân kèm. — *confidence: cao* · E7, E18
-- **F-AA02**: **μP là công cụ methodology, không phải speedup trực tiếp** — giá trị thật: transfer LR theo width cho thí nghiệm đổi width (§26 wide-shallow), tránh confound "thua do LR sai chứ không do kiến trúc". Bắt buộc biến thể u-µP (E2: μP nguyên bản diverge FP16 — mình đang train fp16) + nhớ re-tune khi đổi depth (E1) và "transfer ≠ val loss tốt hơn" (E3). — *confidence: trung bình-cao* · E1–E4
+- **F-AA02**: **μP là công cụ methodology, không phải speedup trực tiếp** — giá trị thật: transfer LR theo width cho thí nghiệm đổi width (§28 wide-shallow), tránh confound "thua do LR sai chứ không do kiến trúc". Bắt buộc biến thể u-µP (E2: μP nguyên bản diverge FP16 — mình đang train fp16) + nhớ re-tune khi đổi depth (E1) và "transfer ≠ val loss tốt hơn" (E3). — *confidence: trung bình-cao* · E1–E4
 - **F-AA03**: **MTP không nên ưu tiên ở 12.6M** — evidence tích cực đều ở scale lớn (13B: +12% HumanEval), Pile BPB phẳng, MMLU còn hạ (E5); "increasingly useful for larger sizes" nghĩa là benefit chưa được chứng minh ở size mình, trong khi extra output heads ăn capacity của model nhỏ. — *confidence: trung bình-cao (về "không ưu tiên"); thấp (về "hại")* · E5, E6
 - **F-AA04**: **Matrix optimizer (arm A2) có cơ sở thật nhưng nhớ fair-tuning**: 1.3–1.4× ở <520M khi AdamW baseline cũng được tune công bằng + WD scaling ∝ 1/width; riêng LR tuning AdamW đã ăn tới 2× → nếu A2 "thắng" phải chắc baseline đã đủ tune. — *confidence: trung bình* · E7–E10
 - **F-AA05**: **WSD không tăng tốc hội tụ đầu** — nó mua "train extension + continual/đổi domain" (MiniCPM không claim thắng end-to-end) → chỉ cần khi nghĩ tới việc mở token beyond 300M. — *confidence: trung bình* · E11
@@ -92,7 +92,7 @@ Mục tiêu tối ưu của mỗi kỹ thuật khác nhau — bottleneck của m
 ## 6. Hướng kiểm chứng tiếp
 
 1. **Sau v4**: change-log fix #5 (đọc scale-signal thay per-step `isfinite`) → chạy lại A1 → **đo** 2–3× có thật (cần cho mọi ước tính phía sau). — *cần chạy: có*
-2. **§26 wide-shallow (chờ bạn duyệt)**: pre-reg kèm quyết định μP hay η*-law — nếu μP thì phải implement u-µP-style vì fp16. — *cần chạy: có (nếu chốt)*
+2. **§28 wide-shallow (chờ bạn duyệt)**: pre-reg kèm quyết định μP hay η*-law — nếu μP thì phải implement u-µP-style vì fp16. — *cần chạy: có (nếu chốt)*
 3. **Sau khi systems fix xong**: nếu vẫn muốn thêm thuật toán → Rho-1/A3 (data selection) trước, Muon-arm A2 đã sẵn trong pre-reg DS-012. — *cần chạy: có*
 4. Đo critical batch size nội bộ (gradient noise scale trên vài batch holdout) — *cần chạy: nhỏ, có thể gộp*
 5. little-age-mu/nemu: hỏi lại nguồn gốc (có thể do paste lạ) trước khi tốn công. — *không cần chạy*
