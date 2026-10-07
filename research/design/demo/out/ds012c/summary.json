@@ -1,0 +1,106 @@
+{
+ "K1": {
+  "pass_": true,
+  "n_pass": 1,
+  "n_total": 1,
+  "details": [
+   {
+    "cell": "A1_s11",
+    "loss100": 7.008965105231119,
+    "final": 3.426030868308366,
+    "ratio": 0.4888
+   }
+  ]
+ },
+ "K2": {
+  "delta": null,
+  "threshold": 0.05,
+  "verdict": "MISSING"
+ },
+ "K3": {
+  "delta": null,
+  "threshold": 0.03,
+  "verdict": "MISSING"
+ },
+ "K4": {
+  "spread_by_cell": {},
+  "median_spread": null,
+  "eats_k2": false,
+  "eats_k3": false,
+  "measured": false
+ },
+ "K5": {
+  "n_expected": 9,
+  "n_valid": 1,
+  "pass_": false,
+  "note": "chi 1/9 — neu scale-down 2 seed/cell phai ghi §23.4 TRUOC khi chay"
+ },
+ "K6": {
+  "n_close": 2,
+  "n_total": 7,
+  "rows": [
+   {
+    "name": "K1 PASS 9/9",
+    "pred": "9/9",
+    "obs": "1/1",
+    "close": false
+   },
+   {
+    "name": "ΔK2 (A1−A2)",
+    "pred": 0.08,
+    "obs": null,
+    "close": false
+   },
+   {
+    "name": "ΔK3 (A1−A3)",
+    "pred": 0.04,
+    "obs": null,
+    "close": false
+   },
+   {
+    "name": "K4 median spread",
+    "pred": 0.07,
+    "obs": null,
+    "close": false
+   },
+   {
+    "name": "runtime/run (min)",
+    "pred": 90,
+    "obs": 83.7,
+    "close": true
+   },
+   {
+    "name": "A1 final val-loss",
+    "pred": 2.7,
+    "obs": 3.426,
+    "close": true
+   },
+   {
+    "name": "K3 INCONCLUSIVE (K4 nuot)",
+    "pred": true,
+    "obs": false,
+    "close": false
+   }
+  ],
+  "pass_": false
+ },
+ "medians": {
+  "A1": 3.426030868308366
+ },
+ "meta": {
+  "source": "HuggingFaceFW/fineweb-edu",
+  "a1_tokens": 300000000,
+  "a3_tokens": 300000000,
+  "holdout_tokens": 10000260,
+  "a1_docs": 245244,
+  "a3_docs": 276994,
+  "hold_docs": 8866,
+  "rejected": 10785,
+  "exact_dup": 125,
+  "near_dup": 412,
+  "scanned": 296645,
+  "prep_seconds": 1238.5,
+  "dedup_rate": 0.0018,
+  "reject_rate": 0.0364
+ }
+}

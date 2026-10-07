@@ -1,0 +1,26 @@
+DS-012c §25 KPI (pre-register §25 bd5dea1 — 1 MODEL A1 x s11; nguong K1' = §23 K1, khong doi)
+K2-K6 (method-effect, 9-cell) HOAN theo change-log §24.4 #1 — chi thi 2026-10-07: tap trung train 1 model
+corpus: HuggingFaceFW/fineweb-edu | a1 300.0M tok raw | a3 300.0M tok loc | holdout 10.0M tok | reject_rate 0.0364 | dedup_rate 0.0018 | prep 1238.5s
+cells: 1/1 (scope §25 = 1 model) | model 12.59M total / 9.44M non-emb | 27648 tok/step | 10850 steps/run
+K1 PASS: True (1/1 run giam >=50% vs loss@100 va khong diverge)
+   A1_s11: loss@100 7.008965105231119 -> val 3.426030868308366 ratio 0.4888
+K2 (Muon <= A1-0.05, trung vi): delta None -> MISSING
+K3 (data filter <= A1-0.03, trung vi): delta None -> MISSING
+K4 F-B04: spread/cell {} median None | eats K2 False | eats K3 False
+K5 artifacts: 1/9 -> False (chi 1/9 — neu scale-down 2 seed/cell phai ghi §23.4 TRUOC khi chay)
+K6 pred-vs-obs: 2/7 close (nguong >=4/7) -> False
+   K1 PASS 9/9: pred 9/9 | obs 1/1 | close False
+   ΔK2 (A1−A2): pred 0.08 | obs None | close False
+   ΔK3 (A1−A3): pred 0.04 | obs None | close False
+   K4 median spread: pred 0.07 | obs None | close False
+   runtime/run (min): pred 90 | obs 83.7 | close True
+   A1 final val-loss: pred 2.7 | obs 3.426 | close True
+   K3 INCONCLUSIVE (K4 nuot): pred True | obs False | close False
+medians: A1=3.426030868308366
+   A1_s11: val 3.4260 wall 83.7min steps 10850 div False
+K1' (§23 K1 nguyen van): True — nguong val_final <= 0.5 x loss_at_100
+K2' ckpt: 50373361 B >= 25MB -> True | parity 0.0 <= 0.05 -> True
+K3' wall: 83.7 min <= 150 -> True
+K4' log du: grad_skips=4 nan_loss_skips=0 (khong co nguong) -> True
+KPI' (§25) 4/4
+KPI 1/6 (K2-K6 = method-effect 9-cell, HOAN §24.4 #1 — khong tinh acceptance DS-012c)
