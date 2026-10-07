@@ -49,6 +49,7 @@ if os.environ.get("RUN_TOTAL"):
 # §30.3a (pre-reg 1e6eacb): PROBE mode — mac dinh 0 (run day du khong doi); T0 = dau script (giam prep)
 PROBE = int(os.environ.get("PROBE", "0") or "0")
 T0_PROBE = time.time()
+RUN_COMPILE = os.environ.get("RUN_COMPILE", "0") == "1"   # §30.6.1: lever F-X26 torch.compile (mac dinh 0 = hanh vi cu y het)
 
 try:
     torch.backends.cuda.matmul.allow_tf32 = True
@@ -559,6 +560,9 @@ def train_cell(arm, seed, flats, meta):
     ph_wall, iter_walls, ev_pairs = {}, [], []
     def _ph(name, wall):
         ph_wall[name] = ph_wall.get(name, 0.0) + wall
+    if RUN_COMPILE:                    # §30.6.1: giong hinh mau probe V2 (K-PD4 PASS, ~38s lan dau)
+        model = torch.compile(model)
+        print(f"[compile] RUN_COMPILE=1 wrapped - {arm} s{seed}", flush=True)
     model.train()
     while step < lim:
         if prof:
@@ -685,7 +689,7 @@ def train_cell(arm, seed, flats, meta):
     val_final = eval_split(flats["hold"], model, bs=bs, seq=seq)
     # §25.1(ii): model PHAI TON TAI duoc — save + reload-parity (K2')
     ckpt_p = f"{OUT}/model_{arm}_s{seed}.pt"
-    torch.save(model.state_dict(), ckpt_p)
+    torch.save(getattr(model, "_orig_mod", model).state_dict(), ckpt_p)  # RUN_COMPILE: lay state_dict goc (eager khong doi gi)
     ckpt_bytes = os.path.getsize(ckpt_p)
     model2 = GPT(C, C["VOCAB"]).cuda()
     model2.load_state_dict(torch.load(ckpt_p, map_location="cuda"))
