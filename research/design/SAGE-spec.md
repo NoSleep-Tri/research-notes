@@ -1265,5 +1265,26 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
   - **K6'**: ≥4/7 pred-vs-obs khớp.
 - **Pred-vs-obs §24.3 (7, ghi trước)**: (1) K1' = 9/9 PASS · (2) ΔK2 pred **0.03** (→ pred FAIL, dưới ngưỡng 0.05) · (3) ΔK3 pred **0.01** (→ pred FAIL) · (4) K4' nuốt K2' → **True** · (5) K4' nuốt K3' → **True** · (6) prep ≤ 150s → **True** · (7) wall-clock ≤ **25 phút** → True. *Tinh thần trung thực: pred FAIL cho K2'/K3' phỏng theo F-B04 (seed variance ≈ effect ở 14M) — nếu obs PASS thì đây mới là bất ngờ đáng giá.*
 - **Cấm** (y hệt §23): hạ ngưỡng K1'–K6' sau khi thấy số · đổi corpus/budget sau khi có arm đầu · chọn seed tốt · dừng run "do recon". Fallback duy nhất: HF không tới được → corpus local; OOM → giảm batch. <mọi fallback khác> = cấm. **Mọi thay đổi → §24.4 kèm trước/sau.**
-- **Change-log §24.4**: *(chưa có — ghi vào đây nếu có thay đổi)*.
-- **Findings prefix**: **F-X07…F-X12** (tiếp tục họ F-X của DS-012).<end of file>
+- **Change-log §24.4**: #1 — **2026-10-07, TRƯỚC KHI CODE BẤT KỲ run nào của §24**: người dùng chỉ thị *"tập trung train 1 model thôi đi"* → **DS-012b (9-cell scale-down) HOÃN**: không huỷ pre-reg, không sửa ngưỡng K1'–K6', quay lại khi có chỉ thị mới. Việc chạy tiếp theo scope **1 model** ở §25 (DS-012c). *(chưa có thay đổi nào khác — ghi vào đây nếu có.)*
+- **Findings prefix**: **F-X07…F-X12** (tiếp tục họ F-X của DS-012).
+
+## 25. DS-012c — *Train 1 model*: huấn luyện ĐÚNG MỘT model đến cuối, checkpoint có thật không?: acceptance **pre-registered**
+
+- **Ghi TRƯỚC KHI CODE + TRƯỚC KHI CHẠY — 2026-10-07** (quy trình §10→§22, pre-reg này push trước mọi dòng code của §25). **Thừa nhận ĐÃ THẤY số** (kê khai, không tự nhận "blind"): từ DS-012 v3 — A1 s11 `loss@100(hold) = 7.009`, train `loss@1000 = 4.5589`, train `loss@10000 = 3.4311`, `0.427 s/step`, `prep = 1230.3s` (session này **skip** — bins v3 còn), grad-skips còn xảy ra tới step 9236; từ v2 — diverge-grad 910–2704 (guard bug, đã fix #4 `c17d609`). **CHƯA THẤY**: `val_final` (chưa ai chạy hết 10.850 bước), wall đầy đủ của 1 cell, checkpoint parity (chưa từng save model). Ngưỡng **K1' dưới đây = §23 K1 nguyên văn** (push `9314d36` từ trước) — không tự bịa ngưỡng mới cho phần hội tụ.
+- **Câu hỏi §25**: chỉ thị *"tập trung train 1 model thôi đi"* → bỏ 9-cell ablation: chạy **đúng 1 run A1 × seed 11, full 0.3B token (10.850 bước)** đến cuối — (1) model có **HỘI TỤ** theo ngưỡng K1 của §23? (2) model có **TỒN TẠI thật** (checkpoint ≥25MB, reload được, eval parity ≤0.05)? (3) wall có **lọt 1 phiên Kaggle** (≤150 phút)?
+- **Quan hệ §24**: DS-012b **HOÃN** (change-log §24.4 #1) — không huỷ, không sửa ngưỡng; câu hỏi K2'/K3' (method effect vs seed-spread) chưa trả lời, chờ chỉ thị.
+- **Scope §25.1 — code ≠ §23.1 (được phép: ghi trước run; numerics KHÔNG đổi)**:
+  (i) `ARMS=["A1"]`, `SEEDS=[11]`, `MAX_CELLS=1` (9 → 1 cell);
+  (ii) **THÊM checkpoint**: `torch.save(state_dict, model_A1_s11.pt)` + **reload-parity**: load lại weights, eval holdout 10M lần 2, so `|val_reload − val_final| ≤ 0.05`;
+  (iii) **giữ nguyên** arch/LR/batch/corpus/warmup/CLIP/fp16+GradScaler/fix#4 — cùng data stream deterministic (cùng seed → cùng batch) ⇒ so sánh với số v3 là hợp lệ.
+- **Thiết kế §25.2**: kernel `tribu1/ds-012-pretrain-from-scratch` **v4** (T4, internet, cap 12h); reuse `ds012/data/*.bin` (prep ≈ 0s); eval holdout 10M ×3 (step 100 · cuối · sau reload); artifacts: `results/A1_s11.json` (+`ckpt_bytes`, `val_reload`, `parity`), `kpi.txt`, `summary.json`, `plots/`, **`model_A1_s11.pt` (~50MB fp32)**.
+- **KPI §25.3 (ngưỡng MỚI cho K2'–K4', ghi trước — không hạ sau khi thấy số)**:
+  - **K1' (hội tụ)**: y hệt §23 K1 — `steps_done = 10850` ∧ `diverged = False` ∧ `loss_at_100 ≠ null` ∧ **`val_final ≤ 0.5 × loss_at_100`** (với loss@100 = 7.009 như v3 → **≤ 3.5045**).
+  - **K2' (model tồn tại)**: `model_A1_s11.pt` tồn tại, **≥ 25MB** ∧ **`|val_reload − val_final| ≤ 0.05`**.
+  - **K3' (wall-clock)**: **`wall ≤ 150 phút`** (tính cả 3 lần eval + parity; pred §25.4 = 95 phút).
+  - **K4' (trung thực log)**: `grad_skips`/`nan_loss_skips` phải có trong results — **không đặt ngưỡng**, chỉ bắt buộc ghi đủ (pred ≥1: v3 còn skip ở 9236).
+  - **FAIL giữ thật**: K1' FAIL dù K2'/K3' PASS → vẫn là FAIL; không hạ ngưỡng, không giải thích away.
+- **Pred-vs-obs §25.4 (4, ghi trước)**: (1) `wall` pred **95 phút** (±30% = close: 67–124) · (2) `val_final` pred **3.45** — *lưu ý trung thực: K1' bind ở 3.5045, pred nằm sát sườn; nếu obs 3.51–4.0 → **K1' FAIL thật**, vẫn ghi* · (3) `grad_skips` pred **1–200** · (4) prep = **0s** (reuse bins v3) → True.
+- **Cấm**: hạ K1'–K4' sau khi thấy số · đổi corpus/batch/seed/LR/warmup · **chạy thêm arm/seed trong session này** (scope = đúng 1 model) · chọn "checkpoint tốt nhất" trong nhiều lần save · dừng run do recon. <mọi fallback khác> = cấm. **Mọi thay đổi → §25.5 kèm trước/sau.**
+- **Change-log §25.5**: *(chưa có — ghi vào đây nếu có thay đổi)*.
+- **Findings prefix**: **F-X13…F-X16** (tiếp tục họ F-X của DS-012).<end of file>
