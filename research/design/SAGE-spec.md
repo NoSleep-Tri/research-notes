@@ -1366,6 +1366,25 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 - **Findings prefix**: **F-X21…F-X24**.
 - **Launch**: kernel `tribu1/ds-012-pretrain-from-scratch` v9 — SaveAndRunAll, GPU, **text explicit** (preamble + source). ETA ≈ prep 21' + 300 bước instrumented ~4' + overhead ≈ **~30 phút**.
 
+### §29.3 — KẾT QUẢ v9 (2026-10-07): **K-P 3/3 PASS** — nút thắt = forward+backward
+
+- **Session 1485.7s ≈ 24.8'** (prep 1341.7s; train 300 bước ≈ 2.4') — dưới biên 30' của quy tắc phiên mới (§30.4, ban hành sau khi v9 đã launch; các launch sau neo 30–60').
+- **K-P1** coverage **0.9999** ∈ [0.80,1.05] → PASS · **K-P2** `profile.json` ✓ + 4 pha ✓ + n_iter **300 ≥ 280** ✓ + marker `[DS-012e] DONE` ✓ → PASS · **K-P3** |6.083261013031006 − 6.083034038543701| = **0.000227 ≤ 0.15** → PASS. **K-P = 3/3 PASS.** Artifact `out/ds012e/profile.json` (771 B) đã tải.
+- **Phân rã s/step** (instrumented 0.4009 s ≈ production 0.4158/0.4296 → overhead đo ≈ 0):
+
+  | pha | wall_mean | frac |
+  |-----|-----------|------|
+  | batch | 0.0004 s | 0.1% |
+  | forward | 0.132 s | 32.9% |
+  | backward | 0.2613 s | **65.2%** |
+  | optim | 0.0071 s | 1.8% |
+
+- **Pred-vs-obs §29.1 (4)**: gpu-busy pred 0.20 → obs 0.9999 **MISS + metric INVALID (F-X23)** · session pred 30' (20–45) → 24.8' **CLOSE** · Δloss@250 ≤0.05 → 0.0002 **CLOSE** · biggest phase backward ≥35% → 65.2% **CLOSE** → **3/4 close** (report-only; K-P mới là gate).
+- **F-X21**: **98% s/step nằm TRONG cửa sổ fwd+bwd** (fwd 33% + bwd 65%); batch 0.1% + optim 1.8% ≤ 2% → lever dataloader/optimizer/chia pha **chết** (đồng thuận fix#5 chỉ +3.2%).
+- **F-X22**: overhead instrumentation (5 sync/bước) **≈ 0** (0.4009 ≤ baseline 0.4158, trong noise ±3%) → củng cố F-X17: sync không đo được tác động.
+- **F-X23**: `gpu_busy_frac` (event-pair elapsed/iter_wall) **tautological** — timestamp event tiến theo wall khi stream rỗng → ≈ coverage, KHÔNG đo busy-vs-idle → **INVALID làm utilization metric**; bài học: cần sampler ngoài (nvidia-smi/CTA) cho utilization thật.
+- **F-X24**: sanity: ~400 ms fwd+bwd cho ~40–80 GFLOP (attention-heavy T=1024, 27 seq) → **~1–5% fp16 peak T4** → headroom ≥20–60×; lever khả dĩ: SDPA backend (math fallback?), torch.compile, big-batch — **NHƯNG** ACC=110 × ~0.40s ≈ 44s/bước × 1050 ≈ **12h** → **§30 v10 vô lực** với wall thực đo (xem §30.3).
+
 ---
 
 ## §30 — DS-012f: Đào big-batch tới **loss@1000 ≤ 3.000** (mục tiêu bạn đặt 2026-10-07) — pre-register (TRƯỚC CODE)
@@ -1403,4 +1422,8 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
      - eval dời sang `step == EVAL_STEPS` (§30.1 đã disclose: field `loss_at_100` giữ `val@EVAL_STEPS`); in `loss@{EVAL_STEPS}(hold)`;
      - res: `tokens × ACC` + 2 field mới `acc`, `micro_nan` (không đụng field cũ);
      - render: block **K-F1…K-F3 chỉ in khi `ACC > 1`** (kpi.txt của run đầy đủ không đổi); marker cuối: `[DS-012f] DONE` khi `ACC > 1`, ngược lại `[DS-012d] DONE` — **hành vi mặc định không đổi**;
-     - **Không** đụng: arch/corpus/seed/guard §27/profiler §29/ckpt-parity path.<end of file>
+     - **Không** đụng: arch/corpus/seed/guard §27/profiler §29/ckpt-parity path.
+- **Change-log §30.3**:
+  1. **[TRƯỚC RUN — 2026-10-07, SAU KHI §29 v9 VỀ]** **v10 HỦY TRƯỚC KHI CHẠY — wall thực đo phá tính khả thi**: §29 đo s/step = 0.4009 (fwd+bwd 98%, F-X24) → ACC=110 × ~0.40s ≈ **44s/bước × 1050 ≈ 12h** → vượt quota-wall VÀ **vi phạm quy tắc phiên 30–60'** (§30.4). **K-F1..K-F3 giữ nguyên, không hạ ngưỡng**; chưa chạy run §30 nào → không có FAIL nào bị "điều chỉnh sau". Thứ tự mới: **(3a) probe tốc độ ≤60'/phiên** — SDPA backend (nghi ngờ math fallback) + torch.compile — pre-reg §30.3a tách riêng TRƯỚC code → **(3b) re-derive ACC/wall bằng số đo mới** → launch trong 30–60'. Finding mới nhập F-X25 (probe), F-X28 (re-derive wall).
+- **Change-log §30.4 — QUY TẮC PHIÊN MỚI (chỉ thị trực tiếp 2026-10-07)**:
+  1. **[TRƯỚC CÁC LAUNCH TỪ NAY]** Mọi kernel launch **phải ước tính và giữ trong 30–60 phút/phiên**. Prep ~21–22' là cố định mỗi phiên (F-X15) → ngân sách train ≈ 30–35'/phiên. v9 = 24.8' (chạy trước quy tắc, dưới biên — các launch sau neo 30–60'). Run ước tính >60' → **PHẢI** tách multi-session (cần resume) hoặc re-derive lever trước khi launch.<end of file>
