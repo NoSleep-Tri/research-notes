@@ -1,4 +1,4 @@
-# SYNTHESIS — Kết hợp 18 survey thành 1 bức tranh, rồi thiết kế hệ thống
+# SYNTHESIS — Kết hợp 19 survey thành 1 bức tranh, rồi thiết kế hệ thống
 
 - **Ngày**: 2026-10-06 · **Phạm vi**: Q-001 → Q-017 + **DS-001 → DS-011** (thiết kế dẫn xuất)
 - **Mục đích**: gom các survey rời thành **chủ đề xuyên suốt**, chỉ ra **ma trận liên thông** và **agenda nghiên cứu tiếp**
@@ -27,6 +27,8 @@
 | **Q-016** | **Đủ điều kiện train chưa hay cần nghiên cứu thêm?** (nối Q-015) | `surveys/training-data-for-memory-agents.md` §7 | **Đủ cho thí nghiệm nhỏ** (phương pháp + reward + dữ liệu + GPU 30h/tuần); thiếu engineering + 3 thí nghiệm trước thang lớn | AN-015 §7 + số liệu DS-005/007/008 |
 | **Q-017** | **Chuẩn bị train thật**: model / SFT vs GRPO / compute trên Kaggle? | `surveys/first-training-run-readiness.md` | **F-W05: đủ tài liệu 8/8** (method + reward + data + model family + scale + tooling + quota + failure playbook); thiếu duy nhất = runtime state → pre-run smoke (DS-010) | arXiv (Memory-R1 2508.19828, GRPO+LoRA, OXRL...) + AN-015 |
 | **Q-018** | **Tạo model AI từ đầu** — kiến trúc / dữ liệu / huấn luyện / tinh chỉnh; 1 GPU tạo được gì? | `surveys/building-ai-models.md` | Recipe mở đã rẻ ~2 magnitudes ($6.9K/1.5B, $286/151M); đòn bẩy **data ≥ kiến trúc chuẩn > optimizer > init**; T4 hợp lý ở **10–100M + 1–12B token** (Step Law <59M); seed variance ≈ recipe spread → multi-seed bắt buộc | arXiv (Puro-2B, ufakzeka-1, JugnuLM, FineWeb, Chinchilla, OLMo 2/3...) |
+| **Q-019** | **Train trên TPU** — Kaggle TPU v5e-8 có giúp pretrain 12.6M nhanh hơn T4 không? | `surveys/tpu-training.md` | Peak 24× ≠ speedup — **0.7×–3× chưa đo** (run ngắn bị nuốt XLA compile); bf16 bỏ GradScaler = pre-reg mới bắt buộc; đề xuất DS-013 smoke | Kaggle quota API + Google Cloud TPU v5e docs + AN-017 |
+| **Q-020** | **Thuật toán tăng tốc huấn luyện** — 2 bảng taxonomy có cái nào hợp 12.6M/T4/8% MFU không? | `surveys/training-speedup-algorithms.md` | **Systems đứng trên thuật toán** (2–3× ước tính vs 1.1–1.4× fair-tuned); μP = methodology cho đổi width, **phải u-µP vì fp16**; MTP không ưu tiên (Pile flat, benefit scale-dependent); Rho-1/A3 = ứng viên thuật toán chính; prefix **F-AA** (hết F-A…F-Z) | 11 websearch + arXiv (2407.17465, 2509.02046, 2412.19437, 2404.19737...) |
 | **DS-001** | *(thiết kế)* **SAGE** — bộ não biết mình dở ở đâu | `design/SAGE-spec.md` | 6 lớp L0–L5, 8 nguyên tắc P1–P8 truy xuất survey; **demo 5/5 PASS** | Tổng hợp từ Q-001→011 |
 | **DS-002** | *(mở rộng)* **SAGE v0.2** — kiểm chứng trực tiếp F-A03 / F-X02 / F-X03 | `design/SAGE-spec.md` §12 | **demo 3/3 PASS** (3 lần): U-curve sinh từ phân bố loss · quên đều phá trục **100×**, không quên thì không thích nghi **29×** · replay giữ `0.839` vs naive `0.431` | Q-010 + Q-011 |
 | **DS-003** | *(mở rộng)* **SAGE v0.2** — 3 công cụ tự kỷ luật: wirehead guard · calibration · registry | `design/SAGE-spec.md` §14 | **demo 3/3 PASS** (3 lần): holdout cố định **nói dối 8.41 điểm** và càng hỏi càng dối · ECE `0.258 → 0.022` · adaptive registry `0.920` vs static `0.577` | Q-009 + Q-007 |
@@ -87,7 +89,7 @@ L3 · Ý THỨC (giao diện)    "bản báo cáo đến sau" — LeDoux, AST, G
 
 ---
 
-## 3. Ma trận liên thông (trích từ knowledge graph, 300 entity / 402 relation)
+## 3. Ma trận liên thông (trích từ knowledge graph, 310 entity / 408 relation)
 
 | Từ → Đến | Ý nghĩa |
 |---|---|
@@ -168,13 +170,14 @@ L3 · Ý THỨC (giao diện)    "bản báo cáo đến sau" — LeDoux, AST, G
 | **DS-012b** | **Scale-down 6M token/run (~25 phút)** — effect tách khỏi seed spread ở scale nhỏ không? (bạn chọn phương án D) | DS-012, AN-017 (F-B04), Q-018 | ⏳ **pre-reg §24 pushed `7ea467e` → HOÃN 2026-10-07** theo chỉ thị "tập trung train 1 model" (change-log §24.4 #1 — pre-reg giữ nguyên, **ngưỡng không sửa**, code chưa viết) |
 | **DS-012c** | **Train ĐÚNG 1 model** — A1 × seed 11, full 0.3B token (10.850 bước) + checkpoint thật (bạn chỉ thị "tập trung train 1 model thôi đi") | DS-012, DS-012b (hoãn) | 🚀 **RUNNING kernel v4 (2026-10-07)** — pre-reg §25 `bd5dea1` TRƯỚC code `91dd354`; K1' = §23 K1 · K2' parity ≤0.05 · K3' wall ≤150'; pred wall 95' / val_final 3.45; **kết quả chưa có** |
 | **Q-019** | **Train trên TPU** — Kaggle TPU v5e-8 có giúp pretrain 12.6M nhanh hơn T4, và nhanh hơn bao nhiêu? (bạn chỉ thị "chuyển qua nghiên cứu train trên tpu") | Q-018, DS-012, DS-012b | ✅ **xong (2026-10-07)** — [AN-018](surveys/tpu-training.md): peak 24× ≠ speedup, **0.7×–3× chưa đo** (run ngắn bị nuốt XLA compile), bf16 bỏ GradScaler = pre-reg mới bắt buộc; đề xuất **DS-013 smoke benchmark** (§26 — chưa viết; §25 đã dành cho DS-012c); prefix **F-Q** |
+| **Q-020** | **Thuật toán tăng tốc huấn luyện** — tổng hợp 2 bảng taxonomy (μP, MTP, selective data, low-rank, WSD, LiGO, JEPA...) + bằng chứng: cái nào hợp hoàn cảnh 12.6M/T4/8% MFU? (bạn chỉ thị "tổng hợp lại rồi nghiên cứu thử") | Q-018, Q-019, DS-012 | ✅ **xong (2026-10-07)** — [AN-019](surveys/training-speedup-algorithms.md): **systems (fix #5) đứng trên thuật toán** (2–3× ước tính vs 1.1–1.4× fair-tuned); μP = methodology cho §26 đổi width, bắt buộc **u-µP vì fp16** (μP diverge FP16: arXiv 2407.17465); **MTP không ưu tiên** (Pile BPB phẳng, benefit scale-dependent); Muon 1.3–1.4× @<520M khi fair-tuned; **Rho-1/A3 = ứng viên thuật toán chính**; GaLore/PowerSGD/JEPA/LiGO = N/A; prefix **F-AA** (26/26 letter F-A…F-Z đã hết) |
 
 ---
 
 ## 5. Trạng thái dự án vs PLAN.md
 
-- **M2 (survey 5–10 paper/câu hỏi)**: ✅ vượt — **18 survey** (AN-001 → AN-018, trả lời Q-001 → Q-019 — Q-016 trong AN-015 §7), Q-006 dùng 19 paper arXiv, Q-007 dùng 16 paper, Q-009 dùng ~22 paper, Q-010 dùng ~20 paper, Q-011 dùng ~26 paper, Q-012 dùng **18 DOI Europe PMC + ~8 arXiv**, Q-013 dùng **6 trang Wiki nền tảng + ~15 arXiv**, Q-014 dùng **~30 paper arXiv**, Q-015 dùng **~20 paper arXiv + 3 demo nội bộ**.
-- **KPI graph**: **300 entity / 402 relation** (mục tiêu ban đầu 100 entity ✅).
+- **M2 (survey 5–10 paper/câu hỏi)**: ✅ vượt — **19 survey** (AN-001 → AN-019, trả lời Q-001 → Q-020 — Q-016 trong AN-015 §7), Q-006 dùng 19 paper arXiv, Q-007 dùng 16 paper, Q-009 dùng ~22 paper, Q-010 dùng ~20 paper, Q-011 dùng ~26 paper, Q-012 dùng **18 DOI Europe PMC + ~8 arXiv**, Q-013 dùng **6 trang Wiki nền tảng + ~15 arXiv**, Q-014 dùng **~30 paper arXiv**, Q-015 dùng **~20 paper arXiv + 3 demo nội bộ**.
+- **KPI graph**: **310 entity / 408 relation** (mục tiêu ban đầu 100 entity ✅).
 - **DS-001 (thiết kế + demo)**: ✅ `design/SAGE-spec.md` + `design/demo/` — Kaggle `tribu1/sage-v0-1-demo-ds-001` v3 = **5/5 PASS** (D1 replay +38.7pp · D2 18× · D3 Goodhart · D4 −33.4% · D5 +5.7pp).
 - **DS-002 (mở rộng demo)**: ✅ `design/SAGE-spec.md` §12 + `design/demo/sage_demo2.py` — Kaggle `tribu1/sage-v0-2-demo-ds-002` v5 = **3/3 PASS** (D6 U-gap 0.838 · D7 100× + 29× · D8 replay 0.839 vs naive 0.431). **3 lần chạy** (1/3 → 2/3 → 3/3), mọi thay đổi ghi ở change-log §12, **3 ngưỡng không đổi**. **Kết quả âm**: loss of plasticity không quan sát được ở scale toy (3/3 lần).
 - **DS-003 (mở rộng demo)**: ✅ `design/SAGE-spec.md` §14 + `design/demo/sage_demo3.py` — Kaggle `tribu1/sage-v0-3-demo-ds-003` v3 = **3/3 PASS** (D9 holdout cố định nói dối **8.41** và tăng theo số lần hỏi · D10 ECE `0.258→0.022`, violation `0.203→0.000` · D11 adaptive `0.920` vs static `0.577`). **3 lần chạy**, mọi thay đổi ghi ở change-log §14 — **cả 3 lần sửa đều là bug metric/harness, không hạ ngưỡng nào**. Bài học: *cái thước tự bị hack 3 lần liên tiếp* = Goodhart tái hiện ngay trong phòng lab.
