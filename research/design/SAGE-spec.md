@@ -1364,4 +1364,34 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
   1. **[TRƯỚC CODE — 2026-10-07]** Preamble env 1 dòng (launch v9) = config, disclosed ở trên. Ngưỡng `K-P1 ∈ [0.80, 1.05]`, `K-P3 = 0.15`, `n_iter ≥ 280` **chọn SAU KHI đã thấy** baseline v3/v4/v7/v8 (liệt kê đủ) — margin K-P3 ~200× nondeterminism đã đo. **CHƯA THấy bất kỳ con số profile nào.**
   2. **[SỬA METHODOLOGY TRƯỚC CODE — 2026-10-07]** Bỏ per-phase `cpu`-view (pre-reg §29.1): `backward`/`optim` chứa sync nội tại (`.item()` của grad-check §27, `scaler.step/update`) → view `cpu` bị nhiễm thời gian chờ GPU → `wall − cpu → 0` sẽ **đọc sai** thành "không busy". Thay bằng: **(a)** giữ nguyên wall-per-phase với sync biên (phân bố theo pha không đổi); **(b)** **GPU-busy per-step đo bằng `torch.cuda.Event`** — record đầu bước + sau pha `optim`, `elapsed_time` đọc một lần sau loop (không sync giữa chừng): `gpu_busy_frac = Σ event / Σ iter_wall`. Pred-vs-obs #1 giữ nguyên (giờ đo bằng events — đúng hơn). K-P1/K-P2/K-P3, ngưỡng, pred #2–#4 **không đổi**.
 - **Findings prefix**: **F-X21…F-X24**.
-- **Launch**: kernel `tribu1/ds-012-pretrain-from-scratch` v9 — SaveAndRunAll, GPU, **text explicit** (preamble + source). ETA ≈ prep 21' + 300 bước instrumented ~4' + overhead ≈ **~30 phút**.<end of file>
+- **Launch**: kernel `tribu1/ds-012-pretrain-from-scratch` v9 — SaveAndRunAll, GPU, **text explicit** (preamble + source). ETA ≈ prep 21' + 300 bước instrumented ~4' + overhead ≈ **~30 phút**.
+
+---
+
+## §30 — DS-012f: Đào big-batch tới **loss@1000 ≤ 3.000** (mục tiêu bạn đặt 2026-10-07) — pre-register (TRƯỚC CODE)
+
+> **Slot chương**: §26 = DS-013 (giữ chỗ) · §27 = DS-012d (SPEED-FAIL) · §28 = wide-shallow (chờ duyệt) · §29 = DS-012e profile (đang chạy) · **§30 = section này** · single-matrix → §31 nếu chạy. Sinh từ chỉ thị trực tiếp của bạn: *"cố gắng ở step 1000 đạt được 3.000 loss"*.
+
+- **Thành thật về xuất phát điểm** (số đã đo): loss@1000 hôm nay = **4.5485** (v8) · sau **toàn bộ** 0.3B token: train ~**3.21**, val **3.426**. Target 3.000@1000 = **dưới cả điểm cuối hiện tại** → không thể đạt bằng LR/Muon/arch (cải thiện ~0.1–0.4). **Con đường duy nhất**: đủ token lũy kế ở step 1000.
+- **Thiết kế (1 hệ thống, 4 thay đổi couplied — tất cả env-gated, mặc định = hành vi cũ)**:
+  1. **`RUN_ACC = 110`** (grad accumulation, micro-batch giữ nguyên 27648 tok → RAM/GPU không đổi) → **batch hiệu dụng 3.041.280 tok/bước** → step 1000 = **3.04 tỷ token** (~10 epoch corpus 300M — **lặp dữ liệu được disclose đầy đủ**, xem K-F2);
+  2. **`WARMUP = 100`** (warmup 1000 × 110 batch sẽ phung phí 300M token đầu);
+  3. **`LR peak = 1.0e-2`** (4.2× baseline — đứng giữa sqrt-scaling rule (√110 ≈ ×10.5 → 0.025) và an toàn; clip 1.0 + GradScaler + bad_streak giữ vai trò bảo vệ);
+  4. **`TOTAL_STEPS = 1050`** (chạy qua step 1000 để in log + eval holdout@1000 + một chút dư); cosine → 10% như cũ; eval holdout chuyển từ step 100 → **step 1000** (`EVAL_STEPS=1000`, kết quả vào field `loss_at_100` của results — **đọc là val@1000**, disclosure).
+  - **Giữ nguyên**: arch 12.59M · corpus fineweb-edu · seed 11 · fp16+GradScaler+guard §27 · hist/ckpt/parity path. **Không thêm Muon** (A2 chưa từng chạy → rủi ro bug làm hỏng run 3h — Muon để §24).
+  - **Ước tính wall**: GPU-busy scale ~110× (70–85ms → 7.7–9.4s/bước) + overhead cố định ≈ **8–10s/bước × 1050 ≈ 2.3–2.9h** + prep 0.35h + evals ≈ **~3h** (v9 profile sẽ tinh chỉnh ước tính này khi về).
+- **KPI (K-F1…K-F3, gate)**:
+  - **K-F1 (mục tiêu BẠN đặt)**: `train loss@1000` (từ `hist[1000]`, loss TB của 110 micro) ≤ **3.000**.
+  - **K-F2 (chống "thắng giả" do lặp 10 epoch)**: `val@1000` (holdout 10M, eval lúc step 1000) ≤ **3.45** — train 3.0 mà val >3.45 → K-F2 FAIL → run không tính, kể cả K-F1 PASS.
+  - **K-F3 (trung thực log)**: `not diverged` ∧ `grad_skips ≤ 100` ∧ micro-nan có đếm (kỳ vọng 0).
+  - **FAIL giữ thật**: không hạ 3.000, không re-run lén, không đổi lượt pred.
+- **Pred-vs-obs §30.1 (4, ghi trước — trung thực, có thể MISS)**:
+  1. `train@1000` pred **3.10** (close **2.90–3.35**) — extrapolate log-linear đã đo (300M→~3.3, −0.45/decade) + bất định "1000 optimizer-step ở batch 110× có đủ chưa";
+  2. `val@1000` pred **3.30** (close ±0.15);
+  3. `wall` pred **3.0h** (close 2–4.5h);
+  4. `grad_skips` pred **0–40** (batch lớn → gradient sạch hơn baseline).
+- **Cấm**: hạ K-F1/K-F2 sau khi thấy số · thêm lever khác (Muon/model/data) trong run này · chạy lại khi FAIL · coi `wall` chỉ là report · interpret K-F1 PASS mà K-F2 FAIL là thành công. **Mọi thay đổi → §30.x.**
+- **Change-log §30.x**:
+  1. **[TRƯỚC CODE — 2026-10-07]** `3.000` = **ngưỡng do bạn đặt** (không phải pred của tôi). Pred 3.10 (2.90–3.35) chọn SAU KHI đã thấy toàn bộ đường cong v3/v4/v7/v8 (4.5485@1000 → ~3.21/300M) — **chưa thấy con số nào của run §30**. Các tham số 110/100/1e-2/1050 là **config của 1 hệ thống duy nhất** (big-batch), không tune từng cái sau kết quả. Lặp ~10 epoch + eval dời 100→1000 **disclose ở trên, trước chạy**.
+- **Findings prefix**: **F-X25…F-X28**.
+- **Launch**: kernel v10 — **chỉ SAU khi v9 (§29) kết thúc** (tránh tranh GPU + lấy số profile tinh chỉnh wall). ETA ~3h, quota còn ~19h → đủ.<end of file>

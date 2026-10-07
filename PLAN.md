@@ -105,7 +105,7 @@ D:\Documents\1opencode\
 | **M1 — Phân tích đầu tiên** | **Ngày 2–3** | 2–3 bản phân tích hoàn chỉnh (gợi ý: 1 competition + 1 notebook top + 1 paper), mỗi bản có ≥1 finding + confidence. |
 | **M2 — Survey nhỏ** | **Ngày 4–7** | Trả lời 1 câu hỏi bằng 5–10 paper: `search_papers` → đọc section → 1 `surveys/<ten>.md` có so sánh + khoảng trống. |
 | **M3 — Chuỗi tự động** | **Tuần 2** | 2–3 `watch_topic` chạy đều; knowledge graph đủ liên kết Q ↔ Paper ↔ Finding ↔ Evidence; digest cuối tuần đầu tiên. |
-| **M4 — Tổng hợp** | **Tuần 3–4** | 1 survey public trên GitHub (README + notes), ≥ 8 phân tích, mọi finding có confidence + nguồn. — ✅ **xong sớm (2026-10-06)**: [`NoSleep-Tri/research-notes`](https://github.com/NoSleep-Tri/research-notes) public với **19 survey** (AN-001 → AN-019, trả lời Q-001 → Q-020) + SYNTHESIS + **spec 11 demo có KPI (DS-001→DS-011) + DS-012/DS-012b/DS-012c/DS-012d pre-reg (DS-012c ✅ KPI' 4/4 · DS-012d §27 SPEED-FAIL)** |
+| **M4 — Tổng hợp** | **Tuần 3–4** | 1 survey public trên GitHub (README + notes), ≥ 8 phân tích, mọi finding có confidence + nguồn. — ✅ **xong sớm (2026-10-06)**: [`NoSleep-Tri/research-notes`](https://github.com/NoSleep-Tri/research-notes) public với **19 survey** (AN-001 → AN-019, trả lời Q-001 → Q-020) + SYNTHESIS + **spec 11 demo có KPI (DS-001→DS-011) + DS-012/DS-012b/DS-012c/DS-012d/DS-012e/DS-012f pre-reg (DS-012c ✅ KPI' 4/4 · DS-012d §27 SPEED-FAIL · DS-012e §29 profile · DS-012f §30 loss@1000 ≤ 3.000)** |
 
 ---
 
