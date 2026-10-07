@@ -1,6 +1,8 @@
 # DS-012 — Pretrain from-scratch tren T4 (pre-register §23: commit 9314d36 + amend 70b5f83)
 # DS-012c §25 (pre-register §25 push TRUOC code, commit bd5dea1, 2026-10-07):
 #   SCOPE = 1 MODEL (A1 x seed 11) — them checkpoint + reload-parity; K2-K6 method-effect HOAN (§24.4 #1)
+# DS-012d §27 (pre-register §27 push TRUOC code, commit bfcccd6, 2026-10-07): fix#5 —
+#   block grads_ok giam isfinite TREN GPU (truoc ~50 doc CPU/buoc -> 1); toan hoc y het, numerics giu nguyen.
 # Cau hoi: thu tu dan bay F-B02 (data >= kien truc > optimizer > init) co dung o regime 1 GPU khong?
 # Quy tac: KHONG sua nguong K1-K6 sau khi thay so; moi thay doi ghi §23.4.
 # Script nay resume duoc: cell da co results/*.json se bo qua.
@@ -481,8 +483,14 @@ def train_cell(arm, seed, flats, meta):
                 p.grad = None
             scaler.scale(loss).backward()
             scaler.unscale_(opt)            # unscale TAT CA gradient + ghi found_inf (neu co)
-            grads_ok = all(torch.isfinite(p.grad).all()
-                           for p in model.parameters() if p.grad is not None)
+            # §27 fix#5: reduce isfinite TREN GPU, doc CPU dung 1 lan/buoc (truoc do ~50 lan)
+            # toan hoc y het: all(isfinite(g)) <=> sum(isfinite) == sum(numel)
+            grads = [p.grad for p in model.parameters() if p.grad is not None]
+            if grads:
+                fin = [torch.isfinite(g).sum() for g in grads]
+                grads_ok = bool(torch.stack(fin).sum().item() == sum(g.numel() for g in grads))
+            else:
+                grads_ok = True              # y het all([]) ban cu
         else:
             grads_ok = False                # khong backward -> scaler khong doi scale (khong tang nham)
         if loss_ok and grads_ok:
@@ -615,7 +623,7 @@ def aggregate(meta, results):
 
 
 def render_kpi(kpis, results):
-    L = ["DS-012c §25 KPI (pre-register §25 bd5dea1 — 1 MODEL A1 x s11; nguong K1' = §23 K1, khong doi)",
+    L = ["DS-012d §27 KPI (pre-register §27 push TRUOC code bfcccd6 — fix#5: bo ~50 sync/buoc, numerics giu nguyen; baseline §25 = v7)",
          "K2-K6 (method-effect, 9-cell) HOAN theo change-log §24.4 #1 — chi thi 2026-10-07: tap trung train 1 model"]
     m = kpis["meta"]
     L.append(f"corpus: {m.get('source')} | a1 {m.get('a1_tokens',0)/1e6:.1f}M tok raw | "
@@ -657,9 +665,24 @@ def render_kpi(kpis, results):
         L.append(f"K4' log du: grad_skips={r0.get('grad_skips')} nan_loss_skips={r0.get('nan_loss_skips')} "
                  f"(khong co nguong) -> {k4p}")
         L.append(f"KPI' (§25) {sum([bool(k1['pass_']), k2p, k3p, k4p])}/4")
+        # §27 K-S1..K-S4 (nguong §27, khong doi sau thay so)
+        hh = {int(s): t for s, _l, t in r0.get("hist", [])}
+        sstep = (round((hh[10000] - hh[1000]) / 9000.0, 4) if (1000 in hh and 10000 in hh) else None)
+        ks1 = (sstep is not None and sstep <= 0.28)
+        ks2 = (abs(r0["val_final"] - 3.4257) <= 0.05) and bool(k1["pass_"])
+        ks3 = ((r0.get("grad_skips") if r0.get("grad_skips") is not None else 999) <= 12
+               and "nan_loss_skips" in r0)
+        ks4 = k2p
+        L.append(f"K-S1 s/step (hist 1000->10000): {sstep} <= 0.28 -> {ks1}  [baseline v7 0.4296]")
+        L.append(f"K-S2 tuong duong: |val {r0['val_final']:.4f} - 3.4257| <= 0.05 -> "
+                 f"{abs(r0['val_final'] - 3.4257) <= 0.05} | K1' {k1['pass_']}")
+        L.append(f"K-S3 counter: grad_skips={r0.get('grad_skips')} (<=12) "
+                 f"nan_loss_skips={r0.get('nan_loss_skips')} logged -> {ks3}")
+        L.append(f"K-S4 artifact (giong K2'): {ks4}")
+        L.append(f"KPI-S (§27) {sum([ks1, ks2, ks3, ks4])}/4")
     npass = sum([kpis["K1"]["pass_"], kpis["K2"]["verdict"] == "PASS", kpis["K3"]["verdict"] == "PASS",
                  kpis["K4"]["measured"], kpis["K5"]["pass_"], kpis["K6"]["pass_"]])
-    L.append(f"KPI {npass}/6 (K2-K6 = method-effect 9-cell, HOAN §24.4 #1 — khong tinh acceptance DS-012c)")
+    L.append(f"KPI {npass}/6 (K2-K6 = method-effect 9-cell, HOAN §24.4 #1 — khong tinh acceptance DS-012c/DS-012d)")
     txt = "\n".join(L)
     open(f"{OUT}/kpi.txt", "w").write(txt + "\n")
     print(txt, flush=True)
@@ -746,7 +769,7 @@ def main():
         make_plots(results, kpis)
     except Exception as e:
         print(f"[plot error] {type(e).__name__}: {e}", flush=True)
-    print("[DS-012c] DONE", flush=True)
+    print("[DS-012d] DONE", flush=True)
 
 
 if __name__ == "__main__":
