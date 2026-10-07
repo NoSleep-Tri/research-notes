@@ -573,8 +573,8 @@ def aggregate(meta, results):
                                    if r["loss_at_100"] else None))
                        for r in results])
 
-    dk2 = (round(med["A1"] - med["A2"], 4) if (med["A1"] is not None and med["A2"] is not None) else None)
-    dk3 = (round(med["A1"] - med["A3"], 4) if (med["A1"] is not None and med["A3"] is not None) else None)
+    dk2 = (round(med["A1"] - med["A2"], 4) if (med.get("A1") is not None and med.get("A2") is not None) else None)
+    dk3 = (round(med["A1"] - med["A3"], 4) if (med.get("A1") is not None and med.get("A3") is not None) else None)
 
     def verdict(d, thr):
         if d is None:
@@ -643,9 +643,23 @@ def render_kpi(kpis, results):
     for r in results:
         L.append(f"   {r['arm']}_s{r['seed']}: val {r['val_final']:.4f} wall {r['wall_min']}min "
                  f"steps {r['steps_done']} div {r['diverged']}")
+    # §25 K1'-K4' (nguong §25.3 — khong doi; change-log §25.5 #1)
+    if results:
+        r0 = results[0]
+        par = r0.get("parity")
+        k2p = ((r0.get("ckpt_bytes") or 0) >= 26214400) and (par is not None and abs(par) <= 0.05)
+        k3p = (r0.get("wall_min") is not None and r0["wall_min"] <= 150)
+        k4p = ("grad_skips" in r0) and ("nan_loss_skips" in r0)
+        L.append(f"K1' (§23 K1 nguyen van): {k1['pass_']} — nguong val_final <= 0.5 x loss_at_100")
+        L.append(f"K2' ckpt: {r0.get('ckpt_bytes')} B >= 25MB -> {(r0.get('ckpt_bytes') or 0) >= 26214400} | "
+                 f"parity {par} <= 0.05 -> {par is not None and abs(par) <= 0.05}")
+        L.append(f"K3' wall: {r0.get('wall_min')} min <= 150 -> {k3p}")
+        L.append(f"K4' log du: grad_skips={r0.get('grad_skips')} nan_loss_skips={r0.get('nan_loss_skips')} "
+                 f"(khong co nguong) -> {k4p}")
+        L.append(f"KPI' (§25) {sum([bool(k1['pass_']), k2p, k3p, k4p])}/4")
     npass = sum([kpis["K1"]["pass_"], kpis["K2"]["verdict"] == "PASS", kpis["K3"]["verdict"] == "PASS",
                  kpis["K4"]["measured"], kpis["K5"]["pass_"], kpis["K6"]["pass_"]])
-    L.append(f"KPI {npass}/6")
+    L.append(f"KPI {npass}/6 (K2-K6 = method-effect 9-cell, HOAN §24.4 #1 — khong tinh acceptance DS-012c)")
     txt = "\n".join(L)
     open(f"{OUT}/kpi.txt", "w").write(txt + "\n")
     print(txt, flush=True)
