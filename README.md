@@ -2,7 +2,7 @@
 
 Ghi chú nghiên cứu dài hạn — trả lời câu hỏi bằng survey có **evidence + confidence**, rồi **thiết kế hệ thống** và **kiểm chứng bằng demo trên Kaggle**.
 
-- **Trạng thái 2026-10-07**: 19 khảo sát · 21 khảo sát + 11 demo có KPI (DS-001→DS-011) · **DS-012c §25 ✅ KPI' 4/4 PASS (v7, `kpi.txt` native)**: val `3.4260 ≤ 3.5045` · ckpt `50.4MB` parity `0.0` · wall `83.7'` · `grad_skips 4` (v4 cross-check cùng seed Δval `0.0006`; pred-vs-obs 3/4 — prep MISS) · **DS-012d §27 fix#5 📉 SPEED-FAIL (v8)**: `s/step 0.4158` vs gate 0.28 = chỉ 1.03× — **chẩn đoán sync = bottleneck bị bác** (+3.2%), K-S2 PASS `|Δval| 0.0001`, findings F-X17…F-X20 · §24 (9-cell) HOÃN · kế tiếp: profile thật trước khi chọn lever tốc độ
+- **Trạng thái 2026-10-07**: 19 khảo sát (AN-001 → AN-019, trả lời Q-001 → Q-020 — Q-016 trong AN-015 §7, Q-017 = AN-016) · 11 demo có KPI (DS-001→DS-011) · **319 entity / 413 relation** · **DS-012c §25 ✅ KPI' 4/4 PASS (v7, `kpi.txt` native)**: val `3.4260 ≤ 3.5045` · ckpt `50.4MB` parity `0.0` · wall `83.7'` · `grad_skips 4` (v4 cross-check cùng seed Δval `0.0006`; pred-vs-obs 3/4 — prep MISS) · **DS-012d §27 fix#5 📉 SPEED-FAIL (v8)**: `s/step 0.4158` vs gate `0.28` = chỉ 1.03× — **chẩn đoán sync = bottleneck bị bác** (+3.2%), K-S2 PASS `|Δval| 0.0001`, findings F-X17…F-X20 · §24 (9-cell) HOÃN · kế tiếp: profile thật trước khi chọn lever tốc độ
 
 ## Chỉ mục
 
