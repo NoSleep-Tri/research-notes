@@ -298,6 +298,66 @@ def train_tokenizer(sample_texts):
     return tk
 
 
+def _restore_bins_from_output(paths, meta_p):
+    # §30.5: tai bin tu OUTPUT cua phien truoc (kaggle kernels output) — 1-2' thay vi ~21' quet HF.
+    # Zip output luu ds012/data/*.bin + ds012/data_meta.json + ds012/tokenizer.json (xac minh tren output v9).
+    # That bai -> return None -> prepare_data chay prep day du y cu (hanh vi cu, khong bao gio chet).
+    import subprocess, shutil
+    stage = "/kaggle/working/_restore"
+    try:
+        if os.environ.get("PREP_RESTORE", "1") == "0":
+            print("[data] restore disabled (PREP_RESTORE=0)", flush=True)
+            return None
+        shutil.rmtree(stage, ignore_errors=True)
+        os.makedirs(stage, exist_ok=True)
+        t0 = time.time()
+        r = subprocess.run(["kaggle", "kernels", "output",
+                            "tribu1/ds-012-pretrain-from-scratch", "-p", stage],
+                           capture_output=True, text=True, timeout=480)
+        if r.returncode != 0:
+            print(f"[data] restore skip (kaggle cli rc={r.returncode}) {r.stderr[-160:]}", flush=True)
+            return None
+        found = {}
+        for root, _d, files in os.walk(stage):
+            for f in files:
+                if f in ("a1.bin", "a3.bin", "hold.bin", "data_meta.json", "tokenizer.json"):
+                    found[f] = os.path.join(root, f)
+        # uu tien dung duong dan goc ds012/... (staging rac cung ten file -> khong chon nham)
+        pref = {"a1.bin": "ds012/data/a1.bin", "a3.bin": "ds012/data/a3.bin",
+                "hold.bin": "ds012/data/hold.bin", "data_meta.json": "ds012/data_meta.json",
+                "tokenizer.json": "ds012/tokenizer.json"}
+        for k, rel in pref.items():
+            p = os.path.join(stage, rel)
+            if os.path.exists(p):
+                found[k] = p
+        need = ("a1.bin", "a3.bin", "hold.bin", "data_meta.json")
+        if not all(k in found for k in need):
+            print(f"[data] restore skip (thieu file: {sorted(set(need) - set(found))})", flush=True)
+            return None
+        # verify size tuong minh voi meta TRUOC khi move (bat ca zip bi cat do chua ghi het)
+        m = json.load(open(found["data_meta.json"]))
+        exp1, exp3, exph = int(m["a1_tokens"]) * 2, int(m["a3_tokens"]) * 2, int(m["holdout_tokens"]) * 2
+        s1 = os.path.getsize(found["a1.bin"]); s3 = os.path.getsize(found["a3.bin"])
+        sh = os.path.getsize(found["hold.bin"])
+        if (s1, s3, sh) != (exp1, exp3, exph) or s1 < 599_000_000:
+            print(f"[data] restore skip (size/meta lech: got {s1},{s3},{sh} vs {exp1},{exp3},{exph})",
+                  flush=True)
+            return None
+        os.makedirs(os.path.dirname(paths["a1"]), exist_ok=True)
+        for k, p in paths.items():
+            shutil.move(found[k + ".bin"], p)
+        shutil.move(found["data_meta.json"], meta_p)
+        if "tokenizer.json" in found:
+            shutil.move(found["tokenizer.json"], f"{OUT}/tokenizer.json")
+        shutil.rmtree(stage, ignore_errors=True)
+        print(f"[data] RESTORED bin tu output phien truoc ({time.time()-t0:.0f}s) — BO QUA quet HF",
+              flush=True)
+        return json.load(open(meta_p))
+    except Exception as e:
+        print(f"[data] restore skip ({type(e).__name__}: {e})", flush=True)
+        return None
+
+
 def prepare_data():
     """Mot lan stream -> a1.bin (0.3B token THO, baseline), a3.bin (0.3B token SAU dedup+filter),
     hold.bin (10M token holdout — doc xuat hien SAU khi ca 2 pool day, nen khong train trung).
@@ -307,6 +367,9 @@ def prepare_data():
     if all(os.path.exists(x) for x in paths.values()) and os.path.exists(meta_p):
         print("[data] reuse cached bins", flush=True)
         return json.load(open(meta_p))
+    meta_r = _restore_bins_from_output(paths, meta_p)     # §30.5: prep chi chay 1 lan (fallback = quet cu)
+    if meta_r is not None:
+        return meta_r
     t0 = time.time()
     src, it = get_stream()
 
