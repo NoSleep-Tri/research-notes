@@ -1,4 +1,6 @@
 # DS-012 — Pretrain from-scratch tren T4 (pre-register §23: commit 9314d36 + amend 70b5f83)
+# DS-012c §25 (pre-register §25 push TRUOC code, commit bd5dea1, 2026-10-07):
+#   SCOPE = 1 MODEL (A1 x seed 11) — them checkpoint + reload-parity; K2-K6 method-effect HOAN (§24.4 #1)
 # Cau hoi: thu tu dan bay F-B02 (data >= kien truc > optimizer > init) co dung o regime 1 GPU khong?
 # Quy tac: KHONG sua nguong K1-K6 sau khi thay so; moi thay doi ghi §23.4.
 # Script nay resume duoc: cell da co results/*.json se bo qua.
@@ -23,9 +25,9 @@ C = dict(
     WARMUP=1000, TOTAL_TOK=int(3e8),   # §23.1 scale-down da ghi truoc: 0.3B token/run
     HOLDOUT_TOK=int(1e7),              # 10M token holdout cuoi, tach theo document
     CLIP=1.0,
-    SEEDS=[11, 22, 33], ARMS=["A1", "A2", "A3"],
+    SEEDS=[11], ARMS=["A1"],            # §25.1(i): scope = 1 MODEL (9 cell cua §23/§24 hoãn — §24.4 #1)
 )
-MAX_CELLS_THIS_SESSION = 9             # scheduling (KHONG phai nguong) — ghi §23.4 neu doi giua session
+MAX_CELLS_THIS_SESSION = 1             # §25.1(i): 1 model/session (scheduling, KHONG phai nguong)
 TOTAL_STEPS = C["TOTAL_TOK"] // C["BATCH_TOK"]
 
 try:
@@ -523,12 +525,23 @@ def train_cell(arm, seed, flats, meta):
         step += 1
 
     val_final = eval_split(flats["hold"], model, bs=bs, seq=seq)
+    # §25.1(ii): model PHAI TON TAI duoc — save + reload-parity (K2')
+    ckpt_p = f"{OUT}/model_{arm}_s{seed}.pt"
+    torch.save(model.state_dict(), ckpt_p)
+    ckpt_bytes = os.path.getsize(ckpt_p)
+    model2 = GPT(C, C["VOCAB"]).cuda()
+    model2.load_state_dict(torch.load(ckpt_p, map_location="cuda"))
+    val_reload = eval_split(flats["hold"], model2, bs=bs, seq=seq)
+    parity = round(abs(val_reload - val_final), 5)
+    print(f"[ckpt] {arm} s{seed}: {ckpt_p} ({ckpt_bytes} B) | val_reload {val_reload:.4f} | parity {parity}", flush=True)
+    del model2
     wall = time.time() - t0
     res = dict(arm=arm, seed=seed, params_total=tot, params_non_emb=non_emb,
                loss_at_100=loss100, val_final=val_final, diverged=divergence,
                steps_done=step, wall_min=round(wall / 60, 1), tokens=int(step * C["BATCH_TOK"]),
                lr_peak=C["LR"], lr_muon=(C["LR_MUON"] if arm == "A2" else None),
                grad_skips=grad_skips, nan_loss_skips=nan_loss_skips,
+               ckpt=ckpt_p, ckpt_bytes=ckpt_bytes, val_reload=val_reload, parity=parity,
                batch_tok=C["BATCH_TOK"], hist=hist, prep_seconds=meta.get("prep_seconds"))
     json.dump(res, open(res_p, "w"), indent=1)
     print(f"[done] {arm} s{seed}: val {val_final:.4f} (loss@100 {loss100}) wall {wall/60:.1f}min", flush=True)
@@ -602,13 +615,14 @@ def aggregate(meta, results):
 
 
 def render_kpi(kpis, results):
-    L = ["DS-012 KPI (pre-register §23 — nguong khong doi sau khi thay so)"]
+    L = ["DS-012c §25 KPI (pre-register §25 bd5dea1 — 1 MODEL A1 x s11; nguong K1' = §23 K1, khong doi)",
+         "K2-K6 (method-effect, 9-cell) HOAN theo change-log §24.4 #1 — chi thi 2026-10-07: tap trung train 1 model"]
     m = kpis["meta"]
     L.append(f"corpus: {m.get('source')} | a1 {m.get('a1_tokens',0)/1e6:.1f}M tok raw | "
              f"a3 {m.get('a3_tokens',0)/1e6:.1f}M tok loc | holdout {m.get('holdout_tokens',0)/1e6:.1f}M tok | "
              f"reject_rate {m.get('reject_rate')} | dedup_rate {m.get('dedup_rate')} | prep {m.get('prep_seconds')}s")
     if results:
-        L.append(f"cells: {len(results)}/9 | model {results[0]['params_total']/1e6:.2f}M total / "
+        L.append(f"cells: {len(results)}/1 (scope §25 = 1 model) | model {results[0]['params_total']/1e6:.2f}M total / "
                  f"{results[0]['params_non_emb']/1e6:.2f}M non-emb | {C['BATCH_TOK']} tok/step | "
                  f"{TOTAL_STEPS} steps/run")
     k1 = kpis["K1"]
@@ -718,7 +732,7 @@ def main():
         make_plots(results, kpis)
     except Exception as e:
         print(f"[plot error] {type(e).__name__}: {e}", flush=True)
-    print("[DS-012] DONE", flush=True)
+    print("[DS-012c] DONE", flush=True)
 
 
 if __name__ == "__main__":
