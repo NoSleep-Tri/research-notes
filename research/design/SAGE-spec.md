@@ -1426,4 +1426,22 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 - **Change-log §30.3**:
   1. **[TRƯỚC RUN — 2026-10-07, SAU KHI §29 v9 VỀ]** **v10 HỦY TRƯỚC KHI CHẠY — wall thực đo phá tính khả thi**: §29 đo s/step = 0.4009 (fwd+bwd 98%, F-X24) → ACC=110 × ~0.40s ≈ **44s/bước × 1050 ≈ 12h** → vượt quota-wall VÀ **vi phạm quy tắc phiên 30–60'** (§30.4). **K-F1..K-F3 giữ nguyên, không hạ ngưỡng**; chưa chạy run §30 nào → không có FAIL nào bị "điều chỉnh sau". Thứ tự mới: **(3a) probe tốc độ ≤60'/phiên** — SDPA backend (nghi ngờ math fallback) + torch.compile — pre-reg §30.3a tách riêng TRƯỚC code → **(3b) re-derive ACC/wall bằng số đo mới** → launch trong 30–60'. Finding mới nhập F-X25 (probe), F-X28 (re-derive wall).
 - **Change-log §30.4 — QUY TẮC PHIÊN MỚI (chỉ thị trực tiếp 2026-10-07)**:
-  1. **[TRƯỚC CÁC LAUNCH TỪ NAY]** Mọi kernel launch **phải ước tính và giữ trong 30–60 phút/phiên**. Prep ~21–22' là cố định mỗi phiên (F-X15) → ngân sách train ≈ 30–35'/phiên. v9 = 24.8' (chạy trước quy tắc, dưới biên — các launch sau neo 30–60'). Run ước tính >60' → **PHẢI** tách multi-session (cần resume) hoặc re-derive lever trước khi launch.<end of file>
+  1. **[TRƯỚC CÁC LAUNCH TỪ NAY]** Mọi kernel launch **phải ước tính và giữ trong 30–60 phút/phiên**. Prep ~21–22' là cố định mỗi phiên (F-X15) → ngân sách train ≈ 30–35'/phiên. v9 = 24.8' (chạy trước quy tắc, dưới biên — các launch sau neo 30–60'). Run ước tính >60' → **PHẢI** tách multi-session (cần resume) hoặc re-derive lever trước khi launch.
+
+### §30.3a — Pre-reg PROBE TỐC ĐỘ (3a) — TRƯỚC CODE
+
+> Mục tiêu: tìm lever thật cho (3b) — §29 đo **98% s/step nằm trong fwd+bwd**, chỉ **~1–5% fp16 peak T4** (F-X24) → SDPA backend / torch.compile là 2 ứng viên. **Một phiên duy nhất, tuân thủ §30.4.**
+
+- **Thiết kế**: mode `PROBE=1` (env-gated, **mặc định 0 → mọi run đầy đủ không đổi**) · **5 biến thể × 250 bước đo** (warmup 20 loại khỏi đo — gồm cả time compile) · mỗi biến thể **model+AdamW+scaler tái tạo fresh** (seed 11, cùng `get_batch` rng) · step **giống hệt production**: zero → fwd fp16 → isfinite → backward → unscale → §27 grad-check (1 CPU read) → clip → step · **2 sync/bước (đầu/cuối), đồng nhất mọi biến thể**:
+  - **V0** auto (điều khiển) · **V1** ép SDPA `EFFICIENT_ATTENTION` · **V1b** ép `MATH` (dò backend mặc định) · **V2** `torch.compile` · **V3** compile + efficient;
+  - SDPA ctx: thử API mới `torch.nn.attention.sdpa_kernel` trước, fallback `torch.backends.cuda.sdp_kernel` (cũ); variant lỗi → ghi `error` hợp lệ (Vẫn tính "reported" với K-PD3), **không retry lén**;
+  - ghi **`probe.json`** {variant, s_step_mean/median, n, error?} + in `[probe]` từng biến thể + block **K-PD1…K-PD4** + marker **`[DS-012f] PROBE DONE`** (`main` return trước aggregate — **không đụng** results/ckpt/eval).
+- **KPI (K-PD1…K-PD4, gate)**:
+  - **K-PD1 (quy tắc §30.4)**: session wall ∈ **[30, 60] phút**;
+  - **K-PD2 (điều khiển fair)**: V0 `s_step_mean` ∈ **[0.35, 0.50]** (so production 0.4158; lệch ngoài → harness không so sánh được → **FAIL, không diễn giải K-PD4**);
+  - **K-PD3 (đầy đủ)**: đủ **5/5 variant reported** (`s_step` hoặc `error` hợp lệ) + `probe.json` + marker DONE;
+  - **K-PD4 (lever thật)**: **≥1 biến thể ≤ V0/1.5** (nhanh ≥ 1,5×) → (3b) có lever để re-derive.
+  - **FAIL giữ thật**: không hạ ngưỡng, không re-run lén, không đổi pred.
+- **Pred-vs-obs §30.3a.1 (4, ghi trước)**: V0 pred **0.41** (close 0.35–0.50) · V1 pred **0.30** (close 0.15–0.40) · best(V2/V3) pred **0.25** (close 0.10–0.40) · session pred **35'** (close 30–45).
+- **Change-log §30.3a.1 [TRƯỚC CODE — 2026-10-08]**: pred chọn **sau khi đã thấy** §29 phases + production 0.4158/0.4296 + F-X24 sanity; **chưa thấy bất kỳ số probe nào**. Scope: **chỉ** 5 biến thể backend/compile — **không** đo CUDA graph (cần input-static machinery — để vòng sau nếu V0–V3 hết), không đụng LR/batch/arch/guard. Findings dùng **F-X25 (kết quả probe) · F-X26 (lever chọn cho 3b)**; F-X27/F-X28 để re-derive wall (3b).
+- **Launch**: kernel v10 — preamble `PROBE=1; PROBE_VARIANTS=V0,V1,V1b,V2,V3; PROBE_STEPS=250` + **text explicit** (toàn bộ source). ETA ≈ prep 21–22' + 5×270 bước + compile ≤5' + overhead ≈ **31–42 phút** (trong §30.4).<end of file>
