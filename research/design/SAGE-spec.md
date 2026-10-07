@@ -1331,4 +1331,36 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
   1. **[TRƯỚC CODE — 2026-10-07]** Ngưỡng `K-S1 = 0.28` (≥1.5×) và `K-S2 = ±0.05` **chọn SAU KHI đã thấy baseline v3/v4/v7** (liệt kê đủ ở trên — disclosure trung thực); margin K-S2 ≈ 80× nondeterminism cùng seed đã đo (Δ0.0006) — đủ rộng cho thay đổi chỗ reduce, đủ hẹp bắt thay đổi numerics thật. **Chưa thấy bất kỳ con số nào của run fix#5**. Thay đổi chương §26→§27/§28 (số chương wide-shallow/DS-013 giữ chỗ) — sửa tham chiếu AN-019/backlog/SYNTHESIS, không liên quan số liệu.
   2. **[SAU CHẠY v8 — 2026-10-07 — SPEED-FAIL, GIỮ THẬT]** **KPI-S 3/4: K-S1 FAIL** — `s/step = 0.4158` (hist 1000→10000) vs gate 0.28 → chỉ **1.03×** (baseline v7 0.4296); wall `80.8'` vs v7 `83.7'`. **Chẩn đoán "~50 sync/bước là bottleneck" BỊ BÁC bằng số đo**: bỏ ~50 đọc CPU/bước chỉ cải thiện **~3.2%**. K-S2 **PASS** — val `3.42560516` vs baseline `3.4257` → **|Δ| = 0.0001** (tight hơn cả nondeterminism cùng seed v4/v7 = 0.0006 → thay đổi guard = numerics-neutral, K-S2 hoạt động đúng); K-S3 **PASS** (`grad_skips 3 ≤ 12`, vị trí 967/968/5213 — khác baseline nhưng cùng magnitude); K-S4 **PASS** (ckpt 50.4MB, parity 0.0). Pred-vs-obs §27.1 = **2/4**: (1) s/step pred 0.15–0.22 → obs 0.4158 **MISS** · (2) wall pred 55' (close 35–80) → obs 80.8' **MISS** (lệch 0.8') · (3) val pred 3.43 → 3.4256 ✓ · (4) skips pred 2–8 → 3 ✓. **Không re-run lén, không sửa ngưỡng, không đổi pred.** Hướng tiếp (CHƯA chạy, cần pre-reg mới): ~360ms/bước overhead thật sự chưa xác định (8% MFU → compute cho phép ~13× nếu biết chỗ chặn) → **bước tới = đo profile thật** (timer từng phase / torch.profiler trong 1 run ngắn) rồi mới chọn lever (torch.compile · CUDA graph · dataloader · batch đổi numerics → K-B pre-reg riêng). Artifacts: `out/ds012c/kpi_v8.txt`, `results_A1_s11_v8.json`.
 - **Findings prefix**: **F-X17…F-X20**.
-- **Launch**: kernel `tribu1/ds-012-pretrain-from-scratch` v8 — SaveAndRunAll, GPU, **source upload explicit** (như v7 — v5/v6 chết 6s khi không đính kèm text).<end of file>
+- **Launch**: kernel `tribu1/ds-012-pretrain-from-scratch` v8 — SaveAndRunAll, GPU, **source upload explicit** (như v7 — v5/v6 chết 6s khi không đính kèm text).
+
+---
+
+## §29 — DS-012e: profile thật bottleneck 0.42 s/step — pre-register (TRƯỚC CODE)
+
+> **Slot chương**: §26 = DS-013 TPU smoke (giữ chỗ, chưa viết) · §27 = DS-012d (xong — SPEED-FAIL) · §28 = wide-shallow (AN-019, chờ duyệt) · **§29 = section này** · single-matrix control (nếu chạy) sẽ nhận §30. Sinh từ change-log §27.2 + F-X20: **~360ms/bước overhead chưa rõ nguồn** → đo trước, chọn lever sau.
+
+- **Mục tiêu**: run **NGẮN có instrument** — **300 bước** (không phải run 0.3B), mỗi bước đo **4 pha** — `batch` (get_batch) · `forward` (autocast + loss guard) · `backward` (zero+backward+unscale+grad-check §27) · `optim` (clip+AdamW+scaler) — mỗi pha **2 view**: `cpu` (chỉ thời gian launch, không sync) và `wall` (sync ở biên pha) → **GPU-busy = wall − cpu** theo pha; ghi `ds012/profile.json`; **KHÔNG ckpt / eval / aggregate** (không đụng `results/` → không làm bẩn resume logic của các run đầy đủ).
+- **Thay đổi code (4 gate duy nhất, đều `if PROFILE`/`if prof`)**:
+  1. hằng `PROFILE = int(os.environ.get("PROFILE_STEPS", "0"))` (mặc định **0** → script đầy đủ không đổi hành vi);
+  2. 4 cặp timer trong vòng lặp train — **đúng block code production, chỉ thêm đo** (boundary: đọc `cpu` → `synchronize` → đọc `wall`); tích lũy `ph_wall`/`ph_cpu` + `iter_wall` (cả thân bước, gồm hist/print → cho `coverage`);
+  3. `while step < lim` (`lim = PROFILE` khi bật) · bỏ eval@100 khi prof · early-return ghi `profile.json` **trước** eval-ckpt-parity;
+  4. `main()`: `PROFILE > 0` → in marker `[DS-012e] DONE` (chỉ khi `profile.json` tồn tại) → `return`, bỏ aggregate/render/plots.
+  **Không đổi**: guard §27, LR/warmup, batch, corpus, seed, arch, eval-ckpt path của run đầy đủ.
+- **Launch v9 (disclosure)**: text upload = **preamble 1 dòng** `import os; os.environ['PROFILE_STEPS']='300'` + script đã push (mặc định 0) — preamble là **config, không phải logic**; các run đầy đủ sau không bị ảnh hưởng, không cần revert.
+- **Số ĐÃ THấy khi chọn ngưỡng/pred (trung thực)**: v8 `s/step 0.4158` production · 8% MFU (4.98 TFLOP/s fp16) · v8 hist `loss@250 = 6.083034038543701`, `loss@300 = 5.730905055999756` · prep ~1266s · wall v7/v8 83.7'/80.8'. **CHƯA THấy**: phân bố pha, GPU-busy fraction, giá thật của ~5 sync/bước — đó chính là thứ phải đo.
+- **KPI (K-P1…K-P3, gate)**:
+  - **K-P1 (phủ số đo)**: `coverage = Σ wall_pha / Σ wall_thân_bước ∈ [0.80, 1.05]` — 4 pha giải thích đủ thời gian (phần còn = hist/print/loop phải nhỏ).
+  - **K-P2 (artifact)**: `profile.json` tồn tại + parse được, ≥4 pha, `n_iter ≥ 280`, marker `[DS-012e] DONE` in ra.
+  - **K-P3 (numerics sanity)**: `|loss_hist[-1] − v8_hist[cùng step]| ≤ 0.15` — instrumentation chỉ thêm sync, không đổi math (kỳ vọng sát hơn nhiều: nondeterminism đo được ~0.0006).
+  - **Report-only, KHÔNG gate**: `s_step` instrumented (**không đối chiếu 0.4158** — 5 sync/bước làm chậm, disclosure), wall session.
+  - **FAIL giữ thật**: K-P1/K-P2/K-P3 FAIL → ghi FAIL, không re-run lén, không hạ ngưỡng.
+- **Pred-vs-obs §29.1 (4, ghi trước)**:
+  1. `GPU-busy fraction = Σ(wall−cpu)/Σwall` pred **0.20** (close ±0.15 → 0.05–0.35) — nhất quán 8% MFU.
+  2. `session wall` pred **30 phút** (close 20–45).
+  3. `|Δ loss@250|` vs v8 pred **≤ 0.05** (close ≤0.15 = K-P3).
+  4. Pha lớn nhất (Σwall) pred = **`backward` ≥ 35% tổng** — nếu `optim`/`batch`/`forward` thắng → **MISS, ghi thật**.
+- **Cấm**: hạ nguong K-P sau khi thay so · chay lai profile neu FAIL · dem s_step instrumented lam speed KPI · sua code ngoai 4 gate tren · chay thanh full 0.3B trong run nay (300 buoc la CO Y). **Moi thay doi → §29.x.**
+- **Change-log §29.x**:
+  1. **[TRƯỚC CODE — 2026-10-07]** Preamble env 1 dòng (launch v9) = config, disclosed ở trên. Ngưỡng `K-P1 ∈ [0.80, 1.05]`, `K-P3 = 0.15`, `n_iter ≥ 280` **chọn SAU KHI đã thấy** baseline v3/v4/v7/v8 (liệt kê đủ) — margin K-P3 ~200× nondeterminism đã đo. **CHƯA THấy bất kỳ con số profile nào.**
+- **Findings prefix**: **F-X21…F-X24**.
+- **Launch**: kernel `tribu1/ds-012-pretrain-from-scratch` v9 — SaveAndRunAll, GPU, **text explicit** (preamble + source). ETA ≈ prep 21' + 300 bước instrumented ~4' + overhead ≈ **~30 phút**.<end of file>
