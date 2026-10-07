@@ -46,6 +46,10 @@ if os.environ.get("RUN_LR"):
 if os.environ.get("RUN_TOTAL"):
     TOTAL_STEPS = int(os.environ["RUN_TOTAL"])
 
+# §30.3a (pre-reg 1e6eacb): PROBE mode — mac dinh 0 (run day du khong doi); T0 = dau script (giam prep)
+PROBE = int(os.environ.get("PROBE", "0") or "0")
+T0_PROBE = time.time()
+
 try:
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
@@ -837,6 +841,118 @@ def load_results():
     return out
 
 
+# ---------------- §30.3a PROBE: 5 bien the toc do (SDPA backend / torch.compile) ----------------
+def _sdpa_ctx(kind):
+    # thu API moi truoc (torch >= 2.3), fallback API cu — ca 2 deu loi -> variant ghi error (K-PD3 van "reported")
+    try:
+        from torch.nn.attention import sdpa_kernel, SDPBackend
+        b = {"efficient": [SDPBackend.EFFICIENT_ATTENTION], "math": [SDPBackend.MATH],
+             "flash": [SDPBackend.FLASH_ATTENTION]}[kind]
+        return sdpa_kernel(b)
+    except Exception:
+        kw = dict(enable_flash=False, enable_math=False, enable_mem_efficient=False)
+        if kind == "efficient":
+            kw["enable_mem_efficient"] = True
+        elif kind == "math":
+            kw["enable_math"] = True
+        else:
+            kw["enable_flash"] = True
+        return torch.backends.cuda.sdp_kernel(**kw)
+
+
+def run_probe(flats):
+    import statistics as st
+    from contextlib import ExitStack
+    names = [v.strip() for v in os.environ.get("PROBE_VARIANTS", "V0,V1,V1b,V2,V3").split(",") if v.strip()]
+    n = int(os.environ.get("PROBE_STEPS", "600") or "600")
+    warm = 20                            # loai khoi do (gồm compile time cua V2/V3)
+    bs, seq = C["BATCH_TOK"] // C["SEQ"], C["SEQ"]
+    flat = flats["a1"]
+    results = []
+    for nm in names:
+        entry = {"variant": nm}
+        try:
+            torch.manual_seed(11); np.random.seed(11)
+            model = GPT(C, C["VOCAB"]).cuda()
+            opt = torch.optim.AdamW(model.parameters(), lr=C["LR"], betas=(0.9, 0.95), weight_decay=0.1)
+            try:
+                scaler = torch.amp.GradScaler("cuda")
+            except Exception:
+                scaler = torch.cuda.amp.GradScaler()
+            model.train()
+            if nm in ("V2", "V3"):       # V2, V3 = torch.compile
+                model = torch.compile(model)
+            rng = np.random.default_rng(11)
+            times = []
+            with ExitStack() as _st:     # V1/V3 = efficient, V1b = math, V0/V2 = auto (khong ctx)
+                if nm in ("V1", "V3"):
+                    _st.enter_context(_sdpa_ctx("efficient"))
+                elif nm == "V1b":
+                    _st.enter_context(_sdpa_ctx("math"))
+                for step in range(warm + n):
+                    torch.cuda.synchronize(); ts = time.time()
+                    for p in model.parameters():    # zero TRUOC fwd — giong production sau §30.2
+                        p.grad = None
+                    x, y = get_batch(flat, rng, bs, seq)
+                    with torch.autocast("cuda", dtype=torch.float16):
+                        loss = model(x, y)
+                    ok = bool(torch.isfinite(loss.detach()))
+                    gok = False
+                    if ok:
+                        scaler.scale(loss).backward()
+                        scaler.unscale_(opt)
+                        grads = [p.grad for p in model.parameters() if p.grad is not None]
+                        if grads:                   # §27 grad-check: 1 CPU read/buoc — giong production
+                            fin = [torch.isfinite(g).sum() for g in grads]
+                            gok = bool(torch.stack(fin).sum().item() == sum(g.numel() for g in grads))
+                        else:
+                            gok = True
+                    if ok and gok:
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), C["CLIP"])
+                        scaler.step(opt); scaler.update()
+                    elif ok:
+                        scaler.step(opt); scaler.update()
+                    torch.cuda.synchronize(); te = time.time()
+                    if step >= warm:
+                        times.append(te - ts)
+            entry.update(s_step_mean=round(st.mean(times), 4),
+                         s_step_median=round(st.median(times), 4), n=len(times))
+        except Exception as e:
+            entry["error"] = f"{type(e).__name__}: {e}"
+        results.append(entry)
+        print("[probe] " + json.dumps(entry), flush=True)
+        try:
+            del model, opt, scaler
+        except Exception:
+            pass
+        torch.cuda.empty_cache()
+
+    # ---- K-PD1..K-PD4 (nguong §30.3a — chon TRUOC khi do) ----
+    v0 = next((r.get("s_step_mean") for r in results if r.get("variant") == "V0"), None)
+    kpd1_s = (time.time() - T0_PROBE) / 60.0       # proxy session (tu T0 = dau script, gom prep); chinh thuc = log Kaggle
+    kpd1 = 30.0 <= kpd1_s <= 60.0
+    kpd2 = (v0 is not None and 0.35 <= v0 <= 0.50)
+    kpd3 = (len(results) == len(names)
+            and all(("s_step_mean" in r or "error" in r) for r in results))
+    fast = [r["variant"] for r in results
+            if r.get("s_step_mean") is not None and v0 is not None
+            and r["s_step_mean"] <= v0 / 1.5]
+    kpd4 = len(fast) > 0
+    best = min([r["s_step_mean"] for r in results if r.get("s_step_mean") is not None], default=None)
+    out = {"mode": "ds012f_probe", "variants": results, "probe_steps": n, "warm": warm,
+           "v0": v0, "best": best, "fast_variants": fast, "kpd1_script_min": round(kpd1_s, 1),
+           "kpd": {"K-PD1": bool(kpd1), "K-PD2": bool(kpd2), "K-PD3": bool(kpd3), "K-PD4": bool(kpd4)},
+           "kpi_pd": f"{sum([bool(kpd1), bool(kpd2), bool(kpd3), bool(kpd4)])}/4",
+           "env": {"torch": torch.__version__,
+                   "gpu": (torch.cuda.get_device_name(0) if torch.cuda.is_available() else None)}}
+    json.dump(out, open(f"{OUT}/probe.json", "w"), indent=1, default=str)
+    for k, v in out["kpd"].items():
+        print(f"[{k}] {v}", flush=True)
+    print(f"[KPI-PD] {out['kpi_pd']} | V0 {v0} | best {best} | fast {fast} "
+          f"| script_wall {kpd1_s:.1f}min", flush=True)
+    return out
+
+
 def main():
     print(f"[env] torch {torch.__version__} | cuda {torch.cuda.is_available()} "
           f"| {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'NO-GPU'}", flush=True)
@@ -844,6 +960,11 @@ def main():
     flats = {k: flat_uint16(f"{TMP}/{k}.bin") for k in ("a1", "a3", "hold")}
     print(f"[shapes] a1 {len(flats['a1'])} tok | a3 {len(flats['a3'])} tok | hold {len(flats['hold'])} tok | "
           f"TOTAL_STEPS {TOTAL_STEPS}", flush=True)
+
+    if PROBE > 0:                        # §30.3a: probe 5 bien the toc do -> probe.json, bo qua ckpt/eval/aggregate
+        pr = run_probe(flats)
+        print("[DS-012f] PROBE DONE" if pr else "[DS-012f] PROBE FAILED", flush=True)
+        return
 
     cells = [(a, s) for a in C["ARMS"] for s in C["SEEDS"]]
     done = 0
