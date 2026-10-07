@@ -1457,4 +1457,24 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 - **An toàn numerics**: prep deterministic — mọi phiên log giống hệt (`a1 25.5M | a3 21.4M | rej 665 | exact_dup 125 | ...`), cùng seed cho Δval `0.0006` giữa 2 session (khác GPU, không phải data) → **bin restore = bin train**. Từ v11 mọi run dùng chung 1 bộ bin (chain qua output), nhất quán tuyệt đối với chuẩn bị & K-F baseline.
 - **K-PR1**: log phiên kế tiếp có `RESTORED` + prep ≤ 3' · **K-PR2**: 3 file đúng size + meta OK · **K-PR3** (dồn sang **run thật** kế tiếp): `|Δval − 3.4257| ≤ 0.001`. FAIL → fallback đã tự kích hoạt từ đầu, báo thật.
 - **Không đổi**: gate §30.3a (v10 đang chạy với code cũ — lần này vẫn trả prep, từ v11 được lợi), K-F, K-P, mọi ngưỡng khác, logic train.
-- **Findings**: **F-X29** (prep-restore outcome).<end of file>
+- **Findings**: **F-X29** (prep-restore outcome).
+
+### §30.6 — (3b) RE-DERIVE + QUYẾT ĐỊNH CỦA BẠN (2026-10-08) — TRƯỚC CODE / TRƯỚC RUN
+
+- **Quyết định (lựa chọn trực tiếp của bạn 2026-10-08, sau khi thấy số probe §30.3a)**: **C** = giảm `RUN_ACC` 110 → **52** · **B1** = chạy **1 phiên ~4.3h** (ngoại lệ có giới hạn cho §30.4 — xem §30.6.2). Người dùng đã xem center extrapolation ~2.99 và biết C mạo hiểm hơn ACC=110.
+- **Re-derive bằng số đo §30.3a (F-X26)**:
+  - micro (get_batch + fwd fp16 + isfinite + bwd, loss chia /ACC) ≈ **0.270s** — suy ra từ probe V2 `0.2846` trừ optim `0.007` (§29) + grad-check ~0.002 + clip ~0.0003 + zero ~0.0002 + 2 sync ~0.005 — **phương pháp disclose**;
+  - bước = 52 × 0.270 + ~0.015 ≈ **14,06s** → 1050 bước ≈ **4,10h train**;
+  - **batch hiệu dụng = 52 × 27.648 = 1.437.696 tok/bước** → step 1000 = **1,438 tỷ token = 4,79 epoch** corpus 300M (lặp **disclose** — K-F2 giữ vai trò chống thắng giả);
+  - wall = 4,10h train + compile ~40s + prep-restore §30.5 ~1,5' + eval@1000 ~0,5' + final eval/ckpt ~1,5' + startup ~30s ≈ **4,25–4,35h** → **pred wall 4,3h**.
+- **KPI — K-F1…K-F3 GIỮ NGUYÊN, KHÔNG HẠ** (`train@1000 ≤ 3.000` · `val@1000 ≤ 3.45` · `not diverged ∧ grad_skips ≤ 100 ∧ micro-nan counted`).
+- **Pred-vs-obs §30.6 (4, ghi trước — CHƯA THẤY SỐ RUN §30 NÀO)**:
+  1. `train@1000` pred **3.14** (close **2.94–3.44**) — raw center = `3.3 − 0.45×log10(1.438B/0.3B)` = **2.99** + buffer **+0.15** (bất định fit + "1000 step có đủ chưa" ở 52× — giảm từ +0.25 của §30.1 vì bất định riêng batch 110× không áp dụng); **target 3.000 nằm trong close band → gamble chân thực, dự báo P(PASS) ~25–40%**;
+  2. `val@1000` pred **3.30** (close **3.15–3.45**) — lặp 4,79 epoch cải thiện val ít (baseline 3.426); K-F2 dự báo PASS nhưng **tight** (close trên = ngưỡng);
+  3. `wall` pred **4,3h** (close **3,8–5,5h**) — **thay** pred 3.0h của §30.1 (re-derive có số probe, TRƯỚC run);
+  4. `grad_skips` pred **0–40** (giữ nguyên — gradient TB 52 micro sạch).
+- **Change-log §30.6.1 [TRƯỚC CODE — 2026-10-08]**: code cần thêm **duy nhất** lever `RUN_COMPILE=1` (env-gated, **mặc định 0 = hành vi cũ y hệt**) — `model = torch.compile(model)` trước loop train, pattern **giống hệt probe V2 đã đo** (K-PD4 PASS, compile ~38s/lần); micro-loop/eval/K-F/marker §30.2 **không đổi**. Preamble launch: `RUN_ACC=52; EVAL_STEPS=1000; RUN_WARMUP=100; RUN_LR=1e-2; RUN_TOTAL=1050; RUN_COMPILE=1`.
+- **Change-log §30.6.2 — NGOẠI LỆ §30.4 (B1 — bạn chọn 2026-10-08)**: run §30 chạy **1 phiên trần 6h** (ước tính 4,3h). Ghi nhận lý do: wall đã re-derive bằng lever probe (§30.3a 4/4) + ACC re-derive (C) nhưng vẫn >60' vì vật lý 1,438B token; phương án A (5 × resume) bị **từ chối** để tránh rủi ro bug resume âm thầm (RNG/lr-schedule) + 5 điểm hỏng. **Mọi launch khác vẫn 30–60'/phiên.** Session > 6h → wall-pred MISS (báo thật), không hạ ngưỡng nào.
+- **Cấm (giữ nguyên từ §30.1)**: hạ K-F1/K-F2 sau khi thấy số · thêm lever khác (Muon/arch/data) trong run này · re-run khi FAIL · interpret K-F1 PASS mà K-F2 FAIL là thành công.
+- **Findings**: **F-X30** (kết quả run §30).
+- **Launch**: kernel **v11** — text explicit + preamble §30.6.1 · timer giám sát chu kỳ ~90' · thông báo launch + finish.<end of file>
