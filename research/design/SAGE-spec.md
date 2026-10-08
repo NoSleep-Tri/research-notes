@@ -1591,6 +1591,28 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 - **Gates (LOCK)**: **K-PG1** wall ≤ 60' — pred **3' [2–6]** · **K-PG2** 2 block: top-12 **sorted** (row1 self_cuda ≥ 5% wall5) + `busy_kernels ∈ (0, 1,5]` — pred busy **0,90 [0,60–1,20]** · **K-PG3** top-1 identity — pred **GEMM-type** (key chứa `gemm|cutlass|mm|sgemm|wgrad|dot` case-insens; top-1 = fused triton/elementwise → **MISS báo thật**). **KPI-PG = 3** · pred-vs-obs ghi `prof3.json`.
 - **Findings**: **F-X33** (top-kernel đích danh + busy thật + identity pred).
 
+### §31.8 — KẾT QUẢ v14 PROF-FIX2 (2026-10-08 — COMPLETE 123,8s ≈ 2,06'; pre-reg §31.7 `1904bce` → code `188f0ac` → launch v14)
+
+- **KPI-PG = 3/3 PASS**: **K-PG1 ✓** wall 1,7' ≤ 60' · **K-PG2 ✓** — top-12 **sorted** (P-C0 row1 `aten::mm` self_cuda 459,4ms = 37,6% wall5 1,223s ≥ 5% ✓; `busy_kernels` 1,133 / 1,232 ∈ (0,1,5] ✓; P-C4 row1 frac 41%) · **K-PG3 ✓** top-1 = **`aten::mm`** (regex `mm` match → GEMM-type).
+- **pred-vs-obs: 2/3 CLOSE · 1/3 MISS** — CLOSE: busy **1,133 ∈ [0,60–1,20]** ✓ · top-1 **GEMM-type** ✓ · **MISS (báo thật)**: wall `1,7' < 2'` — **lần 3 liên tiếp wall-pred cao hơn thực tế** (v12 7,7<14 · v13 2,3<8 · v14 1,7<2) → bias hệ thống, ghi nhận cho pred sau.
+- **F-X33 — TOP-KERNEL ĐÍCH DANH (P-C0, wall5 = 1,223s ≈ 0,245s/micro dưới profiler)**:
+
+  | # | kernel | self_cuda | % wall |
+  |---|---|---|---|
+  | 1 | **`aten::mm`** → cuBLAS `turing_fp16_s1688gemm_fp16_{128x128,256x128}_*` (tn/nn/nt/stages) | **459,4ms** (sub: 149,3 + 148,0 + 88,9 + ~73 dưới top12) | **37,6%** |
+  | 2–3 | `aten::_efficient_attention_backward` = `fmha_cutlassB_f16_aligned_64x64_k64_sm75` | 278,0ms | **22,7%** |
+  | 4–6 | (các GEMM con — cùng nhóm #1) | 149,3 / 148,0 / 88,9 | 12,2 / 12,1 / 7,3 |
+  | 7–8 | `aten::_efficient_attention_forward` = `fmha_cutlassF_..._sm75` | 68,4ms | 5,6% |
+  | 9–12 | triton fused (rope+layernorm-bwd chains, silu) — mỗi key hiện 2 event trùng | 36,9 / 33,0 ×2 | ~6%+ (phần còn lại dưới top12) |
+
+  1. **GEMM = 37,6% — pred "GEMM-type" ĐÚNG**; underlying đã là **tensor-core cuBLAS T4** (`turing_fp16...`) → headroom phần mềm cho GEMM **hẹp**.
+  2. **Attention bwd = 22,7% dù FLOP-share chỉ ~1% → memory-bound XÁC NHẬN bằng đo** (mem-efficient sm75 materialize S; **flash unavailable trên T4 sm75**) → lever attention = **đổi seq/arch (quyết định nghiên cứu)**, không phải tối ưu phần mềm.
+  3. **busy_all 1,798/1,98 ≈ 2× busy dedup** → **double-count = cặp wrapper(aten::) + raw-kernel** (giải thích trọn F-X32.3); `busy_kernels` 1,133 còn hơi phình do triton event trùng → **busy thật ≈ 0,90–1,00× wall** → **GPU saturation tái xác nhận lần 3** (util 99,1% v12 + busy v14).
+  4. Inductor fusion hoạt động tốt (triton fused ≈ 6%+ cho rope/norm/silu).
+  5. Restore: **reproduce nguyên vẹn lần 3** (CLI 2.2.4, rc=0, 0-byte) → idempotent, dataset-method giữ nguyên là fix.
+- **Kết luận chi phí (chuỗi probe v12 → v14)**: **0 lever software ≥ 1,3×** (v12) · **code-path chỉ ≤ 6,5%** (v13) · **bottleneck = GEMM 38% (đã tensor-core) + attention-mem 23% (sm75 không flash) + GPU saturate 99%** → lever còn lại: **(a)** arch reshape (d/ffn/layers cho tile tốt hơn) · **(b)** đổi seq/micro-batch (nghiên cứu) · **(c)** §26 TPU · **(d)** chấp nhận ceiling T4 (production 101,7k / trần đo 127k tok/s) — **chờ bạn chọn**.
+- **Findings**: **F-X33**.
+
 ### §30.6 — (3b) RE-DERIVE + QUYẾT ĐỊNH CỦA BẠN (2026-10-08) — TRƯỚC CODE / TRƯỚC RUN
 
 - **Quyết định (lựa chọn trực tiếp của bạn 2026-10-08, sau khi thấy số probe §30.3a)**: **C** = giảm `RUN_ACC` 110 → **52** · **B1** = chạy **1 phiên ~4.3h** (ngoại lệ có giới hạn cho §30.4 — xem §30.6.2). Người dùng đã xem center extrapolation ~2.99 và biết C mạo hiểm hơn ACC=110.
