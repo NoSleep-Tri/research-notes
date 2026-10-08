@@ -1318,13 +1318,13 @@ def run_costprobe():
 
 
 def run_profprobe():
-    # §31.5 v13 PROF-RERUN (DS-014b) — pre-reg §31.5 push TRUOC code (commit 53b1b13, 2026-10-08).
-    # P1: restore upgrade-test (pip -U kaggle + whoami + retry, §30.5.4) -> evidence K-PF4 (RESTORE_EV).
-    # P2: profiler FIX — khong truyen kwarg row_limit (torch 2.11 loi, §31.4); tag P-C0 + P-C4
-    #      -> gpu_busy_est (sum self_cuda/wall5) + top-12 CUDA-op in log.
-    # P3: C0p production-mirror micro (L585-591: double-sync isfinite->bool + item, mloss/ACC,
-    #      zero 1 lan truoc window = accumulate) de tach code-path vs context cua chenh +25% (§31.4).
-    # K-PF1..K-PF4 nguong §31.5 LOCK — khong sua sau khi thay so. Output prof2.json.
+    # v14 PROF-FIX2 (DS-014c) — pre-reg §31.7 push TRUOC code (commit 1904bce, 2026-10-08).
+    # Lich su: v13 §31.5 da cham K-PF 3/4 → F-X32: C0p 0.231 (code-path +6.5%), sort kwarg
+    # bi ignore, upgrade CLI van 0-byte (§30.5.4 UPDATE).
+    # P1: restore upgrade-test idempotent (evidence RESTORE_EV - khong gate o v14).
+    # P2: Fix-1 sort THU CONG theo self_cuda (khong tin sort_by kwarg - F-X32.3);
+    #      Fix-2 busy_kernels = sum self_cuda kernel THAT (loai wrapper) tran double-count.
+    # K-PG1..K-PG3 nguong §31.7 LOCK — khong sua sau khi thay so. Output prof3.json.
     import statistics as st
     t_start = time.time()
 
@@ -1367,48 +1367,7 @@ def run_profprobe():
             scaler.scale(mloss).backward()
         return v
 
-    def _micro_prod(model, opt, scaler, rng, bs):  # P3 mirror L585-591 — KHONG zero o day
-        x, y = get_batch(flat, rng, bs, seq)
-        with torch.autocast("cuda", dtype=torch.float16):
-            mloss = model(x, y)
-        if bool(torch.isfinite(mloss.detach())):   # sync 1 (L590)
-            v = float(mloss.item())                # sync 2 (L591)
-            scaler.scale(mloss / ACC).backward()   # production divide truoc backward
-            return v
-        return float("nan")
-
-    # --- P3: C0p production-mirror (n=100 giong C0; zero 1 lan truoc window = accumulate) ---
-    c0p = {"variant": "C0p", "mode": "default", "mult": 1,
-           "mirror": "prod-L585-591: double-sync + mloss/ACC + accumulate"}
-    model = opt = scaler = None
-    try:
-        model, opt, scaler = _mk()
-        model = torch.compile(model)              # default mode = giong C0
-        rng = np.random.default_rng(11)
-        for p in model.parameters():
-            p.grad = None                          # ZERO 1 LAN truoc window
-        for _ in range(30):                        # warmup 30 (giong C0, gom compile ~40s)
-            _micro_prod(model, opt, scaler, rng, bs0)
-        torch.cuda.synchronize()
-        times = []
-        while len(times) < 100:                    # n = 100 (LOCK §31.5 P3)
-            torch.cuda.synchronize(); ts = time.time()
-            _micro_prod(model, opt, scaler, rng, bs0)
-            torch.cuda.synchronize()
-            times.append(time.time() - ts)
-        c0p.update(s_micro_mean=round(st.mean(times), 4),
-                   s_micro_median=round(st.median(times), 4), n=len(times))
-    except Exception as e:
-        c0p["error"] = f"{type(e).__name__}: {e}"
-    finally:
-        print("[probe] " + json.dumps(c0p), flush=True)
-        try:
-            del model, opt, scaler
-        except Exception:
-            pass
-        torch.cuda.empty_cache()
-
-    # --- P2: profiler FIX (khong kwarg row_limit) tag P-C0 + P-C4 ---
+    # --- P2: profiler FIX-2 (§31.7: sort thu cong + busy_kernels) tag P-C0 + P-C4 ---
     prof_blocks = {}
     for tag, mult in (("P-C0", 1), ("P-C4", 4)):
         model = opt = scaler = None
@@ -1434,16 +1393,27 @@ def run_profprobe():
                     continue
             if ka is None:
                 raise RuntimeError("key_averages khong chay duoc (torch 2.11 API)")
-            top = str(ka[:12])[:5000]
-            print(f"[prof:{tag}] wall_5steps={wall5:.3f}s\n{top}", flush=True)
-            cuda_us = 0.0
-            for ev in prof.key_averages():        # sum TREN TOAN BO (khong chi top-12)
-                t = getattr(ev, "self_cuda_time_total", None)
+            # §31.7 Fix-1: sort THU CONG (sort_by kwarg bi ignore - F-X32.3)
+            def _sc(e):
+                t = getattr(e, "self_cuda_time_total", None)
                 if t is None:
-                    t = getattr(ev, "self_device_time_total", 0) or 0
-                cuda_us += t
+                    t = getattr(e, "self_device_time_total", 0) or 0
+                return float(t or 0)
+            rows = sorted(ka, key=_sc, reverse=True)
+            print(f"[prof:{tag}] wall_5steps={wall5:.3f}s", flush=True)
+            print(f"[prof:{tag} top12] " + str(rows[:12])[:5000], flush=True)
+            # §31.7 Fix-2: busy_kernels = sum self_cuda kernel THAT (loai wrapper) - tran double-count
+            _WRAP = ("aten::", "Torch", "Pregraph", "Activity", "Memcpy", "Memset",
+                     "Record", "cuda", "stream", "Stream", "CUDA")
+            cuda_all = sum(_sc(e) for e in rows)
+            cuda_k = sum(_sc(e) for e in rows
+                         if not str(getattr(e, "key", "")).startswith(_WRAP))
             prof_blocks[tag] = {"wall_5s": round(wall5, 3),
-                                "gpu_busy_est": round(cuda_us / 1e6 / wall5, 3),
+                                "busy_all": round(cuda_all / 1e6 / wall5, 3),
+                                "busy_kernels": round(cuda_k / 1e6 / wall5, 3),
+                                "top1_key": str(getattr(rows[0], "key", "")) if rows else "",
+                                "top1_frac": (round(_sc(rows[0]) / (wall5 * 1e6), 4)
+                                              if rows else 0.0),
                                 "n_ops": len(ka)}
         except Exception as e:
             prof_blocks[tag] = {"error": f"{type(e).__name__}: {e}"}
@@ -1455,24 +1425,27 @@ def run_profprobe():
                 pass
             torch.cuda.empty_cache()
 
-    # --- K-PF nguong §31.5 LOCK + pred-vs-obs ---
+    # --- K-PG nguong §31.7 LOCK (v14 PROF-FIX2) + pred-vs-obs ---
     wall_min = round((time.time() - t_start) / 60.0, 1)
-    c0p_s = c0p.get("s_micro_mean")
+    import re
+    top1_key = str(prof_blocks.get("P-C0", {}).get("top1_key", ""))
+    is_gemm = bool(re.search(r"gemm|cutlass|mm|sgemm|wgrad|dot", top1_key, re.I))
 
     def _block_ok(b):
+        # K-PG2: top-12 sorted (row1 self_cuda >= 5% wall5) + busy_kernels in (0, 1.5]
         return (isinstance(b, dict) and "error" not in b
-                and 0 < float(b.get("gpu_busy_est", 0)) <= 1.5
-                and int(b.get("n_ops", 0)) > 0)
+                and float(b.get("top1_frac", 0)) >= 0.05
+                and 0 < float(b.get("busy_kernels", 0)) <= 1.5)
 
-    kpf1 = wall_min <= 60.0
-    kpf2 = _block_ok(prof_blocks.get("P-C0")) and _block_ok(prof_blocks.get("P-C4"))
-    kpf3 = c0p_s is not None
-    kpf4 = (bool(RESTORE_EV.get("version")) and bool(RESTORE_EV.get("whoami"))
-            and bool(RESTORE_EV.get("staging")))
+    kpg1 = wall_min <= 60.0
+    kpg2 = _block_ok(prof_blocks.get("P-C0")) and _block_ok(prof_blocks.get("P-C4"))
+    kpg3 = is_gemm
+    busy_p_c0 = prof_blocks.get("P-C0", {}).get("busy_kernels")
     preds = [
-        ("wall_min", 12.0, 8.0, 20.0, wall_min),
-        ("C0p s_micro", 0.24, 0.21, 0.30, c0p_s),
-        ("restore_outcome", "cli_no_files", "cli_no_files", "cli_no_files", restore_outcome),
+        ("wall_min", 3.0, 2.0, 6.0, wall_min),
+        ("busy_kernels_P-C0", 0.90, 0.60, 1.20, busy_p_c0),
+        ("top1_identity", "GEMM-type", "GEMM-type", "GEMM-type",
+         "GEMM-type" if is_gemm else ("non-GEMM:" + top1_key)),
     ]
     po = {}
     for name, p, lo, hi, obs in preds:
@@ -1484,36 +1457,36 @@ def run_profprobe():
             close = bool(lo <= float(obs) <= hi)
         po[name] = {"pred": p, "band": [lo, hi], "obs": obs, "close": close}
 
-    out = {"mode": "ds014b_prof", "wall_min": wall_min, "c0p": c0p,
+    out = {"mode": "ds014c_prof2", "wall_min": wall_min,
            "profiler": prof_blocks,
            "restore": {"outcome": restore_outcome, "ev": dict(RESTORE_EV)},
            "preds": po,
-           "kpf": {"K-PF1": bool(kpf1), "K-PF2": bool(kpf2),
-                   "K-PF3": bool(kpf3), "K-PF4": bool(kpf4)},
-           "kpi_pf": f"{sum([bool(kpf1), bool(kpf2), bool(kpf3), bool(kpf4)])}/4",
+           "kpg": {"K-PG1": bool(kpg1), "K-PG2": bool(kpg2), "K-PG3": bool(kpg3)},
+           "kpi_pg": f"{sum([bool(kpg1), bool(kpg2), bool(kpg3)])}/3",
            "data_kind": data_kind, "acc": ACC,
            "env": {"torch": torch.__version__,
                    "gpu": (torch.cuda.get_device_name(0) if torch.cuda.is_available() else None)}}
-    json.dump(out, open(f"{OUT}/prof2.json", "w"), indent=1, default=str)
-    for k, v in out["kpf"].items():
+    json.dump(out, open(f"{OUT}/prof3.json", "w"), indent=1, default=str)
+    for k, v in out["kpg"].items():
         print(f"[{k}] {v}", flush=True)
     for name, v in po.items():
         print(f"[pred] {name}: pred {v['pred']} band {v['band']} obs {v['obs']} -> {v['close']}",
               flush=True)
-    print(f"[KPI-PF] {out['kpi_pf']} | C0p {c0p_s} | busy P-C0 "
-          f"{prof_blocks.get('P-C0', {}).get('gpu_busy_est')} / P-C4 "
-          f"{prof_blocks.get('P-C4', {}).get('gpu_busy_est')} | wall {wall_min}' | "
-          f"restore {restore_outcome} (staging_files={RESTORE_EV.get('staging_files')})",
-          flush=True)
+    print(f"[KPI-PG] {out['kpi_pg']} | busy_kernels P-C0 {busy_p_c0} / P-C4 "
+          f"{prof_blocks.get('P-C4', {}).get('busy_kernels')} | busy_all "
+          f"{prof_blocks.get('P-C0', {}).get('busy_all')}/"
+          f"{prof_blocks.get('P-C4', {}).get('busy_all')} | top1 {top1_key!r} "
+          f"(frac {prof_blocks.get('P-C0', {}).get('top1_frac')}) | wall {wall_min}' | "
+          f"restore {restore_outcome}", flush=True)
     return out
 
 
 def main():
     print(f"[env] torch {torch.__version__} | cuda {torch.cuda.is_available()} "
           f"| {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'NO-GPU'}", flush=True)
-    if PROF > 0:                       # §31.5 v13 PROF-RERUN (DS-014b): P1 restore-upgrade + P2 profiler fix + P3 C0p
+    if PROF > 0:                       # v14 PROF-FIX2 (DS-014c §31.7): sort thu cong + busy_kernels + K-PG1..3
         run_profprobe()
-        print("[DS-014b] PROF DONE", flush=True)
+        print("[DS-014c] PROF2 DONE", flush=True)
         return
     if COST > 0:                      # §31 COST-PROBE (DS-014): khong prep day du, khong train/eval/ckpt
         run_costprobe()
