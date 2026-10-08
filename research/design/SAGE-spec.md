@@ -1457,7 +1457,27 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 - **An toàn numerics**: prep deterministic — mọi phiên log giống hệt (`a1 25.5M | a3 21.4M | rej 665 | exact_dup 125 | ...`), cùng seed cho Δval `0.0006` giữa 2 session (khác GPU, không phải data) → **bin restore = bin train**. Từ v11 mọi run dùng chung 1 bộ bin (chain qua output), nhất quán tuyệt đối với chuẩn bị & K-F baseline.
 - **K-PR1**: log phiên kế tiếp có `RESTORED` + prep ≤ 3' · **K-PR2**: 3 file đúng size + meta OK · **K-PR3** (dồn sang **run thật** kế tiếp): `|Δval − 3.4257| ≤ 0.001`. FAIL → fallback đã tự kích hoạt từ đầu, báo thật.
 - **Không đổi**: gate §30.3a (v10 đang chạy với code cũ — lần này vẫn trả prep, từ v11 được lợi), K-F, K-P, mọi ngưỡng khác, logic train.
-- **Findings**: **F-X29** (prep-restore outcome).
+- **Findings**: **F-X29** (prep-restore outcome — **kết quả: FAIL lần 1**, xem §30.5.2).
+
+### §30.5.2 — K-PR1 FAIL: chẩn đoán + hướng sửa (SAU RUN v11, TRƯỚC CODE FIX)
+
+- **Số đo**: dòng 2 log — `9.8s [data] restore skip (thieu file: ['a1.bin', 'a3.bin', 'data_meta.json', 'hold.bin'])` — CLI **rc=0** (không có msg `cli rc`) nhưng **staging rỗng sau ~1,5s** → không thể đã tải 1,2GB. Fallback prep cũ chạy (1407,1s = 23,5') → **không crash, đúng thiết kế** ✓ nhưng **K-PR1 FAIL** (không có `RESTORED`, prep ≫ 3'), K-PR2/K-PR3 = N/A.
+- **Nghi ngờ chính (confidence trung bình — chưa xác minh)**: `kaggle kernels output <slug>` lấy output của **version ĐANG CHẠY (v11 — rỗng)** thay vì version đã hoàn thành trước đó; loại phụ: auth thiếu nhưng CLI im lặng rc=0. Chưa có stdout/stderr của subprocess trong log → **không kết luận chắc được**.
+- **Change-log §30.5.2.1 [TRƯỚC CODE FIX]**: (i) log thêm `r.stdout[:200]` + `r.stderr[:200]` vào msg `restore skip` để chẩn đoán chắc chắn lần sau; (ii) phương án sửa (chọn 1, verify CLI docs trước khi code): **(a)** pin version rõ ràng nếu CLI có flag → tải version đã hoàn thành gần nhất; **(b)** **dataset method** — 1 lần `kaggle datasets create` từ một session (upload bin), các session sau `kaggle datasets download` (slug cố định, không phụ thuộc version đang chạy); (c) tải trực tiếp qua API Kaggle bằng credentials trong kernel (nếu có). **Chưa code → chưa launch**; đến lúc fix sẽ pre-reg/cập nhật §30.5.3 trước code. Mọi session SỬA XONG trc khi launch kế tiếp — trước mắt session sau vẫn tốn ~23' prep nếu chưa fix.
+
+### §30.7 — KẾT QUẢ v11 (2026-10-08 — COMPLETE 16.270s = 271,2' ≈ 4,52h)
+
+- **Chuỗi**: pre-reg §30.6 `5bc7db1` → code §30.6 `dc6d632` → launch v11 (RUN_ACC=52, EVAL_STEPS=1000, RUN_WARMUP=100, RUN_LR=1e-2, RUN_TOTAL=1050, RUN_COMPILE=1) → COMPLETE.
+- **KPI-F (§30) = 1/3 → FAIL (giữ thật, không hạ ngưỡng, không re-run)**:
+  - **K-F1 ❌ FAIL**: `train@1000 = 3.4755` > **3.000** — pred 3.14 [2.94–3.44] → **MISS** (vượt close trên +0,035);
+  - **K-F2 ❌ FAIL**: `val@1000 = 3.5496` > **3.45** — pred 3.30 [3.15–3.45] → **MISS**; **K-F2 làm đúng vai trò chống thắng giả**: val **tệ hơn baseline 3,4257 (+0,124)** dù thấy 1,438B token (**4,79 epoch**) → **lặp dữ liệu >1 epoch làm val XẤU ĐI**;
+  - **K-F3 ✓ PASS**: `diverged=False` ∧ `grad_skips=0` (pred 0–40 **CLOSE**) ∧ `micro_nan=0`.
+- **Wall / kỹ thuật**: session **4,52h** (pred 4,3h [3,8–5,5] **CLOSE** ✓ · trần B1 6h ✓) · train 247,3' = **14,13s/bước** (pred 14,06 — near-exact ✓) · compile ~44s · ckpt 50.373.361 B · **parity 0,0** (compiled-vs-eager lệch 0.0 → `_orig_mod` save OK) · eval@1000 `3.5496` · marker `[DS-012f] DONE` ✓.
+- **pred-vs-obs §30.6: 2/4 CLOSE** (wall · grad_skips) — **2/4 MISS** (train@1000 · val@1000).
+- **Blocks §25/§27 render FAIL (K1, K3' wall 247>150, K-S2…)** = informational — config §30 khác baseline (ACC=52, 1050 steps, LR 1e-2); acceptance của run này = **chỉ K-F1…K-F3**.
+- **F-X30 (confidence cao — pre-reg đầy đủ, số đo trực tiếp)**: **thuyết "đủ token lũy kế ở step 1000" bị bác**: 1,438B token/step 1000 chỉ ra `train 3,4755` — **thiếu 0,48 so với 3,000**; extrapolation `-0,45/decade` (center raw 2,99) **MISS +0,49**. Kẻ chặn thật = **1050 bước optimizer** (vs 10.850 baseline) **+ overfit do lặp 4,79 epoch** — **không phải tổng token**. Liệu pháp big-batch-lặp **không** đạt 3,000@1000 ở cấu hình này.
+- **Change-log §30.7.1 [SAU RUN — ghi nhận, KHÔNG sửa ngưỡng]**: K-F1..K-F3 giữ nguyên (3.000/3.45/log). Hướng tiếp theo thuộc lựa chọn của bạn: **(a)** chấp nhận FAIL + kết luận §30 (chuyển §28/§31) · **(b)** lever mới pre-reg riêng (Muon/arch/LR schedule — cần vòng pre-reg + code mới) · **(c)** bạn đổi target — chỉ bạn đổi được, tôi không tự hạ.
+- **Findings**: **F-X30** (kết quả run §30 — số đo, pred-vs-obs, extrapolation MISS) · **F-X29** (K-PR1 restore fail lần 1 + chẩn đoán §30.5.2).
 
 ### §30.6 — (3b) RE-DERIVE + QUYẾT ĐỊNH CỦA BẠN (2026-10-08) — TRƯỚC CODE / TRƯỚC RUN
 
