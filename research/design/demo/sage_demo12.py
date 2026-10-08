@@ -51,6 +51,9 @@ PROBE = int(os.environ.get("PROBE", "0") or "0")
 T0_PROBE = time.time()
 RUN_COMPILE = os.environ.get("RUN_COMPILE", "0") == "1"   # §30.6.1: lever F-X26 torch.compile (mac dinh 0 = hanh vi cu y het)
 COST = int(os.environ.get("COST", "0") or "0")      # §31 COST-PROBE DS-014 (pre-reg §31 push TRUOC code 9326097)
+PROF = int(os.environ.get("PROF", "0") or "0")      # §31.5 v13 PROF-RERUN (pre-reg §31.5 push TRUOC code 53b1b13)
+RESTORE_EV = {"pip": False, "version": False, "whoami": False,   # §31.5 P1 evidence flags -> K-PF4
+              "staging": False, "staging_files": None}
 
 try:
     torch.backends.cuda.matmul.allow_tf32 = True
@@ -310,12 +313,47 @@ def _restore_bins_from_output(paths, meta_p):
         if os.environ.get("PREP_RESTORE", "1") == "0":
             print("[data] restore disabled (PREP_RESTORE=0)", flush=True)
             return None
+        # §31.5 P1 (pre-reg §31.5 TRUOC code 53b1b13): upgrade CLI + whoami - chuan doan K-PR1 (§30.5.4).
+        # v12 do duoc: CLI 2.0.2, rc=0, stdout chi warning version, staging 0 byte -> loai (c).
+        def _cli(cmd, to):
+            try:
+                rr = subprocess.run(cmd, capture_output=True, text=True, timeout=to)
+                return rr.returncode, (rr.stdout or "")[-300:], (rr.stderr or "")[-300:]
+            except Exception as ex:
+                return -1, "", f"{type(ex).__name__}: {ex}"
+        try:
+            pr = subprocess.run(["pip", "install", "-U", "kaggle", "-q"],
+                                capture_output=True, text=True, timeout=180)
+            RESTORE_EV["pip"] = True
+            print(f"[data] pip-upgrade-kaggle rc={pr.returncode} "
+                  f"out={(pr.stdout or '')[-150:]!r} err={(pr.stderr or '')[-150:]!r}", flush=True)
+        except Exception as e:
+            print(f"[data] pip-upgrade-kaggle loi: {type(e).__name__}: {e}", flush=True)
+        _rc, _so, _se = _cli(["kaggle", "--version"], 60)
+        RESTORE_EV["version"] = True
+        print(f"[data] kaggle-version rc={_rc} out={_so!r} err={_se!r}", flush=True)
+        _rc, _so, _se = _cli(["kaggle", "whoami"], 60)
+        RESTORE_EV["whoami"] = True
+        print(f"[data] kaggle-whoami rc={_rc} out={_so!r} err={_se!r}", flush=True)
         shutil.rmtree(stage, ignore_errors=True)
         os.makedirs(stage, exist_ok=True)
         t0 = time.time()
         r = subprocess.run(["kaggle", "kernels", "output",
                             "tribu1/ds-012-pretrain-from-scratch", "-p", stage],
                            capture_output=True, text=True, timeout=480)
+        # §31.5 P1: staging summary TRUOC cac nhanh sau - K-PF4 can evidence du ve staging (§30.5.4).
+        try:
+            _sf = _sb = 0
+            for _rt, _d, _fs in os.walk(stage):
+                for f in _fs:
+                    _sf += 1
+                    _sb += os.path.getsize(os.path.join(_rt, f))
+        except Exception:
+            _sf, _sb = -1, -1
+        RESTORE_EV["staging"] = True
+        RESTORE_EV["staging_files"] = _sf
+        print(f"[data] restore-staging files={_sf} bytes={_sb} "
+              f"top={sorted(os.listdir(stage))[:8]}", flush=True)
         if r.returncode != 0:
             print(f"[data] restore skip (kaggle cli rc={r.returncode}) "
                   f"stdout={r.stdout[-200:]!r} stderr={r.stderr[-200:]!r}", flush=True)
@@ -1279,9 +1317,204 @@ def run_costprobe():
     return out
 
 
+def run_profprobe():
+    # §31.5 v13 PROF-RERUN (DS-014b) — pre-reg §31.5 push TRUOC code (commit 53b1b13, 2026-10-08).
+    # P1: restore upgrade-test (pip -U kaggle + whoami + retry, §30.5.4) -> evidence K-PF4 (RESTORE_EV).
+    # P2: profiler FIX — khong truyen kwarg row_limit (torch 2.11 loi, §31.4); tag P-C0 + P-C4
+    #      -> gpu_busy_est (sum self_cuda/wall5) + top-12 CUDA-op in log.
+    # P3: C0p production-mirror micro (L585-591: double-sync isfinite->bool + item, mloss/ACC,
+    #      zero 1 lan truoc window = accumulate) de tach code-path vs context cua chenh +25% (§31.4).
+    # K-PF1..K-PF4 nguong §31.5 LOCK — khong sua sau khi thay so. Output prof2.json.
+    import statistics as st
+    t_start = time.time()
+
+    # --- P1: restore upgrade-test + flats (evidence do _restore ghi vao RESTORE_EV) ---
+    paths = {k: f"{TMP}/{k}.bin" for k in ("a1", "a3", "hold")}
+    meta_p = f"{OUT}/data_meta.json"
+    meta_r = _restore_bins_from_output(paths, meta_p)
+    if meta_r is not None:
+        flat, data_kind = flat_uint16(paths["a1"]), "restored_a1"
+        restore_outcome = "restored"
+    else:
+        flat = np.random.default_rng(7).integers(0, C["VOCAB"], size=4_000_000).astype(np.uint16)
+        data_kind = "synthetic_uint16_4M"
+        _sf = RESTORE_EV.get("staging_files")
+        restore_outcome = ("cli_no_files" if _sf == 0 else
+                           ("no_bins" if isinstance(_sf, int) and _sf > 0 else "unknown"))
+    print(f"[prof] data = {data_kind} | restore_outcome = {restore_outcome} | "
+          f"restore_ev = {RESTORE_EV}", flush=True)
+    bs0, seq = C["BATCH_TOK"] // C["SEQ"], C["SEQ"]
+
+    def _mk():
+        torch.manual_seed(11); np.random.seed(11)
+        model = GPT(C, C["VOCAB"]).cuda()
+        opt = torch.optim.AdamW(model.parameters(), lr=C["LR"], betas=(0.9, 0.95), weight_decay=0.1)
+        try:
+            scaler = torch.amp.GradScaler("cuda")
+        except Exception:
+            scaler = torch.cuda.amp.GradScaler()
+        model.train()
+        return model, opt, scaler
+
+    def _micro_c0(model, opt, scaler, rng, bs):   # body giong C0 (zero moi micro, 1 sync)
+        for p in model.parameters():
+            p.grad = None
+        x, y = get_batch(flat, rng, bs, seq)
+        with torch.autocast("cuda", dtype=torch.float16):
+            mloss = model(x, y)
+        v = float(mloss.item())
+        if math.isfinite(v):
+            scaler.scale(mloss).backward()
+        return v
+
+    def _micro_prod(model, opt, scaler, rng, bs):  # P3 mirror L585-591 — KHONG zero o day
+        x, y = get_batch(flat, rng, bs, seq)
+        with torch.autocast("cuda", dtype=torch.float16):
+            mloss = model(x, y)
+        if bool(torch.isfinite(mloss.detach())):   # sync 1 (L590)
+            v = float(mloss.item())                # sync 2 (L591)
+            scaler.scale(mloss / ACC).backward()   # production divide truoc backward
+            return v
+        return float("nan")
+
+    # --- P3: C0p production-mirror (n=100 giong C0; zero 1 lan truoc window = accumulate) ---
+    c0p = {"variant": "C0p", "mode": "default", "mult": 1,
+           "mirror": "prod-L585-591: double-sync + mloss/ACC + accumulate"}
+    model = opt = scaler = None
+    try:
+        model, opt, scaler = _mk()
+        model = torch.compile(model)              # default mode = giong C0
+        rng = np.random.default_rng(11)
+        for p in model.parameters():
+            p.grad = None                          # ZERO 1 LAN truoc window
+        for _ in range(30):                        # warmup 30 (giong C0, gom compile ~40s)
+            _micro_prod(model, opt, scaler, rng, bs0)
+        torch.cuda.synchronize()
+        times = []
+        while len(times) < 100:                    # n = 100 (LOCK §31.5 P3)
+            torch.cuda.synchronize(); ts = time.time()
+            _micro_prod(model, opt, scaler, rng, bs0)
+            torch.cuda.synchronize()
+            times.append(time.time() - ts)
+        c0p.update(s_micro_mean=round(st.mean(times), 4),
+                   s_micro_median=round(st.median(times), 4), n=len(times))
+    except Exception as e:
+        c0p["error"] = f"{type(e).__name__}: {e}"
+    finally:
+        print("[probe] " + json.dumps(c0p), flush=True)
+        try:
+            del model, opt, scaler
+        except Exception:
+            pass
+        torch.cuda.empty_cache()
+
+    # --- P2: profiler FIX (khong kwarg row_limit) tag P-C0 + P-C4 ---
+    prof_blocks = {}
+    for tag, mult in (("P-C0", 1), ("P-C4", 4)):
+        model = opt = scaler = None
+        try:
+            from torch.profiler import profile, ProfilerActivity
+            model, opt, scaler = _mk()
+            model = torch.compile(model)          # default mode (cau hinh thang C0/C4)
+            rng = np.random.default_rng(11)
+            bs = bs0 * mult
+            for _ in range(10):
+                _micro_c0(model, opt, scaler, rng, bs)
+            torch.cuda.synchronize(); tw0 = time.time()
+            with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:
+                for _ in range(5):
+                    _micro_c0(model, opt, scaler, rng, bs)
+            torch.cuda.synchronize(); wall5 = time.time() - tw0
+            ka = None
+            for _sk in ("cuda_time_total", "self_cuda_time_total", None):
+                try:
+                    ka = prof.key_averages(sort_by=_sk) if _sk else prof.key_averages()
+                    break
+                except (TypeError, ValueError):
+                    continue
+            if ka is None:
+                raise RuntimeError("key_averages khong chay duoc (torch 2.11 API)")
+            top = str(ka[:12])[:5000]
+            print(f"[prof:{tag}] wall_5steps={wall5:.3f}s\n{top}", flush=True)
+            cuda_us = 0.0
+            for ev in prof.key_averages():        # sum TREN TOAN BO (khong chi top-12)
+                t = getattr(ev, "self_cuda_time_total", None)
+                if t is None:
+                    t = getattr(ev, "self_device_time_total", 0) or 0
+                cuda_us += t
+            prof_blocks[tag] = {"wall_5s": round(wall5, 3),
+                                "gpu_busy_est": round(cuda_us / 1e6 / wall5, 3),
+                                "n_ops": len(ka)}
+        except Exception as e:
+            prof_blocks[tag] = {"error": f"{type(e).__name__}: {e}"}
+            print(f"[prof:{tag}] error {type(e).__name__}: {e}", flush=True)
+        finally:
+            try:
+                del model, opt, scaler
+            except Exception:
+                pass
+            torch.cuda.empty_cache()
+
+    # --- K-PF nguong §31.5 LOCK + pred-vs-obs ---
+    wall_min = round((time.time() - t_start) / 60.0, 1)
+    c0p_s = c0p.get("s_micro_mean")
+
+    def _block_ok(b):
+        return (isinstance(b, dict) and "error" not in b
+                and 0 < float(b.get("gpu_busy_est", 0)) <= 1.5
+                and int(b.get("n_ops", 0)) > 0)
+
+    kpf1 = wall_min <= 60.0
+    kpf2 = _block_ok(prof_blocks.get("P-C0")) and _block_ok(prof_blocks.get("P-C4"))
+    kpf3 = c0p_s is not None
+    kpf4 = (bool(RESTORE_EV.get("version")) and bool(RESTORE_EV.get("whoami"))
+            and bool(RESTORE_EV.get("staging")))
+    preds = [
+        ("wall_min", 12.0, 8.0, 20.0, wall_min),
+        ("C0p s_micro", 0.24, 0.21, 0.30, c0p_s),
+        ("restore_outcome", "cli_no_files", "cli_no_files", "cli_no_files", restore_outcome),
+    ]
+    po = {}
+    for name, p, lo, hi, obs in preds:
+        if obs is None:
+            close = None
+        elif isinstance(obs, str):
+            close = obs == p
+        else:
+            close = bool(lo <= float(obs) <= hi)
+        po[name] = {"pred": p, "band": [lo, hi], "obs": obs, "close": close}
+
+    out = {"mode": "ds014b_prof", "wall_min": wall_min, "c0p": c0p,
+           "profiler": prof_blocks,
+           "restore": {"outcome": restore_outcome, "ev": dict(RESTORE_EV)},
+           "preds": po,
+           "kpf": {"K-PF1": bool(kpf1), "K-PF2": bool(kpf2),
+                   "K-PF3": bool(kpf3), "K-PF4": bool(kpf4)},
+           "kpi_pf": f"{sum([bool(kpf1), bool(kpf2), bool(kpf3), bool(kpf4)])}/4",
+           "data_kind": data_kind, "acc": ACC,
+           "env": {"torch": torch.__version__,
+                   "gpu": (torch.cuda.get_device_name(0) if torch.cuda.is_available() else None)}}
+    json.dump(out, open(f"{OUT}/prof2.json", "w"), indent=1, default=str)
+    for k, v in out["kpf"].items():
+        print(f"[{k}] {v}", flush=True)
+    for name, v in po.items():
+        print(f"[pred] {name}: pred {v['pred']} band {v['band']} obs {v['obs']} -> {v['close']}",
+              flush=True)
+    print(f"[KPI-PF] {out['kpi_pf']} | C0p {c0p_s} | busy P-C0 "
+          f"{prof_blocks.get('P-C0', {}).get('gpu_busy_est')} / P-C4 "
+          f"{prof_blocks.get('P-C4', {}).get('gpu_busy_est')} | wall {wall_min}' | "
+          f"restore {restore_outcome} (staging_files={RESTORE_EV.get('staging_files')})",
+          flush=True)
+    return out
+
+
 def main():
     print(f"[env] torch {torch.__version__} | cuda {torch.cuda.is_available()} "
           f"| {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'NO-GPU'}", flush=True)
+    if PROF > 0:                       # §31.5 v13 PROF-RERUN (DS-014b): P1 restore-upgrade + P2 profiler fix + P3 C0p
+        run_profprobe()
+        print("[DS-014b] PROF DONE", flush=True)
+        return
     if COST > 0:                      # §31 COST-PROBE (DS-014): khong prep day du, khong train/eval/ckpt
         run_costprobe()
         print("[DS-014] COST DONE", flush=True)
