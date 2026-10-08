@@ -1612,6 +1612,7 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
   5. Restore: **reproduce nguyên vẹn lần 3** (CLI 2.2.4, rc=0, 0-byte) → idempotent, dataset-method giữ nguyên là fix.
 - **Kết luận chi phí (chuỗi probe v12 → v14)**: **0 lever software ≥ 1,3×** (v12) · **code-path chỉ ≤ 6,5%** (v13) · **bottleneck = GEMM 38% (đã tensor-core) + attention-mem 23% (sm75 không flash) + GPU saturate 99%** → lever còn lại: **(a)** arch reshape (d/ffn/layers cho tile tốt hơn) · **(b)** đổi seq/micro-batch (nghiên cứu) · **(c)** §26 TPU · **(d)** chấp nhận ceiling T4 (production 101,7k / trần đo 127k tok/s) — **chờ bạn chọn**.
 - **Findings**: **F-X33**.
+- **DECISION (user, 2026-10-08)**: **chấp nhận ceiling T4** — production 101,7k tok/s / trần đo 127k tok/s là mức tối ưu khả thi trên phần cứng hiện tại (tensor-core + 99% busy); **DS-014 ĐÓNG** với findings F-X31/F-X32/F-X33. Dataset-method restore (§30.5.4 ii, change-log sẵn) **để ngỏ** nếu cần data-restore sau này; lever arch/seq/TPU ra khỏi phạm vi chi phí T4.
 
 ### §30.6 — (3b) RE-DERIVE + QUYẾT ĐỊNH CỦA BẠN (2026-10-08) — TRƯỚC CODE / TRƯỚC RUN
 
