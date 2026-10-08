@@ -1491,6 +1491,7 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 - **Số đo** (instrument §30.5.3 đã chạy): `9.2s restore skip (thieu file: [4 file]) | rc=0 stdout="Warning: Looks like you're using an outdated kaggle version (installed: 2.0.2) ... (latest 2.2.2)" stderr='' staging_files=0 staging_bytes=0 top=[]`.
 - **Kết luận thu hẹp**: CLI **chạy, rc=0, in đúng 1 dòng warning version, tải 0 BYTE, không stderr** → **loại giả thuyết (c)** "zip sai cấu trúc" (chưa có gì để sai); còn **(a)** output version đang chạy/trống và **(b)** auth/API im lặng — cần `whoami` + bản CLI mới để phân biệt.
 - **Fix options (CHƯA code — change-log sẽ ghi TRƯỚC khi code)**: **(i)** `pip install -U kaggle` (2.0.2 → 2.2.2, internet ON) + log `kaggle --version` + `kaggle whoami` rồi retry — **test ngay trong v13 (§31.5 P1)**; (ii) nếu vẫn 0 byte → **dataset method** (`kaggle datasets create/download`, slug cố định không phụ thuộc version).
+- **UPDATE v13 (2026-10-08 — số đo test (i))**: `pip install -U kaggle` **OK (2.0.2 → 2.2.4)** nhưng `kernels output` **VẪN rc=0, stdout='', stderr='', staging 0 byte** → **LOẠI CLI-version**; `kaggle whoami` **rc=2 — CLI 2.2.4 không có subcommand này** (help gợi ý `kaggle auth`) → còn **(a) version-đang-chạy-trống** vs **(b) auth im lặng** → **chốt: method (ii) dataset là fix thật** (pred §31.5 P1 "upgrade vẫn 0-byte" → **ĐÚNG**).
 
 ---
 
@@ -1570,6 +1571,25 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 - **P3 — C0p production-mirror micro** (n=100): y hệt micro production L585–591 (`mloss/ACC`, double-sync `isfinite→bool` + `item()`, zero **1 lần trước window** để grad-accumulate như production) → so `s_micro` với C0 để tách code-path vs context.
 - **Gates (LOCK)**: **K-PF1** wall ≤ 60' — pred **12' [8–20]** · **K-PF2** 2 block profiler **không lỗi** + `gpu_busy_est ∈ (0, 1,5]` + bảng top-12 có mặt · **K-PF3** C0p có `s_micro` — pred **0,24 [0,21–0,30]** (obs ≈ 0,217 → chênh production = context/thermal; obs ≈ 0,27 → code-path) · **K-PF4** log chứa `version + whoami + staging` sau upgrade (RESTORED hay 0-byte đều = PASS thu thập) — **pred: 0-byte**. **KPI-PF = 4** · marker **`[DS-014b] PROF DONE`** · output `prof2.json` · pred-vs-obs ghi vào `prof2.json`.
 - **Findings**: **F-X32** (top-kernel breakdown + gpu_busy + C0p-gap + restore-sau-upgrade).
+
+### §31.6 — KẾT QUẢ v13 PROF-RERUN (2026-10-08 — COMPLETE 160,9s ≈ 2,7'; pre-reg §31.5 `53b1b13` → code `bc4d85c` → launch v13)
+
+- **KPI-PF = 3/4**: **K-PF1 ✓** wall 2,3' ≤ 60' · **K-PF2 ✗ FAIL (báo thật)** — 2 block **không lỗi** + top-12 có mặt, NHƯNG `gpu_busy_est = 1,835 (P-C0) / 1,981 (P-C4)` > 1,5 (LOCK) · **K-PF3 ✓** C0p `s_micro = 0,231` (n=100) · **K-PF4 ✓** version+whoami+staging đều log.
+- **pred-vs-obs: 2/3 CLOSE · 1/3 MISS** — CLOSE: **C0p `0,231` ∈ [0,21–0,30]** ✓ · restore **`cli_no_files`** ✓ (pred "upgrade VẪN 0-byte" **ĐÚNG** — §30.5.4 UPDATE); **MISS (báo thật)**: wall `2,3' < 8'` (pred 12' — pred wall của tôi hệ thống chậm, v12 cũng MISS cùng chiều).
+- **F-X32 (confidence cao — pre-reg §31.5 LOCK, số đo trực tiếp)**:
+  1. **Code-path production chỉ tốn +6,5%**: C0p `0,231` vs C0 `0,2169` → decompose chênh production ≈ 0,050: **~0,014 (28%) = code-path** (double-sync + `mloss/ACC` + accumulate) · **~0,036 (72%) = context** (sustained-load/thermal/real-data — chưa phân giải tiếp) → **code-path KHÔNG phải thủ phạm chính**; trần code-path ≈ **119,7k tok/s** (27648/0,231) vs production thật 101,7k.
+  2. **Restore: upgrade KHÔNG fix** — CLI 2.0.2 → **2.2.4 (rc=0)** nhưng `kernels output` vẫn **rc=0 / stdout='' / staging 0 byte** → **LOẠI CLI-version**; `kaggle whoami` **rc=2 (CLI 2.2.4 không có)** → **dataset-method = fix thật** (§30.5.4 UPDATE).
+  3. **Profiler `sort_by` kwarg bị IGNORE (torch 2.11)**: top-12 in theo call-order (row1 `aten::lift_fresh` cuda=0µs) → **chưa đích danh kernel**; `gpu_busy_est` sum-all = 1,84–1,98× wall (nghi **double-count** aten-wrapper + raw-kernel) → nếu ≈2× thì busy thật ≈ 0,90–1,00× wall → **hợp nhất với util 99,1% (v12)** — saturation tái xác nhận qua 2 tín hiệu độc lập.
+  4. wall_5steps dưới profiler: P-C0 1,325s (0,265s/micro — profiler overhead ~22% so 0,2169 ✓) · P-C4 5,387s.
+- **Findings**: **F-X32**.
+
+### §31.7 — Change-log v14 PROF-FIX2 [2026-10-08 — TRƯỚC CODE, TRƯỚC LAUNCH]
+
+- **Scope (LOCK)**: CHỈ profiler **P-C0 + P-C4**; **bỏ C0p** (đã đo 0,231 §31.6); giữ P1 restore (idempotent ~3s, thêm evidence không mất gì). Marker **`[DS-014c] PROF2 DONE`**, output **`prof3.json`**.
+- **Fix-1 sort**: sort **THỦ CÔNG** `sorted(ka, key=lambda e: self_cuda_time_total, reverse=True)[:12]` — không tin `sort_by` kwarg (bị ignore, F-X32.3).
+- **Fix-2 busy**: `busy_kernels` = sum self_cuda của **kernel events THẬT** (loại key prefix `aten::|Torch|Pregraph|Activity|Memcpy|Memset|Record|cuda|stream|Stream|CUDA`) / wall5 → tránh double-count wrapper; ghi kèm `busy_all` (sum toàn bộ) để đối chiếu.
+- **Gates (LOCK)**: **K-PG1** wall ≤ 60' — pred **3' [2–6]** · **K-PG2** 2 block: top-12 **sorted** (row1 self_cuda ≥ 5% wall5) + `busy_kernels ∈ (0, 1,5]` — pred busy **0,90 [0,60–1,20]** · **K-PG3** top-1 identity — pred **GEMM-type** (key chứa `gemm|cutlass|mm|sgemm|wgrad|dot` case-insens; top-1 = fused triton/elementwise → **MISS báo thật**). **KPI-PG = 3** · pred-vs-obs ghi `prof3.json`.
+- **Findings**: **F-X33** (top-kernel đích danh + busy thật + identity pred).
 
 ### §30.6 — (3b) RE-DERIVE + QUYẾT ĐỊNH CỦA BẠN (2026-10-08) — TRƯỚC CODE / TRƯỚC RUN
 
