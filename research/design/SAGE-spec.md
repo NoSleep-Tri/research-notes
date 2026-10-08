@@ -1477,7 +1477,60 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 - **Blocks §25/§27 render FAIL (K1, K3' wall 247>150, K-S2…)** = informational — config §30 khác baseline (ACC=52, 1050 steps, LR 1e-2); acceptance của run này = **chỉ K-F1…K-F3**.
 - **F-X30 (confidence cao — pre-reg đầy đủ, số đo trực tiếp)**: **thuyết "đủ token lũy kế ở step 1000" bị bác**: 1,438B token/step 1000 chỉ ra `train 3,4755` — **thiếu 0,48 so với 3,000**; extrapolation `-0,45/decade` (center raw 2,99) **MISS +0,49**. Kẻ chặn thật = **1050 bước optimizer** (vs 10.850 baseline) **+ overfit do lặp 4,79 epoch** — **không phải tổng token**. Liệu pháp big-batch-lặp **không** đạt 3,000@1000 ở cấu hình này.
 - **Change-log §30.7.1 [SAU RUN — ghi nhận, KHÔNG sửa ngưỡng]**: K-F1..K-F3 giữ nguyên (3.000/3.45/log). Hướng tiếp theo thuộc lựa chọn của bạn: **(a)** chấp nhận FAIL + kết luận §30 (chuyển §28/§31) · **(b)** lever mới pre-reg riêng (Muon/arch/LR schedule — cần vòng pre-reg + code mới) · **(c)** bạn đổi target — chỉ bạn đổi được, tôi không tự hạ.
+- **→ Bạn chọn cùng ngày (2026-10-08): "giải quyết bài toán chi phí đi đã — mô hình nhỏ như vậy mà vẫn chậm là không thể chấp nhận" → §30 ĐÓNG tại đây** (FAIL 1/3 giữ nguyên, không re-run, không hạ ngưỡng); **§31 = COST-PROBE (DS-014)**, "single-matrix" giữ chỗ ở **§32**.
 - **Findings**: **F-X30** (kết quả run §30 — số đo, pred-vs-obs, extrapolation MISS) · **F-X29** (K-PR1 restore fail lần 1 + chẩn đoán §30.5.2).
+
+### §30.5.3 — Change-log chẩn đoán restore [2026-10-08 — TRƯỚC CODE]
+
+- **Mục tiêu**: lần chạy sau (v12) tự ghi đủ manh mối để phân biệt 3 giả thuyết K-PR1: (a) CLI lấy output của **version ĐANG CHẠY** (rỗng) · (b) auth thiếu, CLI im lặng rc=0 · (c) zip tải về sai cấu trúc. **Chỉ thêm log, KHÔNG đổi hành vi** (vẫn fallback prep cũ, kill-switch `PREP_RESTORE=0` giữ nguyên):
+  - msg `restore skip (kaggle cli rc=...)`: in thêm `stdout[-200:]` + `stderr[-200:]` của subprocess;
+  - msg `restore skip (thieu file: ...)`: in thêm `stdout[-200:]` + `stderr[-200:]` + `staging_files` (số file) + `staging_bytes` (tổng bytes) + `top` (8 entry đầu của staging).
+
+---
+
+## §31 — COST-PROBE (DS-014): GIẢM CHI PHÍ T4 — pre-reg TRƯỚC CODE (2026-10-08)
+
+**Chỉ đạo user**: "giải quyết bài toán chi phí đi đã — mô hình nhỏ (12,59M param, d=384, L=6) mà 0,2718s/micro = 101.722 tok/s (~11% fp16-peak T4, ~9× xa lý thuyết) là không thể chấp nhận."
+
+### §31.1 — Design (LOCK trước code)
+
+- **Mục tiêu**: (1) đo bottleneck trong micro-step thật — GPU-busy vs gap (trả lời F-X24 bằng profiler, không phải event-elapsed); (2) quantify **4 nhóm lever**: compile-mode × micro-batch scale; (3) bảng `tok_s_eff` để chọn cấu hình run thật kế tiếp.
+- **Mode**: env `COST=1` → `run_costprobe()` chạy TRƯỚC `prepare_data` — không train/eval/ckpt/aggregate.
+- **Dữ liệu**: gọi `_restore_bins_from_output` đúng 1 lần (kèm log §30.5.3 — chẩn đoán restore **cùng phiên**, ~2s nếu fail) → OK thì dùng flats thật `a1`, fail thì **synthetic** `uint16 rng(7)` 4M token. **Pre-reg**: timing không phụ thuộc nội dung dữ liệu; loss/val của phiên này KHÔNG chấm bất kỳ gate nào ngoài timing.
+- **Metric (LOCK)** — sync-around timing giống hệt §30.3a (so trực tiếp V0 0.4453 / V2 0.2846):
+  - `s_micro` = mean wall / micro (zero grads → get_batch → autocast-fp16 fwd → `item()` → bwd); warmup 30 (gồm compile); measure n ≥ 100 (mult 1) / n ≥ 30 và ≥ 20s (mult > 1);
+  - `s_opt` = mean wall / optimizer-step (unscale + isfinite-reduce CPU + clip + scaler.step + update), 10 lần — **đo tách** (production = 1 opt / ACC=52 micro);
+  - **`tok_s_eff = BATCH_TOK·mult / (s_micro + s_opt/ACC)`** với `ACC=52` (preamble `RUN_ACC=52` = v11) → so thẳng với production 101.722 tok/s;
+  - mỗi variant ghi `max_memory_allocated`; invariant `param_count ∈ [12,5e6 … 12,7e6]` (cùng `GPT(C, 8192)`).
+- **8 biến thể (LOCK — không thêm/sửa giữa chừng)**:
+  - **C0** `default`×1 · **C1** `reduce-overhead`×1 · **C2** `max-autotune`×1 · **C3** `default`×2 · **C4** `default`×4 · **C5** `default`×8;
+  - **C6** = best-mode (argmin `s_micro` trong C0–C2, variant lỗi bị loại) × best-mult (mult lớn nhất đo hợp lệ từ C0/C3/C4/C5) — **skip nếu trùng combo đã đo**, ghi rõ;
+  - **C7** = `eager` × best-mult.
+  - Lỗi/OOM = entry **hợp lệ** (tường minh), KHÔNG crash phiên; `empty_cache()` giữa các variant.
+- **Chẩn đoán (F-X24)**: (a) `torch.profiler(CPU+CUDA)` 5 bước @ C0 + @ C6 → `key_averages(sort_by="cuda_time_total", row_limit=12)` in log → ước lượng `gpu_busy = Σ self_cuda_time / wall_5`; (b) sampler `nvidia-smi --query-gpu=utilization.gpu` mỗi 1s **chỉ trong cửa sổ C0** (F-X23: util độc lập, không event-elapsed) → `util_c0`.
+- **Output**: `{OUT}/cost.json` + log `[probe]` / `[prof:C0]` / `[CC1..CC4]` + marker **`[DS-014] COST DONE`**.
+
+### §31.2 — K-CC gates + pred-vs-obs (LOCK trước code — 7 preds)
+
+- **K-CC1 (wall)**: session ≤ 60' — pred **22' [14–40]** (C2 max-autotune có thể compile lâu trên T4).
+- **K-CC2 (đủ số)**: `cost.json` ≥ 6/8 variant hợp lệ; **C0 · C3 · C4 bắt buộc có `s_micro`**; `param_count ∈ [12,5e6; 12,7e6]`; có profiler block 2 tag (C0 + C6) và `util_c0` ≥ 1 mẫu.
+- **K-CC3 (pred-vs-obs — lỗi/OOM = MISS, chấm trung thực)**:
+  1. C0 `s_micro`: **0,285 [0,26–0,31]** (evidence V2 = 0,2846);
+  2. C1 `s_micro`: **0,27 [0,20–0,32]** (nếu bottleneck = launch/gap → cudagraphs thắng lớn);
+  3. C3 `tok_s_eff`: **115k [95k–160k]**;
+  4. C4 `tok_s_eff`: **130k [100k–190k]**;
+  5. C5 `tok_s_eff`: **145k [100k–220k]** — pred: **mult8 VALID, không OOM**;
+  6. `util_c0` (nvidia-smi mean): **70% [45–90]**;
+  7. wall: **22' [14–40]**.
+- **K-CC4 (lever claim)**: ≥ 1 biến thể `tok_s_eff ≥ 1,30 × C0` → PASS; không có → **FAIL trung thực "0 lever ≥1,3× trong 4 nhóm lever đã test"** + chỉ bottleneck từ profiler cho bước sau. **Không hạ hệ số 1,3; không thêm biến thể ngoài LOCK.**
+- **KPI-CC = 4 gate**; pred-vs-obs có < 5/7 obs → K-CC3 FAIL.
+- **Findings**: **F-X31** (kết quả §31: bảng tok/s + bottleneck + lever).
+
+### §31.3 — Ngoài scope (ghi trước)
+
+- Không chấm K-F / K-S / K-P / loss / val (phiên timing, dữ liệu synthetic-or-uncurated) — tránh "chơi với ngưỡng sau khi thấy số".
+- Fix §30.5 bằng dataset-method: **chưa code** — chờ chẩn đoán §30.5.3 từ log v12 rồi mới change-log/code.
+- Slot: §26 TPU giữ chỗ · §28 wide-shamlow chờ bạn · §32 = single-matrix (nếu chạy).
 
 ### §30.6 — (3b) RE-DERIVE + QUYẾT ĐỊNH CỦA BẠN (2026-10-08) — TRƯỚC CODE / TRƯỚC RUN
 
