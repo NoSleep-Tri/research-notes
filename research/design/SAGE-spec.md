@@ -1486,6 +1486,12 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
   - msg `restore skip (kaggle cli rc=...)`: in thêm `stdout[-200:]` + `stderr[-200:]` của subprocess;
   - msg `restore skip (thieu file: ...)`: in thêm `stdout[-200:]` + `stderr[-200:]` + `staging_files` (số file) + `staging_bytes` (tổng bytes) + `top` (8 entry đầu của staging).
 
+### §30.5.4 — Chẩn đoán K-PR1 từ log v12 (2026-10-08 — SỐ ĐO MỚI, chưa code fix)
+
+- **Số đo** (instrument §30.5.3 đã chạy): `9.2s restore skip (thieu file: [4 file]) | rc=0 stdout="Warning: Looks like you're using an outdated kaggle version (installed: 2.0.2) ... (latest 2.2.2)" stderr='' staging_files=0 staging_bytes=0 top=[]`.
+- **Kết luận thu hẹp**: CLI **chạy, rc=0, in đúng 1 dòng warning version, tải 0 BYTE, không stderr** → **loại giả thuyết (c)** "zip sai cấu trúc" (chưa có gì để sai); còn **(a)** output version đang chạy/trống và **(b)** auth/API im lặng — cần `whoami` + bản CLI mới để phân biệt.
+- **Fix options (CHƯA code — change-log sẽ ghi TRƯỚC khi code)**: **(i)** `pip install -U kaggle` (2.0.2 → 2.2.2, internet ON) + log `kaggle --version` + `kaggle whoami` rồi retry — **test ngay trong v13 (§31.5 P1)**; (ii) nếu vẫn 0 byte → **dataset method** (`kaggle datasets create/download`, slug cố định không phụ thuộc version).
+
 ---
 
 ## §31 — COST-PROBE (DS-014): GIẢM CHI PHÍ T4 — pre-reg TRƯỚC CODE (2026-10-08)
@@ -1531,6 +1537,39 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 - Không chấm K-F / K-S / K-P / loss / val (phiên timing, dữ liệu synthetic-or-uncurated) — tránh "chơi với ngưỡng sau khi thấy số".
 - Fix §30.5 bằng dataset-method: **chưa code** — chờ chẩn đoán §30.5.3 từ log v12 rồi mới change-log/code.
 - Slot: §26 TPU giữ chỗ · §28 wide-shamlow chờ bạn · §32 = single-matrix (nếu chạy).
+
+### §31.4 — KẾT QUẢ v12 (2026-10-08 — COMPLETE 477s ≈ 7,95'; pre-reg §31 `9326097` → code `ad0904e` → launch v12)
+
+- **KPI-CC = 3/4**: **K-CC1 ✓** (wall 7,7' ≤ 60') · **K-CC2 ✓ literal** (8/8 entry hợp lệ, C0·C3·C4 có `s_micro`, param **12.587.904** ✓, prof_blocks 2 tag, util 21 mẫu — **công khai: NỘI DUNG 2 block profiler = LỖI API**, xem F-X31.4) · **K-CC3 ✓** (6/7 obs ≥ 5) · **K-CC4 ✗ FAIL** — **0 lever ≥ 1,30× C0** (best = C0 chính nó).
+- **Bảng đo** (`tok_s_eff` so production 101.722 tok/s):
+
+  | var | mode × mult | s_micro | tok_s_eff | × vs C0 | mem |
+  |---|---|---|---|---|---|
+  | **C0** | default×1 | **0,2169** | **126.973** | **1,00 (best)** | 2,86GB · util **99,1%** |
+  | C1 | reduce-overhead×1 | 0,2418 | 114.253 | **0,90 ↓** | 2,86GB |
+  | C2 | max-autotune×1 | 0,2512 | 109.992 | **0,87 ↓** | 3,12GB |
+  | C3 | default×2 | 0,4874 | 113.414 | **0,89 ↓** | 5,71GB |
+  | C4 | default×4 | 0,9188 | 120.341 | **0,95 ↓** | 11,26GB |
+  | C5 | default×8 | — | — | **OOM** (thiếu 432MB / 14,56GB) | |
+  | C6 | skip — rule lock: best-mode(default)×best-mult(4) = C4 trùng ✓ | | | | |
+  | C7 | eager×4 | — | — | **OOM** (14,32GB) | ← compiled **−3GB** vs eager cùng batch |
+
+- **pred-vs-obs §31.2: 3/7 CLOSE · 4/7 MISS** — CLOSE: C1 0,2418 · C3 113k · C4 120k; **MISS (báo thật)**: C0 **0,2169 < 0,26** (nhanh hơn pred — V2 0,2846 của §30.3a gồm grad-check mỗi micro ≈ `s_opt` 0,043 đo tách → nhất quán) · C5 **OOM** (pred "mult8 VALID" sai) · util **99,1 > 90** · wall **7,7' < 14'**.
+- **K-CC4 FAIL — ghi nhận trung thực, không sửa ngưỡng, không thêm biến thể**: 4 nhóm lever **đều KHÔNG cải thiện** — cudagraphs thủng 10%, max-autotune thủng 13%, batch×2 thủng 11%, batch×4 thủng 5%.
+- **F-X31 (confidence cao — pre-reg lock, số đo trực tiếp)**:
+  1. **GPU đã bão hòa thời gian chạy: `util_c0 = 99,1%` (nvidia-smi, 21 mẫu độc lập — F-X23-style)** → bottleneck **KHÔNG phải CPU-launch/gap** (giảm-overhead thủng là bằng chứng ngược) → **kernel-efficiency / memory-bound** (MFU ≈ 15% @ 99% busy → hạng memory-bound; **hypothesis chưa xác minh**: attention-matrix materialization trong backward — chờ profiler fix §31.5 P2).
+  2. **C0 (default-compile × micro 27) = cấu hình nhanh nhất đo được = 126.973 tok/s** (≈ +25% so production 101.722 — phần chênh chưa phân giải: production có double-sync + grad-accumulate + sustained-load; C0p §31.5 tách phần code-path).
+  3. Memory ~2,86GB × mult gần tuyến tính → mult8 OOM; **compiled tiết kiệm ~3GB so eager cùng batch** (C7 OOM khi C4 chạy được).
+  4. **Profiler torch 2.11 bỏ kwarg `row_limit`** (nhánh fallback trong code cũng truyền — bug code) → `gpu_busy_est` **thiếu**; F-X24 trả lời tạm bằng util 99,1% (độc lập, hợp lệ).
+- **Findings**: **F-X31** (toàn bộ §31.4).
+
+### §31.5 — Change-log v13 PROF-RERUN [2026-10-08 — TRƯỚC CODE, TRƯỚC LAUNCH]
+
+- **P1 — restore upgrade-test**: `pip install -U kaggle -q` → log `kaggle --version` + `kaggle whoami` → retry `kaggle kernels output` → staging check (§30.5.3); kill-switch `PREP_RESTORE=0` giữ nguyên; fail → synthetic như v12. **Pred: upgrade VẪN 0 byte (auth/current-version) → dataset-method là fix thật**.
+- **P2 — profiler FIX**: bỏ hoàn toàn kwarg `row_limit` (slice `[:12]` bằng tay), `sort_by` thử `cuda_time_total` → fallback **không truyền kwarg lạ**; block mới: **P-C0** (default×1) + **P-C4** (default×4) → `gpu_busy_est` + bảng top-12 CUDA-op in log.
+- **P3 — C0p production-mirror micro** (n=100): y hệt micro production L585–591 (`mloss/ACC`, double-sync `isfinite→bool` + `item()`, zero **1 lần trước window** để grad-accumulate như production) → so `s_micro` với C0 để tách code-path vs context.
+- **Gates (LOCK)**: **K-PF1** wall ≤ 60' — pred **12' [8–20]** · **K-PF2** 2 block profiler **không lỗi** + `gpu_busy_est ∈ (0, 1,5]` + bảng top-12 có mặt · **K-PF3** C0p có `s_micro` — pred **0,24 [0,21–0,30]** (obs ≈ 0,217 → chênh production = context/thermal; obs ≈ 0,27 → code-path) · **K-PF4** log chứa `version + whoami + staging` sau upgrade (RESTORED hay 0-byte đều = PASS thu thập) — **pred: 0-byte**. **KPI-PF = 4** · marker **`[DS-014b] PROF DONE`** · output `prof2.json` · pred-vs-obs ghi vào `prof2.json`.
+- **Findings**: **F-X32** (top-kernel breakdown + gpu_busy + C0p-gap + restore-sau-upgrade).
 
 ### §30.6 — (3b) RE-DERIVE + QUYẾT ĐỊNH CỦA BẠN (2026-10-08) — TRƯỚC CODE / TRƯỚC RUN
 
