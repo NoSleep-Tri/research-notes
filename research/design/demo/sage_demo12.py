@@ -50,6 +50,7 @@ if os.environ.get("RUN_TOTAL"):
 PROBE = int(os.environ.get("PROBE", "0") or "0")
 T0_PROBE = time.time()
 RUN_COMPILE = os.environ.get("RUN_COMPILE", "0") == "1"   # §30.6.1: lever F-X26 torch.compile (mac dinh 0 = hanh vi cu y het)
+COST = int(os.environ.get("COST", "0") or "0")      # §31 COST-PROBE DS-014 (pre-reg §31 push TRUOC code 9326097)
 
 try:
     torch.backends.cuda.matmul.allow_tf32 = True
@@ -316,7 +317,8 @@ def _restore_bins_from_output(paths, meta_p):
                             "tribu1/ds-012-pretrain-from-scratch", "-p", stage],
                            capture_output=True, text=True, timeout=480)
         if r.returncode != 0:
-            print(f"[data] restore skip (kaggle cli rc={r.returncode}) {r.stderr[-160:]}", flush=True)
+            print(f"[data] restore skip (kaggle cli rc={r.returncode}) "
+                  f"stdout={r.stdout[-200:]!r} stderr={r.stderr[-200:]!r}", flush=True)
             return None
         found = {}
         for root, _d, files in os.walk(stage):
@@ -333,7 +335,18 @@ def _restore_bins_from_output(paths, meta_p):
                 found[k] = p
         need = ("a1.bin", "a3.bin", "hold.bin", "data_meta.json")
         if not all(k in found for k in need):
-            print(f"[data] restore skip (thieu file: {sorted(set(need) - set(found))})", flush=True)
+            try:                                    # §30.5.3: chuan doan staging (rc=0 ma trong -> tai sao?)
+                st_files, st_bytes = 0, 0
+                for _root, _d, _fs in os.walk(stage):
+                    for f in _fs:
+                        st_files += 1
+                        st_bytes += os.path.getsize(os.path.join(_root, f))
+            except Exception:
+                st_files, st_bytes = -1, -1
+            print(f"[data] restore skip (thieu file: {sorted(set(need) - set(found))}) | "
+                  f"rc={r.returncode} stdout={r.stdout[-200:]!r} stderr={r.stderr[-200:]!r} "
+                  f"staging_files={st_files} staging_bytes={st_bytes} "
+                  f"top={sorted(os.listdir(stage))[:8]}", flush=True)
             return None
         # verify size tuong minh voi meta TRUOC khi move (bat ca zip bi cat do chua ghi het)
         m = json.load(open(found["data_meta.json"]))
@@ -1020,9 +1033,259 @@ def run_probe(flats):
     return out
 
 
+def run_costprobe():
+    # §31 COST-PROBE (DS-014) — pre-reg §31 push TRUOC code (commit 9326097, 2026-10-08).
+    # 8 bien the LOCK: C0 defaultx1 · C1 reduce-overhead x1 · C2 max-autotune x1 ·
+    # C3 default x2 · C4 default x4 · C5 default x8 · C6 best-mode x best-mult · C7 eager x best-mult.
+    # Metric LOCK: tok_s_eff = BATCH_TOK*mult / (s_micro + s_opt/ACC), ACC = 52 (preamble RUN_ACC=52);
+    # s_micro = sync-around (giong §30.3a -> so duoc V0 0.4453 / V2 0.2846), s_opt do tach x10.
+    # K-CC1..K-CC4 nguong §31.2 — KHONG sua sau khi thay so. Khong cham K-F/K-S/K-P (phien timing).
+    import statistics as st
+    import subprocess
+    import threading
+    t_start = time.time()
+
+    # --- du lieu: restore 1 lan (§30.5.3 log chuan doan) hoac synthetic (timing khong phai noi dung) ---
+    paths = {k: f"{TMP}/{k}.bin" for k in ("a1", "a3", "hold")}
+    meta_p = f"{OUT}/data_meta.json"
+    meta_r = _restore_bins_from_output(paths, meta_p)
+    if meta_r is not None:
+        flat, data_kind = flat_uint16(paths["a1"]), "restored_a1"
+    else:
+        flat = np.random.default_rng(7).integers(0, C["VOCAB"], size=4_000_000).astype(np.uint16)
+        data_kind = "synthetic_uint16_4M"
+    print(f"[cost] data = {data_kind} | ACC (formula) = {ACC}", flush=True)
+    bs0, seq = C["BATCH_TOK"] // C["SEQ"], C["SEQ"]
+
+    def _mk():
+        torch.manual_seed(11); np.random.seed(11)
+        model = GPT(C, C["VOCAB"]).cuda()
+        opt = torch.optim.AdamW(model.parameters(), lr=C["LR"], betas=(0.9, 0.95), weight_decay=0.1)
+        try:
+            scaler = torch.amp.GradScaler("cuda")
+        except Exception:
+            scaler = torch.cuda.amp.GradScaler()
+        model.train()
+        return model, opt, scaler
+
+    def _micro(model, opt, scaler, rng, bs):
+        for p in model.parameters():        # zero — production = 1 lan/buoc truoc micro-loop (cost ~0)
+            p.grad = None
+        x, y = get_batch(flat, rng, bs, seq)
+        with torch.autocast("cuda", dtype=torch.float16):
+            mloss = model(x, y)
+        v = float(mloss.item())             # item() = sync — giong production L591
+        if math.isfinite(v):
+            scaler.scale(mloss).backward()
+        return v
+
+    def _opt_step(model, opt, scaler):      # production: 1 lan sau ACC micro (§27 fix#5: 1 CPU read/buoc)
+        scaler.unscale_(opt)
+        grads = [p.grad for p in model.parameters() if p.grad is not None]
+        if grads:
+            fin = [torch.isfinite(g).sum() for g in grads]
+            _ = bool(torch.stack(fin).sum().item() == sum(g.numel() for g in grads))
+        torch.nn.utils.clip_grad_norm_(model.parameters(), C["CLIP"])
+        scaler.step(opt); scaler.update()
+
+    def _measure(tag, mode, mult, sample_util=False):
+        entry = {"variant": tag, "mode": mode, "mult": mult}
+        model = opt = scaler = None
+        stop_evt = None; samples = []; th = None
+        try:
+            torch.cuda.reset_peak_memory_stats()
+            model, opt, scaler = _mk()
+            entry["param_count"] = sum(p.numel() for p in model.parameters())
+            if mode != "eager":
+                model = torch.compile(model, mode=mode)
+            rng = np.random.default_rng(11)
+            bs = bs0 * mult
+            for _ in range(30):             # warmup 30 (gồm compile ~40s)
+                _micro(model, opt, scaler, rng, bs)
+            torch.cuda.synchronize()
+            if sample_util:                 # nvidia-smi sampler CHI trong cua so C0 (F-X23, 1s/mau)
+                stop_evt = threading.Event()
+                def _loop():
+                    while not stop_evt.is_set():
+                        try:
+                            u = subprocess.run(
+                                ["nvidia-smi", "--query-gpu=utilization.gpu",
+                                 "--format=csv,noheader,nounits"],
+                                capture_output=True, text=True, timeout=5)
+                            samples.append(int(u.stdout.strip().splitlines()[0]))
+                        except Exception:
+                            pass
+                        stop_evt.wait(1.0)
+                th = threading.Thread(target=_loop, daemon=True); th.start()
+            nmin = 100 if mult == 1 else 30
+            times = []; tw0 = time.time()
+            while len(times) < nmin or (len(times) < 500 and time.time() - tw0 < 20.0):
+                torch.cuda.synchronize(); ts = time.time()
+                _micro(model, opt, scaler, rng, bs)
+                torch.cuda.synchronize()
+                times.append(time.time() - ts)
+            if stop_evt is not None:
+                stop_evt.set()
+                if th is not None:
+                    th.join(timeout=7)
+            opt_times = []                  # s_opt DO TACH x10 (khong dua vao s_micro)
+            for _ in range(10):
+                torch.cuda.synchronize(); ts = time.time()
+                _opt_step(model, opt, scaler)
+                torch.cuda.synchronize()
+                opt_times.append(time.time() - ts)
+            s_micro, s_opt = st.mean(times), st.mean(opt_times)
+            tok_s = (bs0 * mult * seq) / (s_micro + s_opt / ACC)   # ACC = 52 (preamble)
+            entry.update(
+                s_micro_mean=round(s_micro, 4), s_micro_median=round(st.median(times), 4),
+                s_opt=round(s_opt, 4), tok_s_eff=int(round(tok_s)), n=len(times),
+                max_mem_gb=round(torch.cuda.max_memory_allocated() / 2**30, 2),
+                gpu_util_mean=(round(sum(samples) / len(samples), 1) if samples else None),
+                gpu_util_n=len(samples))
+        except Exception as e:
+            entry["error"] = f"{type(e).__name__}: {e}"
+        print("[probe] " + json.dumps(entry), flush=True)
+        try:
+            del model, opt, scaler
+        except Exception:
+            pass
+        torch.cuda.empty_cache()
+        return entry
+
+    # ---- 6 bien the core LOCK ----
+    results = []
+    combos = set()
+    for tag, mode, mult in (("C0", "default", 1), ("C1", "reduce-overhead", 1),
+                            ("C2", "max-autotune", 1), ("C3", "default", 2),
+                            ("C4", "default", 4), ("C5", "default", 8)):
+        results.append(_measure(tag, mode, mult, sample_util=(tag == "C0")))
+        combos.add((mode, mult))
+    # ---- C6/C7 theo rule LOCK (khong nhan input tu ben ngoai; loi -> loai) ----
+    m_valid = [e for e in results if e.get("variant") in ("C0", "C1", "C2") and "s_micro_mean" in e]
+    best_mode = min(m_valid, key=lambda e: e["s_micro_mean"])["mode"] if m_valid else "default"
+    best_mult = max({e["mult"] for e in results if "s_micro_mean" in e} or {1})
+    if (best_mode, best_mult) in combos:
+        results.append({"variant": "C6", "mode": best_mode, "mult": best_mult,
+                        "skipped": "duplicate_combo"})
+        print(f"[cost] C6 skip (trung combo da do: {best_mode} x {best_mult})", flush=True)
+    else:
+        results.append(_measure("C6", best_mode, best_mult)); combos.add((best_mode, best_mult))
+    if ("eager", best_mult) in combos:
+        results.append({"variant": "C7", "mode": "eager", "mult": best_mult,
+                        "skipped": "duplicate_combo"})
+    else:
+        results.append(_measure("C7", "eager", best_mult))
+
+    # ---- Profiler (tra loi F-X24): 2 tag C0 + C6, key_averages cuda_time_total ----
+    prof_blocks = {}
+    for tag, mode, mult in (("C0", "default", 1), ("C6", best_mode, best_mult)):
+        model = opt = scaler = None
+        try:
+            from torch.profiler import profile, ProfilerActivity
+            model, opt, scaler = _mk()
+            if mode != "eager":
+                model = torch.compile(model, mode=mode)
+            rng = np.random.default_rng(11)
+            for _ in range(10):             # warm compile truoc khi profile
+                _micro(model, opt, scaler, rng, bs0 * mult)
+            torch.cuda.synchronize(); tw0 = time.time()
+            with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:
+                for _ in range(5):
+                    _micro(model, opt, scaler, rng, bs0 * mult)
+            torch.cuda.synchronize(); wall5 = time.time() - tw0
+            try:
+                ka = prof.key_averages(sort_by="cuda_time_total", row_limit=12)
+            except Exception:
+                ka = prof.key_averages(row_limit=12)
+            print(f"[prof:{tag}] wall_5steps={wall5:.3f}s\n{str(ka)[:5000]}", flush=True)
+            cuda_us = 0.0
+            for ev in prof.key_averages():
+                t = getattr(ev, "self_cuda_time_total", None)
+                if t is None:
+                    t = getattr(ev, "self_device_time_total", 0) or 0
+                cuda_us += t
+            prof_blocks[tag] = {"wall_5s": round(wall5, 3),
+                                "gpu_busy_est": round(cuda_us / 1e6 / wall5, 3)}
+        except Exception as e:
+            prof_blocks[tag] = {"error": f"{type(e).__name__}: {e}"}
+            print(f"[prof:{tag}] error {type(e).__name__}: {e}", flush=True)
+        finally:
+            try:
+                del model, opt, scaler
+            except Exception:
+                pass
+            torch.cuda.empty_cache()
+
+    # ---- K-CC1..K-CC4 + pred-vs-obs (nguong §31.2 — LOCK TRUOC code; loi/OOM = MISS) ----
+    by = {e.get("variant"): e for e in results}
+    def _g(tag, key):
+        return by.get(tag, {}).get(key)
+    wall_min = round((time.time() - t_start) / 60.0, 1)
+    preds = [
+        ("C0 s_micro", 0.285, 0.26, 0.31, _g("C0", "s_micro_mean")),
+        ("C1 s_micro", 0.27, 0.20, 0.32, _g("C1", "s_micro_mean")),
+        ("C3 tok_s_eff", 115000, 95000, 160000, _g("C3", "tok_s_eff")),
+        ("C4 tok_s_eff", 130000, 100000, 190000, _g("C4", "tok_s_eff")),
+        ("C5 tok_s_eff", 145000, 100000, 220000, _g("C5", "tok_s_eff")),
+        ("util_c0", 70.0, 45.0, 90.0, _g("C0", "gpu_util_mean")),
+        ("wall_min", 22.0, 14.0, 40.0, wall_min),
+    ]
+    po = {}
+    for name, p, lo, hi, obs in preds:
+        if obs is None:
+            po[name] = {"pred": p, "band": [lo, hi], "obs": None, "close": "MISS"}
+        else:
+            po[name] = {"pred": p, "band": [lo, hi], "obs": round(float(obs), 4),
+                        "close": bool(lo <= float(obs) <= hi)}
+    n_obs = sum(1 for v in po.values() if v["obs"] is not None)
+    n_close = sum(1 for v in po.values() if v["close"] is True)
+
+    c0_tps = _g("C0", "tok_s_eff")
+    levers = [e for e in results
+              if e.get("tok_s_eff") is not None and c0_tps
+              and e["tok_s_eff"] >= 1.30 * c0_tps]
+    pc = _g("C0", "param_count") or 0
+    n_entry = sum(1 for e in results
+                  if "s_micro_mean" in e or "error" in e or "skipped" in e)
+    kcc1 = wall_min <= 60.0
+    kcc2 = (n_entry >= 6
+            and all(_g(t, "s_micro_mean") is not None for t in ("C0", "C3", "C4"))
+            and 12_500_000 <= pc <= 12_700_000
+            and {"C0", "C6"} <= set(prof_blocks)
+            and (_g("C0", "gpu_util_n") or 0) >= 1)
+    kcc3 = n_obs >= 5
+    kcc4 = len(levers) > 0
+
+    out = {"mode": "ds014_cost", "data_kind": data_kind, "acc_formula": ACC,
+           "variants": results, "profiler": prof_blocks, "preds": po,
+           "n_obs": n_obs, "n_close": n_close, "n_pred": len(preds),
+           "wall_min": wall_min, "c0_tok_s_eff": c0_tps,
+           "levers_ge_1_3x": [{"variant": e["variant"], "tok_s_eff": e["tok_s_eff"],
+                               "x_vs_c0": round(e["tok_s_eff"] / c0_tps, 2)}
+                              for e in levers] if c0_tps else [],
+           "kcc": {"K-CC1": bool(kcc1), "K-CC2": bool(kcc2),
+                   "K-CC3": bool(kcc3), "K-CC4": bool(kcc4)},
+           "kpi_cc": f"{sum([bool(kcc1), bool(kcc2), bool(kcc3), bool(kcc4)])}/4",
+           "env": {"torch": torch.__version__,
+                   "gpu": (torch.cuda.get_device_name(0) if torch.cuda.is_available() else None)}}
+    json.dump(out, open(f"{OUT}/cost.json", "w"), indent=1, default=str)
+    for k, v in out["kcc"].items():
+        print(f"[{k}] {v}", flush=True)
+    for name, v in po.items():
+        print(f"[pred] {name}: pred {v['pred']} band {v['band']} obs {v['obs']} -> {v['close']}",
+              flush=True)
+    print(f"[KPI-CC] {out['kpi_cc']} | C0 {c0_tps} tok/s | levers>=1.3x: "
+          f"{[e['variant'] for e in levers]} | wall {wall_min}'", flush=True)
+    return out
+
+
 def main():
     print(f"[env] torch {torch.__version__} | cuda {torch.cuda.is_available()} "
           f"| {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'NO-GPU'}", flush=True)
+    if COST > 0:                      # §31 COST-PROBE (DS-014): khong prep day du, khong train/eval/ckpt
+        run_costprobe()
+        print("[DS-014] COST DONE", flush=True)
+        return
     meta = prepare_data()
     flats = {k: flat_uint16(f"{TMP}/{k}.bin") for k in ("a1", "a3", "hold")}
     print(f"[shapes] a1 {len(flats['a1'])} tok | a3 {len(flats['a3'])} tok | hold {len(flats['hold'])} tok | "
