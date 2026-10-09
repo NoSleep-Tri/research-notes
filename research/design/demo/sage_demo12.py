@@ -46,6 +46,19 @@ if os.environ.get("RUN_LR"):
 if os.environ.get("RUN_TOTAL"):
     TOTAL_STEPS = int(os.environ["RUN_TOTAL"])
 
+# §28.4 (pre-reg §28 push 458034e, change-log §28.4.1 duyet 2026-10-09): env-override arch
+# WIDE-SHALLOW — mac dinh (khong set env) = hanh vi cu Y HET; HEAD_DIM khong override (W1 giu 64)
+_ARCH_ENV = {"N_LAYERS": "ARCH_LAYERS", "D_MODEL": "ARCH_D", "N_HEADS": "ARCH_HEADS",
+             "N_KV": "ARCH_KV", "FFN": "ARCH_FFN"}
+for _ck, _ek in _ARCH_ENV.items():
+    if os.environ.get(_ek):
+        C[_ck] = int(os.environ[_ek])
+ARCH_OVERRIDDEN = any(os.environ.get(_ek) for _ek in _ARCH_ENV.values())
+if ARCH_OVERRIDDEN:
+    print(f"[arch] W1 override: {C['N_LAYERS']}L d{C['D_MODEL']} nh{C['N_HEADS']} "
+          f"kv{C['N_KV']} ffn{C['FFN']} | embed {C['VOCAB']}x{C['D_MODEL']}"
+          f"={C['VOCAB'] * C['D_MODEL']}", flush=True)
+
 # §30.3a (pre-reg 1e6eacb): PROBE mode — mac dinh 0 (run day du khong doi); T0 = dau script (giam prep)
 PROBE = int(os.environ.get("PROBE", "0") or "0")
 T0_PROBE = time.time()
@@ -1529,6 +1542,8 @@ def main():
     except Exception as e:
         print(f"[plot error] {type(e).__name__}: {e}", flush=True)
     print("[DS-012f] DONE" if ACC > 1 else "[DS-012d] DONE", flush=True)
+    if ARCH_OVERRIDDEN:                  # §28.4 K-W2 marker — default khong in, giu hanh vi cu
+        print("[DS-015] WIDE DONE", flush=True)
 
 
 if __name__ == "__main__":

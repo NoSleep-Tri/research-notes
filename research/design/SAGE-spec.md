@@ -1682,6 +1682,12 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
   3. **Ngoại lệ B2**: 1 session full ~3,9h vượt 60' — như B1 của §30, chỉ áp cho run này (mọi launch khác vẫn 30–60').
 - **Cấm**: hạ ngưỡng sau khi thấy số · re-run khi FAIL · thêm variant arch khác trong pre-reg này · đổi baseline v11.
 - **Launch**: code → push → probe ×3 (mỗi lần thông báo) → chốt LR → full ×1 (B2) → chấm K-W1..3 + 6 preds → F-AB.
+- **→ DUYỆT CỦA BẠN (2026-10-09, TRƯỚC CODE)**: **(1)** fair-η probe 3 LR ✓ · **(2)** duyệt đủ §28.1–§28.4 LOCK (không sửa ngưỡng/pred) ✓ · **(3)** ngoại lệ **B2** = 1 session full ~3,9h ✓. Code env-override arch bắt đầu từ đây; mọi thay đổi sau phải qua change-log mới.
+- **Change-log §28.4.1 [TRƯỚC CODE — 2026-10-09, trước khi viết code]** (đọc code thật trước khi chốt, giữ "default bit-identical"):
+  1. Arch override = block env `ARCH_LAYERS/ARCH_D/ARCH_HEADS/ARCH_KV/ARCH_FFN` đặt **sau** các override RUN_* (config dict đổi tại chỗ, `HEAD_DIM` không override — W1 giữ 64); log `[arch] W1 override: ...` **chỉ in khi có override** (default không in thêm dòng nào).
+  2. Marker **`[DS-015] WIDE DONE`** in ngay sau `[DS-012f] DONE` cuối script, **gate `ARCH_OVERRIDDEN`** (run default không in). Cả 3 probe + full đều in (K-W1 không cấm; K-W2 đối chiếu trên log full).
+  3. **Results-write của probe an toàn bằng logic có sẵn** (không cần code thêm): `train_cell` chỉ skip khi `steps_done ≥ TOTAL_STEPS` (dòng 571) — probe ghi `steps_done=150` < 1050 → **full run tự ` [rerun]` vào `results_superseded/` và train lại** ✓. Trạng thái working/ rỗng mỗi session (v13/v14: data=synthetic → không có restore) → 3 probe không đè lên nhau; nếu persistence bất thường quay lại → K-W1 bắt (log thiếu `[eval] ... loss@100(hold)` hoặc có `[skip]`) — FAIL báo thật, không sửa ngưỡng.
+  4. Preamble probe (config, không phải logic — disclosed): `ARCH_* = 4/512/8/2/936` + `RUN_ACC=52 · RUN_WARMUP=30 · RUN_TOTAL=150 · EVAL_STEPS=100 · RUN_COMPILE=1` + `RUN_LR ∈ {0.005, 0.01, 0.02}` (3 lần launch, mỗi lần thông báo).
 
 ---
 
