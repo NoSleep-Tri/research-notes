@@ -1632,4 +1632,66 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
 - **Change-log §30.6.2 — NGOẠI LỆ §30.4 (B1 — bạn chọn 2026-10-08)**: run §30 chạy **1 phiên trần 6h** (ước tính 4,3h). Ghi nhận lý do: wall đã re-derive bằng lever probe (§30.3a 4/4) + ACC re-derive (C) nhưng vẫn >60' vì vật lý 1,438B token; phương án A (5 × resume) bị **từ chối** để tránh rủi ro bug resume âm thầm (RNG/lr-schedule) + 5 điểm hỏng. **Mọi launch khác vẫn 30–60'/phiên.** Session > 6h → wall-pred MISS (báo thật), không hạ ngưỡng nào.
 - **Cấm (giữ nguyên từ §30.1)**: hạ K-F1/K-F2 sau khi thấy số · thêm lever khác (Muon/arch/data) trong run này · re-run khi FAIL · interpret K-F1 PASS mà K-F2 FAIL là thành công.
 - **Findings**: **F-X30** (kết quả run §30).
-- **Launch**: kernel **v11** — text explicit + preamble §30.6.1 · timer giám sát chu kỳ ~90' · thông báo launch + finish.<end of file>
+- **Launch**: kernel **v11** — text explicit + preamble §30.6.1 · timer giám sát chu kỳ ~90' · thông báo launch + finish.
+
+---
+
+## §28 — WIDE-SHALLOW (DS-015): đổi width×depth ở ngân sách params — pre-register TRƯỚC CODE (2026-10-09)
+
+> **Slot chương**: §26 TPU giữ chỗ · **§32 = single-matrix ĐÓNG** (cuối file, không chạy) · **§28 = section này** — sinh từ AN-019 "chờ duyệt" (2026-10-07); bạn "tiếp đi" (2026-10-09) → viết pre-reg; **code + launch cần chốt đủ 3 mục §28.4**.
+> **Số ĐÃ THấy khi viết pre-reg (trung thực)**: baseline v11 §30.7 — train@1000 `4.5485` · val@1000 `3.4257` · wall `4,52h` · param `12.587.904` · s/micro C0 `0,2169` (production ≈ `0,270`) · F-X31 util `99,1%` · F-X33 (GEMM `37,6%` · attn-bwd `22,7%` · attn-fwd `5,6%`) · seed spread val `Δ0.0006` · F-AA01…AA08. **CHƯA THấy**: bất kỳ số nào của wide-shallow (probe lẫn full).
+
+### §28.1 — Design (LOCK)
+
+- **Câu hỏi**: tại ĐÚNG ngân sách params (~12,6M) + cùng corpus/seed/schedule, kiến trúc **rộng hơn + nông hơn** có `val@1000` tốt hơn baseline `d384×L6` không — và nhanh hơn bao nhiêu (F-X33: attention share ∝ L → L↓ làm share attention↓)?
+- **Variant duy nhất W1 (LOCK — 1 variant, không sweep arch)**: **`d=512 · L=4 · nh=8 · nkv=2 · hd=64 · ffn=936`** (SwiGLU 3 ma trận, RMSNorm affine, head tied — đúng family baseline).
+  - **Param đếm chính xác**: embed `8192×512 = 4.194.304` + 4×(attn `655.360` + ffn `3×512×936 = 1.437.696` + 2 norm `1.024`) + final norm `512` = **12.571.136** → **−0,13%** vs baseline 12.587.904 (gate ±1%).
+  - **Đổi có chủ đích (disclosed)**: nh 6→8 · GQA ratio 3→4 · ffn/d 2,67→1,83 · embed chiếm 33% params (tied). W1 = **param-matched**, KHÔNG compute-matched (FLOPs/tok ≈ 0,87× baseline → nhanh hơn, pred §28.3).
+  - **Giữ nguyên**: batch `27.648 tok/micro × ACC 52` · corpus · seed · schedule · eval protocol — y hệt §30.6.1 (preamble `RUN_ACC=52; RUN_WARMUP=100; RUN_TOTAL=1050; EVAL_STEPS=1000; RUN_COMPILE=1`).
+- **Baseline = v11 đã chạy** (protocol cùng seed/data/schedule) — KHÔNG re-run; số baseline đã thấy, ghi ở header.
+
+### §28.2 — Protocol: probe fair-η → full run (LOCK)
+
+1. **P-PROBE — 3 phiên, mỗi phiên ≤60'**: LR candidates `0,5e-2 · 1e-2 · 2e-2` — preamble W1 arch + `RUN_WARMUP=30; RUN_TOTAL=150; EVAL_STEPS=100; RUN_COMPILE=1` → **LR thắng = argmin `val@100`** (eval@100 có sẵn trong protocol — §29 "bỏ eval@100 khi prof" ⇒ default CÓ). Fair-tune arm wide theo F-AA04/E4.
+   - **KHÔNG dùng µP/u-µP cho run này** (lý do, ghi trước): (i) E1 — init KHÔNG transfer theo depth, W1 đổi cả depth; (ii) E2 — µP diverge fp16, u-µP implement từ trí nhớ = rủi ro sai methodology (phải đọc lại arXiv 2407.17465 nếu bạn chọn phương án này); (iii) E4 — "re-tune khi đổi kiến trúc" ⇒ fair sweep ngắn là đúng sách. **u-µP / η*-law = phương án thay thế nếu bạn chọn ở §28.4.**
+   - Limitation disclose: LR ranking ở warmup 30/N=150 là proxy cho run warmup 100/N=1050 (độ tin hạng trung).
+2. **P-FULL — 1 phiên ~3,9h (cần ngoại lệ B2 — §28.4)**: run đầy đủ với LR thắng probe → so **`val@1000` vs baseline `3,4257`** (metric chính) + train@1000 vs `4.5485`.
+3. **Verdict (ghi trước)**: **W1 thắng ⇔ `val@1000_W1 < 3,4257`** (seed noise ±0,0006 ≪ mọi khoảng kết luận ở §28.3). Thua/bằng → kết luận âm: *"tại 12,6M, rộng-nông không thắng"* — vẫn là kết quả, không re-run.
+
+### §28.3 — KPI + pred-vs-obs (LOCK trước code)
+
+- **K-W1 (probe)**: 3 probe COMPLETE · log có `val@100` · không diverge · LR thắng = argmin đúng pre-reg.
+- **K-W2 (full)**: COMPLETE · `param_count = 12.571.136` (±1%) · not diverged · `grad_skips ≤ 100` · marker `[DS-015] WIDE DONE`.
+- **K-W3 (hợp lệ)**: log full xác nhận `ACC=52 · TOTAL=1050 · EVAL=1000 · compile` + cùng data-kind/seed với v11.
+- **KPI = 3** · FAIL giữ thật · không hạ ngưỡng sau khi thấy số.
+- **Pred-vs-obs (6, ghi trước — CHƯA thấy số W1 nào)**:
+  1. LR thắng probe = **`1e-2`** (band = tập {`0,5e-2`, `1e-2`, `2e-2`});
+  2. `val@100` LR thắng ∈ **[4,9; 5,6]** — tuyệt đối cho W1 (baseline `val@100` **không còn trong tay**: log v11 đã bị output của v12–v14 thay → so nội bộ 3 LR, disclose);
+  3. wall probe/phiên ≈ **38' [32–55]**;
+  4. wall full = **3,9h [3,4–4,9]** (baseline 4,52h × ~0,87 FLOPs/tok);
+  5. **`val@1000` W1 = 3,50 [3,38–3,75]** → center > 3,4257 ⇒ **pred trung thực: W1 THUA baseline** (depth↓ hurting > width↑ helping ở scale nhỏ; confidence trung bình-thấp);
+  6. `train@1000` W1 = **4,75 [4,40–5,40]**.
+- **Findings**: **F-AB** (prefix mới — F-AA đã dùng 8/8).
+
+### §28.4 — Change-log TRƯỚC CODE + 3 ĐIỀU CẦN BẠN DUYỆT (2026-10-09)
+
+- **Code (chỉ sau khi duyệt)**: env-override arch `ARCH_LAYERS / ARCH_D / ARCH_HEADS / ARCH_KV / ARCH_FFN` (mặc định = giá trị hiện tại → **hành vi default bit-identical**, param 12.587.904 không đổi) + log arch/param_count + marker `[DS-015]`. **KHÔNG** đổi optimizer/schedule/data/seed.
+- **Cần bạn chốt (3)**:
+  1. **Duyệt §28.1–§28.3** như LOCK (hoặc sửa TRƯỚC khi tôi code);
+  2. **Phương án LR**: **fair-η probe 3 LR** (đề xuất — ~1,8h quota, 3 phiên ≤40') · **u-µP** (đúng AN-019 — cần đọc lại paper 2407.17465 trước khi implement) · **η*-law** (bảng taxonomy bạn paste — repo KHÔNG có, cần bạn paste lại);
+  3. **Ngoại lệ B2**: 1 session full ~3,9h vượt 60' — như B1 của §30, chỉ áp cho run này (mọi launch khác vẫn 30–60').
+- **Cấm**: hạ ngưỡng sau khi thấy số · re-run khi FAIL · thêm variant arch khác trong pre-reg này · đổi baseline v11.
+- **Launch**: code → push → probe ×3 (mỗi lần thông báo) → chốt LR → full ×1 (B2) → chấm K-W1..3 + 6 preds → F-AB.
+
+---
+
+## §32 — SINGLE-MATRIX CONTROL: ĐÓNG / KHÔNG CHẠY (2026-10-09)
+
+- **Lý do slot tồn tại**: F-X20 (~360ms/bước overhead chưa rõ nguồn, sinh từ §27) → đề xuất "single-matrix control" = train 1 ma trận để tách overhead khỏi compute (slot note §29).
+- **ĐÃ TRẢ LỜI bằng số đo — KHÔNG cần run**:
+  1. **F-X21** (§29.3, v9 profile 300 bước): **98% s/step nằm TRONG cửa sổ fwd+bwd** (fwd 32,9% + bwd 65,2%) · batch 0,1% + optim 1,8% → không có "overhead ngoài compute" nào ≥2%;
+  2. **F-X22**: instrumentation 5 sync/bước ≈ 0 (`0,4009 ≤ 0,4158` baseline) → sync không phải nguồn;
+  3. **F-X31** (v12): `util 99,1%` → GPU bão hòa, không phải CPU/launch gap;
+  4. **F-X33** (v14): decomposition kernel — GEMM 37,6% + attention 22,7% + elementwise ~6% + busy dedup 0,90–1,00× wall → **cả "360ms" đã quy về kernel compute/memory-bound**.
+- **Kết luận**: single-matrix control chỉ lặp lại F-X21/F-X33 = **0 thông tin mới, tốn quota → KHÔNG CHẠY, slot ĐÓNG**. Sau này cần tách cụm kernel → dùng profiler tooling v14, không cần control run riêng.
+- **Findings**: không mới (dẫn chiếu F-X21/F-X22/F-X31/F-X33).<end of file>
