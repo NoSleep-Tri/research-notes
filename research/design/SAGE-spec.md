@@ -1689,6 +1689,29 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
   3. **Results-write của probe an toàn bằng logic có sẵn** (không cần code thêm): `train_cell` chỉ skip khi `steps_done ≥ TOTAL_STEPS` (dòng 571) — probe ghi `steps_done=150` < 1050 → **full run tự ` [rerun]` vào `results_superseded/` và train lại** ✓. Trạng thái working/ rỗng mỗi session (v13/v14: data=synthetic → không có restore) → 3 probe không đè lên nhau; nếu persistence bất thường quay lại → K-W1 bắt (log thiếu `[eval] ... loss@100(hold)` hoặc có `[skip]`) — FAIL báo thật, không sửa ngưỡng.
   4. Preamble probe (config, không phải logic — disclosed): `ARCH_* = 4/512/8/2/936` + `RUN_ACC=52 · RUN_WARMUP=30 · RUN_TOTAL=150 · EVAL_STEPS=100 · RUN_COMPILE=1` + `RUN_LR ∈ {0.005, 0.01, 0.02}` (3 lần launch, mỗi lần thông báo).
 
+### §28.5 — Kết quả (SAU CHẠY 2026-10-10/11 — không sửa ngưỡng/pred nào)
+
+- **Chuỗi**: pre-reg §28 `458034e` → DUYỆT 2026-10-09 → change-log §28.4.1 + code `45cc062` → probe v15/v16/v17 → full v18 (B2) → §28.5. Log/đầu ra đọc lúc session end; số thô `out/ds015_probes.md` + results v18.
+- **P-PROBE fair-η (3/3 K-W1 PASS)** — cùng arch/protocol, chỉ đổi `RUN_LR`:
+  | LR | val@100 | wall/phiên (prep) |
+  |---|---|---|
+  | **0,005** | **5.8828** | 66,9' (30,1') — v15 |
+  | 0,01 | 5.9696 | 56,7' (21,5') — v16 |
+  | 0,02 | 6.0832 | 56,8' (22,5') — v17 |
+  - **Chốt LR = 0,005 = argmin val@100** (mono tăng theo LR) — đúng pre-reg, chốt TRƯỚC full run.
+- **Full run v18 (B2)**: `params_total 12.571.136 EXACT` (non-emb 8.376.832) · `acc 52 · lr_peak 0.005 · steps_done 1050 · tokens 1.509580800 (1,438B@1000) · div False · grad_skips 0 · nan_loss_skips 0 · micro_nan 0 · parity 0.0` · compile wrapped ✓ · data = HuggingFaceFW/fineweb-edu seed 11 (giống v11) · **wall 218,5' = 3,64h**. Số chính: **`val@1000 = 3.5378`** (field `loss_at_100`) · `val_final 3.5303` · `train@1000 = 3.4618`.
+- **KPI §28 = 3/3 PASS**: **K-W1** ✓ (3 probe COMPLETE · `val@100` đủ 5.8828/5.9696/6.0832 · không diverge · LR thắng = argmin đúng pre-reg) · **K-W2** ✓ (COMPLETE · param 12.571.136 ±1% → exact · not diverged · grad_skips 0 ≤ 100 · marker `[DS-015] WIDE DONE`) · **K-W3** ✓ (ACC=52 xác nhận bằng `results.acc=52` + preamble source + 12,3s/bước nhất quán 52×0,236s · TOTAL=1050/EVAL=1000 `[eval] loss@1000(hold)`/`[compile] RUN_COMPILE=1` in log · cùng data-kind/seed với v11). *Lưu ý: `kpi.txt` do script in ra gồm gate cũ §23/§30 (K1–K6/K-F*) — không phải acceptance §28; acceptance §28 = K-W1..3 ở đây.*
+- **Verdict (LOCK §28.3 — ghi trước)**: `val@1000 = 3.5378 ≥ 3.4257` → **W1 THUA baseline** → kết luận âm đúng chữ pre-reg: **"tại 12,6M, rộng-nông không thắng"**. Giữ thật — không re-run, không hạ ngưỡng. Pred #5 trung thực ("W1 THUA") → **hướng ĐÚNG**.
+- **pred-vs-obs: 2/6 CLOSE · 4/6 MISS (báo thật)**:
+  1. LR thắng pred `1e-2` → obs `0,005` → **MISS**;
+  2. val@100 LR thắng `[4,9; 5,6]` → obs `5,8828` → **MISS** (trên band +0,28);
+  3. wall probe `38' [32–55]` → obs `66,9/56,7/56,8'` → **MISS 3/3** — prep data thật 21–30'/phiên vì working/ trống, không restore (cùng gốc với F-X29);
+  4. wall full `3,9h [3,4–4,9]` → obs `3,642h` → **CLOSE**;
+  5. val@1000 `3,50 [3,38–3,75]` → obs `3,5378` → **CLOSE** (+ hướng pred THUA đúng);
+  6. train@1000 `4,75 [4,40–5,40]` → obs `3,4618` → **MISS** (pred bám anchor 4.5485 = baseline khác regime batch — sai baseline, thừa nhận).
+- **Disclosure (KHÔNG đổi verdict)**: v11 cùng-protocol (ACC 52 · cùng corpus/seed, §30) có `val@1000 = 3.5496` → W1 **tốt hơn −0,0118** so với sibling cùng-protocol trong khi FLOPs/tok ~0,87× (hướng có lợi cho W1). Nhưng LOCK anchor = `3.4257` (baseline §23, pred #5 đã bám anchor này) → verdict **theo LOCK**. So protocol-to-protocol (W1 vs v11) chỉ mở lại bằng pre-reg mới — chưa chạy.
+- **Findings**: **F-AB** (memory — kết quả §28 + pred-vs-obs + disclosure anchor).
+
 ---
 
 ## §32 — SINGLE-MATRIX CONTROL: ĐÓNG / KHÔNG CHẠY (2026-10-09)
