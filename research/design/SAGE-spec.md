@@ -1723,4 +1723,23 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
   3. **F-X31** (v12): `util 99,1%` → GPU bão hòa, không phải CPU/launch gap;
   4. **F-X33** (v14): decomposition kernel — GEMM 37,6% + attention 22,7% + elementwise ~6% + busy dedup 0,90–1,00× wall → **cả "360ms" đã quy về kernel compute/memory-bound**.
 - **Kết luận**: single-matrix control chỉ lặp lại F-X21/F-X33 = **0 thông tin mới, tốn quota → KHÔNG CHẠY, slot ĐÓNG**. Sau này cần tách cụm kernel → dùng profiler tooling v14, không cần control run riêng.
-- **Findings**: không mới (dẫn chiếu F-X21/F-X22/F-X31/F-X33).<end of file>
+- **Findings**: không mới (dẫn chiếu F-X21/F-X22/F-X31/F-X33).
+
+---
+
+## §33 — CONTROL TRUYỀN THỐNG (DS-015b) — pre-reg LOCK TRƯỚC CHẠY (2026-10-11)
+
+- **Mục đích (người dùng chọn 2026-10-11: "chạy y hệt... để so sánh kiến trúc thôi")**: tách **duy nhất biến kiến trúc** khỏi kết quả §28 — chạy arch **mặc định truyền thống** `d384·L6·nh6·nkv2·ffn1024` = **12.587.904 params** với **protocol y hệt v18 (W1)** → cặp so sánh trực tiếp `(truyền thống, LR 0,005)` vs `(W1, LR 0,005) = 3,5378`. Ô `(truyền thống, 1e-2) = 3,5496` đã có từ v11. *Nhận xét của bạn về tốc độ được ghi vào pred wall (W1 0,87× FLOPs đang nhanh hơn — kiến trúc phải cân cả quality lẫn speed).*
+- **Ngoại lệ B3**: 1 session ~4,4–5h vượt 60' — như B1/B2, chỉ cho run này (bạn chọn 2026-10-11); mọi launch khác vẫn 30–60'.
+- **Protocol (KHÔNG set `ARCH_*` — default bit-identical)**: `RUN_ACC=52 · RUN_WARMUP=100 · RUN_TOTAL=1050 · EVAL_STEPS=1000 · RUN_COMPILE=1 · RUN_LR=0.005` · seed 11 · fineweb-edu — **y hệt v18 trừ arch**. Hệ quả: log **KHÔNG** có `[arch] W1 override` lẫn `[DS-015] WIDE DONE` (đúng — không override); evidence arch mặc định = absence 2 dòng đó + `params_total = 12.587.904`.
+- **Gates (LOCK)**:
+  - **K-C1 (full)**: COMPLETE · `params_total = 12.587.904` (±1%) · `acc = 52 · steps_done = 1050` · not diverged · `grad_skips ≤ 100` · **không `[skip]`** (log có `[train] ... step 0/1050` — working/ trống như mọi session gần đây; nếu Kaggle bật persistence → K-C1 FAIL báo thật, không sửa) · marker `[DS-012f] DONE`.
+  - **K-C2 (hợp lệ)**: log/results xác nhận `EVAL=1000` (`[eval] ... loss@1000(hold)`) + `[compile] RUN_COMPILE=1` + `lr_peak = 0.005` + data-kind/seed `fineweb-edu s11` giống v18 + **không có** dòng `[arch] W1 override`.
+  - **KPI = 2** · FAIL giữ thật · không hạ ngưỡng sau khi thấy số.
+- **Pred-vs-obs (3, ghi trước — CHƯA thấy số truyền thống @0,005 nào)**:
+  1. `val@1000` = **3,56 [3,44–3,85]** — center từ v11 (trad@1e-2 = 3,5496) + bất định LR 0,005 chưa từng test ở trad; band lệchessimistic (+0,29) vì LR có thể lệch optimum;
+  2. `wall` = **4,4h [3,8–5,0]** — FLOPs truyền thống ≈ 1/0,87 × W1 (3,64h) → train ~4,2h + prep ~0,35h (nhất quán v11 4,52h);
+  3. `train@1000` = **3,48 [3,35–3,65]** — v11 3,4755 @1e-2 · W1 3,4618 @0,005.
+- **So cặp (ghi trước)**: `Δ = val_trad − 3,5378` — **pred Δ = +0,02 [−0,10 … +0,31]** → **pred: truyền thống KHÔNG thắng cặp này (W1 giữ lợi thế)**; nếu obs Δ < 0 → MISS hướng, ghi thật.
+- **Verdict cặp (LOCK)**: truyền thống thắng cặp ⇔ `val@1000_trad < 3,5378`. Không re-run · không đổi pred.
+- **Findings**: tiếp tục **F-AB** (obs thêm — cùng thread §28).<end of file>
