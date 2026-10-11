@@ -383,7 +383,7 @@ def run_sft(model, tokenizer):
     targs = TrainingArguments(
         output_dir=OUT + "/ckpt", num_train_epochs=1,
         per_device_train_batch_size=2, gradient_accumulation_steps=4,
-        learning_rate=LR, lr_scheduler_type="cosine", warmup_ratio=0.03,
+        learning_rate=LR, lr_scheduler_type="cosine", warmup_steps=0.03,
         logging_steps=10, save_strategy="no", report_to=[], fp16=True,
         gradient_checkpointing=True,
         gradient_checkpointing_kwargs={"use_reentrant": False},
