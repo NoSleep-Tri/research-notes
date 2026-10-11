@@ -287,11 +287,25 @@ def wrap_lora(model):
             except Exception as e:
                 log("offload-fail", attr, repr(e)[:120])
     torch.cuda.empty_cache()
-    lin = sorted({n.rsplit(".", 1)[-1] for n, mod in model.named_modules()
-                  if isinstance(mod, torch.nn.Linear)})
+    lin_full = [(n, mod) for n, mod in model.named_modules()
+                if isinstance(mod, torch.nn.Linear)]
     pref = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
-    targets = [t for t in pref if t in lin] or lin
-    log("lora-targets", targets, "linear-kinds", lin)
+    # 34.3: restrict to language_model full paths - Gemma4ClippableLinear (nn.Module wrapper,
+    # khong phai nn.Linear) nam trong VISION/AUDIO tower, peft khong wrap duoc; text-only run
+    lang_targets = sorted({n for n, m in lin_full
+                           if n.rsplit(".", 1)[-1] in pref and "language_model" in n})
+    if lang_targets:
+        targets = lang_targets
+        log("lora-targets mode full-path-language_model n", len(targets), targets[:4])
+    else:
+        targets = sorted({n for n, m in lin_full
+                          if n.rsplit(".", 1)[-1] in pref
+                          and not any(k in n.lower()
+                                      for k in ("vision", "audio", "tower"))})
+        log("lora-targets mode leaf-sans-towers n", len(targets), targets[:6])
+    if not targets:
+        write_kpi({"K-D1": "FAIL env: no lora targets"})
+        raise SystemExit(2)
     # 34.2: manual QLoRA recipe - KHONG goi peft.prepare_model_for_kbit_training
     # (v20 OOM: no cast fp16 param 2.35B -> fp32)
     cfg = LoraConfig(r=LORA_R, lora_alpha=LORA_A, lora_dropout=0.0,
