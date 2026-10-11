@@ -1742,4 +1742,23 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
   3. `train@1000` = **3,48 [3,35–3,65]** — v11 3,4755 @1e-2 · W1 3,4618 @0,005.
 - **So cặp (ghi trước)**: `Δ = val_trad − 3,5378` — **pred Δ = +0,02 [−0,10 … +0,31]** → **pred: truyền thống KHÔNG thắng cặp này (W1 giữ lợi thế)**; nếu obs Δ < 0 → MISS hướng, ghi thật.
 - **Verdict cặp (LOCK)**: truyền thống thắng cặp ⇔ `val@1000_trad < 3,5378`. Không re-run · không đổi pred.
-- **Findings**: tiếp tục **F-AB** (obs thêm — cùng thread §28).<end of file>
+- **Findings**: tiếp tục **F-AB** (obs thêm — cùng thread §28).
+
+### §33.1 — Kết quả (SAU CHẠY 2026-10-11 — không sửa ngưỡng/pred)
+
+- **Run v19 (B3)**: arch mặc định `params_total 12.587.904 EXACT` (non-emb 9.442.176) · `acc 52 · lr_peak 0.005 · steps_done 1050 · tokens 1.509580800 · div False · grad_skips 0 · nan 0 · parity 0.0` · prep 1273,8s (21,2') · **wall 238,2' = 3,97h** · log: **không** `[arch] W1 override` / **không** `[DS-015] WIDE DONE` (đúng default) · `[compile] RUN_COMPILE=1` ✓ · `[eval] loss@1000(hold)` ✓ · **không `[skip]`** (step 0/1050 train thật) · `[DS-012f] DONE` ✓.
+- **Số chính**: **`val@1000 = 3,5275`** · `val_final 3,5193` · `train@1000 = 3,4511`.
+- **KPI = 2/2 PASS**: **K-C1** ✓ (mọi điều kiện) · **K-C2** ✓ (mọi điều kiện).
+- **Verdict cặp (LOCK)**: `3,5275 < 3,5378` → **TRUYỀN THỐNG THẮNG CẶP** (Δ = −0,0103; seed noise ±0,0006 ≪ 0,0103 → significant). Hệ quả cho §28: verdict LOCK "W1 THUA anchor 3,4257" **GIỮ NGUYÊN** — thêm ô (trad, 0,005) cho thấy W1 **cũng thua truyền thống cùng-LR** → "rộng-nông không thắng" được củng cố cả 2 hướng.
+- **Bức tranh 3 ô (v11/v18/v19 — cùng bảng, số liệu đã thấy)**:
+  | (arch, LR) | val@1000 | wall | train@1000 |
+  |---|---|---|---|
+  | truyền thống · 0,005 (v19) | **3,5275** | 3,97h | 3,4511 |
+  | truyền thống · 1e-2 (v11) | 3,5496 | 4,52h | 3,4755 |
+  | W1 · 0,005 (v18) | 3,5378 | **3,64h** | 3,4618 |
+  | anchor §23 (v7 — khác regime batch) | 3,4257 | — | — |
+  - **LR 0,005 tốt hơn 1e-2 cho CẢ 2 arch** (trad 3,5275 < 3,5496) → fair-η transfer sang arch đối thủ ✓;
+  - **Trade-off đo được (trả lời "não cần nhanh")**: W1 nhanh hơn **−19,7'/session (−8,3%)** (train −8,3%: ~215' vs ~234,5') nhưng val **+0,0103 tệ hơn** → **truyền thống thắng chất lượng, W1 thắng tốc độ** — không có bên thắng tuyệt đối ở 12,6M.
+- **pred-vs-obs: 3/3 CLOSE** — val@1000 `3,5275 ∈ [3,44–3,85]` ✓ · wall `3,970h ∈ [3,8–5,0]` ✓ (lần 4 liên tiếp wall-pred cao hơn obs — bias hệ thống ghi nhận từ §31) · train `3,4511 ∈ [3,35–3,65]` ✓.
+- **So cặp (báo thật)**: giá trị `Δ = −0,0103 ∈ [−0,10 … +0,31]` → **CLOSE về giá trị**, nhưng **HƯỚNG MISS** — pred "truyền thống KHÔNG thắng cặp" (bám prior §28/F-AB) → obs truyền thống thắng. Pred trung thực theo prior lúc đó, sai hướng — ghi thật, không sửa.
+- **Findings**: **F-AB** (obs thêm — kết quả cặp + trade-off speed/quality).<end of file>
