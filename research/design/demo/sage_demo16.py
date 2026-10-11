@@ -32,6 +32,8 @@ LORA_A = 32
 MODEL_ID = "google/gemma-4-E2B-it"
 OUT = "/kaggle/working/ds016"
 os.makedirs(OUT, exist_ok=True)
+# 34.2: allocator fix truoc khi import torch (v20 OOM - error message goi y)
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 
 def log(*a):
@@ -266,17 +268,58 @@ def load_base():
 
 
 def wrap_lora(model):
+    # 34.2 diag: find giant fp16 tensors + kbit flags (v20 OOM root cause)
+    sized = [(n, int(p.numel()), str(p.dtype), p.__class__.__name__)
+             for n, p in model.named_parameters()
+             if p.dtype in (torch.float16, torch.bfloat16)]
+    sized.sort(key=lambda x: -x[1])
+    log("fp16-top", sized[:8])
+    log("kbit-flags is4", getattr(model, "is_loaded_in_4bit", None),
+        "is8", getattr(model, "is_loaded_in_8bit", None))
+    # offload unused multimodal towers (text-only run) if present
+    for attr in ("vision_tower", "audio_tower", "vision_model", "audio_model",
+                 "multi_modal_projector", "mm_projector"):
+        sub = getattr(model, attr, None)
+        if sub is not None:
+            try:
+                sub.to("cpu")
+                log("offload-cpu", attr)
+            except Exception as e:
+                log("offload-fail", attr, repr(e)[:120])
+    torch.cuda.empty_cache()
     lin = sorted({n.rsplit(".", 1)[-1] for n, mod in model.named_modules()
                   if isinstance(mod, torch.nn.Linear)})
     pref = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
     targets = [t for t in pref if t in lin] or lin
     log("lora-targets", targets, "linear-kinds", lin)
-    model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
+    # 34.2: manual QLoRA recipe - KHONG goi peft.prepare_model_for_kbit_training
+    # (v20 OOM: no cast fp16 param 2.35B -> fp32)
     cfg = LoraConfig(r=LORA_R, lora_alpha=LORA_A, lora_dropout=0.0,
                      target_modules=targets, task_type="CAUSAL_LM")
     model = get_peft_model(model, cfg)
     model.print_trainable_parameters()
+    try:
+        model.enable_input_require_grads()
+        log("input-require-grads ok")
+    except Exception:
+        emb = model.get_input_embeddings()
+
+        def _make_grad(module, inp, out):
+            if torch.is_tensor(out):
+                out.requires_grad_(True)
+
+        emb.register_forward_hook(_make_grad)
+        log("input-require-grads fallback-hook")
+    try:
+        model.gradient_checkpointing_enable(
+            gradient_checkpointing_kwargs={"use_reentrant": False})
+        log("grad-ckpt ok reentrant=False")
+    except TypeError:
+        model.gradient_checkpointing_enable()
+        log("grad-ckpt ok default-kwargs")
     model.config.use_cache = False
+    torch.cuda.empty_cache()
+    log("vram-after-wrap", round(torch.cuda.memory_allocated() / 1e9, 2), "GiB")
     return model
 
 
@@ -328,7 +371,9 @@ def run_sft(model, tokenizer):
         per_device_train_batch_size=2, gradient_accumulation_steps=4,
         learning_rate=LR, lr_scheduler_type="cosine", warmup_ratio=0.03,
         logging_steps=10, save_strategy="no", report_to=[], fp16=True,
-        gradient_checkpointing=True, seed=SEED_SFT, remove_unused_columns=False)
+        gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={"use_reentrant": False},
+        seed=SEED_SFT, remove_unused_columns=False)
     coll = DataCollatorForSeq2Seq(tokenizer, padding=True,
                                   label_pad_token_id=-100, return_tensors="pt")
     try:
