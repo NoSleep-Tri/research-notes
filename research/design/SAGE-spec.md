@@ -1761,4 +1761,34 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
   - **Trade-off đo được (trả lời "não cần nhanh")**: W1 nhanh hơn **−19,7'/session (−8,3%)** (train −8,3%: ~215' vs ~234,5') nhưng val **+0,0103 tệ hơn** → **truyền thống thắng chất lượng, W1 thắng tốc độ** — không có bên thắng tuyệt đối ở 12,6M.
 - **pred-vs-obs: 3/3 CLOSE** — val@1000 `3,5275 ∈ [3,44–3,85]` ✓ · wall `3,970h ∈ [3,8–5,0]` ✓ (lần 4 liên tiếp wall-pred cao hơn obs — bias hệ thống ghi nhận từ §31) · train `3,4511 ∈ [3,35–3,65]` ✓.
 - **So cặp (báo thật)**: giá trị `Δ = −0,0103 ∈ [−0,10 … +0,31]` → **CLOSE về giá trị**, nhưng **HƯỚNG MISS** — pred "truyền thống KHÔNG thắng cặp" (bám prior §28/F-AB) → obs truyền thống thắng. Pred trung thực theo prior lúc đó, sai hướng — ghi thật, không sửa.
-- **Findings**: **F-AB** (obs thêm — kết quả cặp + trade-off speed/quality).<end of file>
+- **Findings**: **F-AB** (obs thêm — kết quả cặp + trade-off speed/quality).
+
+---
+
+## §34 — DS-016 — *Reasoning-Data Factory*: fine-tune Gemma 4 E2B sinh dataset reasoning đã verify — pre-reg LOCK TRƯỚC CODE (2026-10-11)
+
+- **Mục đích (bạn chọn 2026-10-11)**: fine-tune một model **chuyên tạo dữ liệu huấn luyện chất lượng cao** để **chuẩn bị dataset** — cụ thể: **data khiến mô hình có khả năng tư duy (reasoning)**. Tiêu chí bạn nêu: **chất lượng**. Model bạn chọn: **Gemma 4 E2B** (dense ~2,3B effective text · 35 lớp · 128K ctx · think-tag `<|think|>` · Apache-2.0). Đã verify qua HF API 2026-10-11: `google/gemma-4-E2B-it` **UNgated** (không cần token) · `safetensors.total = 5.123.178.051` (gồm tower multimodal; text ~2,3B) · có `chat_template.jinja`. Quy mô dataset: **probe trước rồi chốt N** (bạn chọn).
+- **Ý tưởng thiết kế ("chất lượng" = verify được bằng chương trình)**: dataset reasoning chất lượng cao = **(problem, think-trace, answer) đã kiểm chứng**. Problems sinh **tự động bằng programmatic templates** (đa bước arithmetic/algebra/percent — ground truth biết trước, không nhiễm train/test split nào) → model suy luận trong think mode → **verify `final_answer == ground_truth`** → chỉ verified mới vào dataset. Fine-tune nhằm nâng tỉ lệ verify-pass (chất lượng generator = tỉ lệ câu trả lời đúng đã verify).
+- **Kernel**: title `DS-016 reasoning-data factory` · code [demo/sage_demo16.py](demo/sage_demo16.py) (**chưa tồn tại lúc ghi pre-reg**) · **GPU T4 16GB** + internet (tải weights từ HF Hub). Prefix finding: **F-AC** (F-AB đã dùng 2/8).
+- **Ngoại lệ (cần bạn duyệt TRƯỚC launch)**:
+  - **B4** = run 1 ~60–75' (env + download ~10GB BF16 + SFT ~45' + probe gen) — vượt 60' vì model lớn + download thật;
+  - **B5** = run 2 ~2h (generate N × ~400–600 token + verify + export) — N chốt theo rule probe (mục tiêu "probe trước rồi chốt N").
+- **Arm & hyperparams (kế thừa playbook DS-010 — LoRA/QLoRA trên T4, F-Y01/F-Y05)**:
+  - Model: `google/gemma-4-E2B-it` · **QLoRA 4-bit bnb nf4** · LoRA `r=16 α=32 dropout 0.0` · targets q/k/v/o + gate/up/down · fp16 AMP · grad checkpointing · seq ≤ 512 · batch 2 · accum 4 · lr `1e-4` · seed `20261011`.
+  - **SFT data: GSM8K train (7.473, ungated)** → format think-mode: `<|think|>các bước suy luận...<|think|>\boxed{answer}` theo chat template của tokenizer · **1 epoch** (giữ run 1 trong B4).
+  - **Run 1 (v20)**: download + SFT + **probe gen 50 problems** (seed tách khỏi test pool) × {base, FT} → verify-pass mỗi arm + tok/s gen wall thật.
+  - **Run 2 (v21, B5)**: N chốt theo rule dưới đây · problems mới (seed độc lập) → FT gen → verify → dedupe → **export `ds016_dataset.jsonl`** (chỉ verified) + `kpi.txt` + plots.
+- **Rule chốt N (LOCK — từ probe run 1)**: `N = 50 × floor((B5_budget_s × tok_per_s) / (50 × avg_len))`, clamp `[300; 1200]` — N lớn nhất vừa budget 2h gen theo tok/s đo thật; `B5_budget_s = 7200`.
+- **Gates (LOCK — không hạ sau khi thấy số)**:
+  - **K-D1 (run 1 infra + học được)**: download OK · SFT complete · `loss_final < loss_initial` (chỉ bất inequality — LOCK) · adapter save OK.
+  - **K-D2 (chất lượng — cốt lõi)**: `verify_pass_FT ≥ verify_pass_base + 0.05` trên probe 50 (báo cả 2 số thật, kể cả FAIL).
+  - **K-D3 (dataset = "chất lượng" theo nghĩa bạn nêu)**: export ≥ **300 verified** mẫu · **verify lại 100% pass trên file export** · `unique_problems ≥ 99%` · format parse 100%.
+  - **K-D4 (run 2 infra)**: complete · không OOM · wall ≤ B5 budget × 1,2.
+- **Pred-vs-obs (4, ghi trước — CHƯA thấy số Gemma 4 nào)**:
+  1. `verify_pass_base` ≈ **0,35 [0,15–0,60]** (2,3B · problems tự sinh đa bước · base chưa fine-tune);
+  2. `verify_pass_FT` ≈ **0,60 [0,35–0,85]**;
+  3. gen tok/s (batch 1, greedy, T4 4-bit) ≈ **25 [12–45]**;
+  4. SFT 1 epoch wall ≈ **45' [30–80']**.
+- **Verdict (LOCK)**: "generator đạt chuẩn" ⇔ **K-D2 PASS** (Δ ≥ +0,05) **VÀ** **K-D3 PASS** (dataset ≥ 300 verified). FAIL → kết luận âm giữ thật · không re-run · không hạ ngưỡng.
+- **Change-log cho code (TRƯỚC CODE — sẽ ghi trước khi viết file)**: pin version `transformers/peft/accelerate/bitsandbytes` + ghi `pip freeze` vào kpi (bài học DS-010: pip kéo ver sai → env-fail); Gemma-4 arch cần transformers đủ mới — **import/load fail → env-fail pre-run báo thật**, KHÔNG tự fallback model (repo đã ungated nên risk còn lại chủ yếu = version/VRAM).
+- **Findings**: **F-AC** (prefix mới).<end of file>
