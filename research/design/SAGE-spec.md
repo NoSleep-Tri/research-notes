@@ -1791,4 +1791,14 @@ Kernel `tribu1/ds-007-sage-v0-3-integration` **v2** (id 137264188; v1 = run phá
   4. SFT 1 epoch wall ≈ **45' [30–80']**.
 - **Verdict (LOCK)**: "generator đạt chuẩn" ⇔ **K-D2 PASS** (Δ ≥ +0,05) **VÀ** **K-D3 PASS** (dataset ≥ 300 verified). FAIL → kết luận âm giữ thật · không re-run · không hạ ngưỡng.
 - **Change-log cho code (TRƯỚC CODE — sẽ ghi trước khi viết file)**: pin version `transformers/peft/accelerate/bitsandbytes` + ghi `pip freeze` vào kpi (bài học DS-010: pip kéo ver sai → env-fail); Gemma-4 arch cần transformers đủ mới — **import/load fail → env-fail pre-run báo thật**, KHÔNG tự fallback model (repo đã ungated nên risk còn lại chủ yếu = version/VRAM).
-- **Findings**: **F-AC** (prefix mới).<end of file>
+- **Findings**: **F-AC** (prefix mới).
+- **DUYỆT CỦA BẠN (2026-10-11)**: **B4** (run 1 ~60–75') + **B5** (run 2 ~2h) ✓.
+
+### §34.1 — Change-log TRƯỚC CODE (2026-10-11 — sau khi verify HF API, TRƯỚC khi viết `sage_demo16.py`)
+
+1. **SFT subsample `4.000/7.473`** (seeded shuffle seed `20261011`) × 1 epoch — ước T4 4-bit ~700–1.100 tok/s (F-Y05 scale): full 7.473 một mình SFT đã ~50' → cộng probe sẽ vượt B4; giữ run 1 ≈ 60–75'.
+2. **`max_new_tokens`**: probe `384` (traces think GSM8K ngắn) · dataset gen `512`. **Sampling**: probe = **greedy** (so fair base-vs-FT) · gen = **temp 0,7 top_p 0,95** (diversity cho dataset — verify lọc lỗi).
+3. **Extract answer**: segment sau `<|think|>` **cuối cùng** → regex `boxed\{(-?\d+)\}` → fallback số nguyên cuối cùng (prompt/SFT đều dùng chữ `boxed{...}` không backslash — regex chịu cả 2 dạng).
+4. **Load fallback chain**: `AutoModelForCausalLM` → `AutoModelForImageTextToText` (text-only) → **ENV-FAIL marker + exit** — KHÔNG fallback model khác (repo đã ungated; risk còn lại = version arch/VRAM). `pip install -U transformers peft accelerate bitsandbytes datasets` + `pip freeze` → kpi (bài học DS-010 §21.4).
+5. **Run 2 nhận `RUN_N` qua preamble** — tính OFFLINE từ số probe run 1 bằng rule LOCK §34 (formula + inputs ghi kpi để audit; mismatch → log `RULE-MISMATCH`, không tự sửa).
+6. **Adapter run 1 → kernel output; run 2 tải lại qua `kaggle kernels output <slug>`** (working/ không persist giữa session — F-X29/§30.5) · nếu thiếu adapter → ENV-FAIL báo thật.<end of file>
